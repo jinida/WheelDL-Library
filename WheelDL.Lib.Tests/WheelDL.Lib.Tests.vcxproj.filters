@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <!-- Header Files Filters -->
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <!-- Source Files Filters -->
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Source Files\Unit">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Unit\Phase1">
+      <UniqueIdentifier>{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Unit\Phase2">
+      <UniqueIdentifier>{7BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Integration">
+      <UniqueIdentifier>{9FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <!-- Resource Files -->
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <!-- Header Files -->
+  <ItemGroup>
+    <ClInclude Include="pch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <!-- Source Files -->
+  <ItemGroup>
+    <ClCompile Include="pch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <!-- Unit Tests - Phase 1 -->
+    <ClCompile Include="Unit\Phase1\LoggerTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\ThreadPoolTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\PathValidatorTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\PerformanceProfilerTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\WheelLibExceptionTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\TimerTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\RandomTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\ErrorHandlerTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\YamlParserTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\ConfigurationTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\MemoryManagerTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\GPUMemoryGuardTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\GPUMemoryPoolTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\DynamicBatchSizerTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <!-- Unit Tests - Phase 2 -->
+    <ClCompile Include="Unit\Phase2\AnnotationTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\AnnotationTransformTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\AnomalyDatasetTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\BatchGenerationTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\CacheComprehensiveTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\CacheManagerTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\CacheStressTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\ClassificationDatasetTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\ConfigTaskSpecificTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\ConfigurationVariationTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\DataAugmentationTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\DatasetStressTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\DetectionDatasetTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\EdgeCaseTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\ImageIOComprehensiveTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\ImageIOTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\ImageIOTestExtended.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\MosaicAugmentationTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\OBBDatasetTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\PerformanceTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\RAMCacheTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\RAMCacheTestComprehensive.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\RegressionTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\RobustnessTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\SegmentationDatasetTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\TransformComprehensiveTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\TransformPipelineTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\TransformStressTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\YamlParserEdgeCaseTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <!-- Integration Tests -->
+    <ClCompile Include="Integration\Phase1Integration.cpp">
+      <Filter>Source Files\Integration</Filter>
+    </ClCompile>
+    <ClCompile Include="Integration\Phase2IntegrationTest.cpp">
+      <Filter>Source Files\Integration</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\DataLoaderCollationTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\LibTorchDataLoaderTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <!-- Resource Files -->
+  <ItemGroup>
+    <None Include="packages.config">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+</Project>

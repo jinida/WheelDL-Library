@@ -1,0 +1,654 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <!-- Header Files Filters -->
+    <Filter Include="header">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="header\Utils">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Utils\Logger">
+      <UniqueIdentifier>{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Utils\ThreadPool">
+      <UniqueIdentifier>{9FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Utils\Error">
+      <UniqueIdentifier>{1FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Utils\Path">
+      <UniqueIdentifier>{2FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Utils\Profiler">
+      <UniqueIdentifier>{3FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Utils\Common">
+      <UniqueIdentifier>{5FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Config">
+      <UniqueIdentifier>{CFC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Utils\Memory">
+      <UniqueIdentifier>{6FC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Data">
+      <UniqueIdentifier>{11C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Data\Utils">
+      <UniqueIdentifier>{12C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Data\Cache">
+      <UniqueIdentifier>{13C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Data\Transforms">
+      <UniqueIdentifier>{14C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Data\Augmentation">
+      <UniqueIdentifier>{16C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Data\Common">
+      <UniqueIdentifier>{15C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Data\Dataset">
+      <UniqueIdentifier>{16C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <!-- Model Layer Filters -->
+    <Filter Include="header\Model">
+      <UniqueIdentifier>{31C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Model\Modules">
+      <UniqueIdentifier>{32C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Model\Loss">
+      <UniqueIdentifier>{33C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Model\Task">
+      <UniqueIdentifier>{34C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Model\Builder">
+      <UniqueIdentifier>{35C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Model\Builder\Factory">
+      <UniqueIdentifier>{36C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Model\Utils">
+      <UniqueIdentifier>{37C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <!-- Source Files Filters -->
+    <Filter Include="source">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="source\Utils">
+      <UniqueIdentifier>{6FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Utils\Logger">
+      <UniqueIdentifier>{7BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Utils\ThreadPool">
+      <UniqueIdentifier>{7FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Utils\Error">
+      <UniqueIdentifier>{8FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Utils\Path">
+      <UniqueIdentifier>{0FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Utils\Profiler">
+      <UniqueIdentifier>{AFC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Utils\Common">
+      <UniqueIdentifier>{BFC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Config">
+      <UniqueIdentifier>{DFC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Utils\Memory">
+      <UniqueIdentifier>{EFC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Data">
+      <UniqueIdentifier>{21C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Data\Utils">
+      <UniqueIdentifier>{22C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Data\Cache">
+      <UniqueIdentifier>{23C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Data\Transforms">
+      <UniqueIdentifier>{24C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Data\Augmentation">
+      <UniqueIdentifier>{26C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Data\Common">
+      <UniqueIdentifier>{25C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Data\Dataset">
+      <UniqueIdentifier>{26C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <!-- Model Layer Source Filters -->
+    <Filter Include="source\Model">
+      <UniqueIdentifier>{41C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Model\Modules">
+      <UniqueIdentifier>{42C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Model\Loss">
+      <UniqueIdentifier>{43C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Model\Task">
+      <UniqueIdentifier>{44C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Model\Builder">
+      <UniqueIdentifier>{45C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Model\Builder\Factory">
+      <UniqueIdentifier>{46C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Model\Utils">
+      <UniqueIdentifier>{47C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <!-- 3rd Party Filters -->
+    <Filter Include="3rdparty">
+      <UniqueIdentifier>{EFC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\yaml-cpp">
+      <UniqueIdentifier>{FFC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\yaml-cpp\contrib">
+      <UniqueIdentifier>{00C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <!-- Header Files -->
+  <ItemGroup>
+    <!-- Logger Headers -->
+    <ClInclude Include="Utils\Logger\Logger.h">
+      <Filter>header\Utils\Logger</Filter>
+    </ClInclude>
+    <!-- ThreadPool Headers -->
+    <ClInclude Include="Utils\ThreadPool\ThreadPool.h">
+      <Filter>header\Utils\ThreadPool</Filter>
+    </ClInclude>
+    <!-- Error Headers -->
+    <ClInclude Include="Utils\Error\ErrorCodes.h">
+      <Filter>header\Utils\Error</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Error\WheelLibException.h">
+      <Filter>header\Utils\Error</Filter>
+    </ClInclude>
+    <!-- Path Headers -->
+    <ClInclude Include="Utils\Path\PathValidator.h">
+      <Filter>header\Utils\Path</Filter>
+    </ClInclude>
+    <!-- Profiler Headers -->
+    <ClInclude Include="Utils\Profiler\PerformanceProfiler.h">
+      <Filter>header\Utils\Profiler</Filter>
+    </ClInclude>
+    <!-- Common Headers -->
+    <ClInclude Include="Utils\Common\Types.h">
+      <Filter>header\Utils\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Common\Constants.h">
+      <Filter>header\Utils\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Common\Timer.h">
+      <Filter>header\Utils\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Common\Random.h">
+      <Filter>header\Utils\Common</Filter>
+    </ClInclude>
+    <!-- Error Headers (Additional) -->
+    <ClInclude Include="Utils\Error\ErrorHandler.h">
+      <Filter>header\Utils\Error</Filter>
+    </ClInclude>
+    <!-- Config Headers -->
+    <ClInclude Include="Config\YamlParser.h">
+      <Filter>header\Config</Filter>
+    </ClInclude>
+    <ClInclude Include="Config\Configuration.h">
+      <Filter>header\Config</Filter>
+    </ClInclude>
+    <!-- Memory Headers -->
+    <ClInclude Include="Utils\Memory\MemoryManager.h">
+      <Filter>header\Utils\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Memory\GPUMemoryGuard.h">
+      <Filter>header\Utils\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Memory\GPUMemoryPool.h">
+      <Filter>header\Utils\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Memory\DynamicBatchSizer.h">
+      <Filter>header\Utils\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="framework.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="WheelDLExport.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <!-- Data Layer Headers -->
+    <ClInclude Include="Data\Common\Annotation.h">
+      <Filter>header\Data\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Data\Cache\CacheManager.h">
+      <Filter>header\Data\Cache</Filter>
+    </ClInclude>
+    <ClInclude Include="Data\Cache\RAMCache.h">
+      <Filter>header\Data\Cache</Filter>
+    </ClInclude>
+    <ClInclude Include="Data\Utils\ImageIO.h">
+      <Filter>header\Data\Utils</Filter>
+    </ClInclude>
+    <!-- Data Layer Dataset Headers -->
+    <ClInclude Include="Data\Dataset\BaseDataset.h">
+      <Filter>header\Data\Dataset</Filter>
+    </ClInclude>
+    <ClInclude Include="Data\Dataset\ClassificationDataset.h">
+      <Filter>header\Data\Dataset</Filter>
+    </ClInclude>
+    <ClInclude Include="Data\Dataset\DetectionDataset.h">
+      <Filter>header\Data\Dataset</Filter>
+    </ClInclude>
+    <ClInclude Include="Data\Dataset\OBBDataset.h">
+      <Filter>header\Data\Dataset</Filter>
+    </ClInclude>
+    <ClInclude Include="Data\Dataset\SegmentationDataset.h">
+      <Filter>header\Data\Dataset</Filter>
+    </ClInclude>
+    <ClInclude Include="Data\Dataset\AnomalyDataset.h">
+      <Filter>header\Data\Dataset</Filter>
+    </ClInclude>
+    <!-- Data Layer Transform Headers -->
+    <ClInclude Include="Data\Transforms\Transform.h">
+      <Filter>header\Data\Transforms</Filter>
+    </ClInclude>
+    <ClInclude Include="Data\Transforms\GeometricTransforms.h">
+      <Filter>header\Data\Transforms</Filter>
+    </ClInclude>
+    <ClInclude Include="Data\Transforms\ColorTransforms.h">
+      <Filter>header\Data\Transforms</Filter>
+    </ClInclude>
+    <ClInclude Include="Data\Augmentation\DatasetAugmentation.h">
+      <Filter>header\Data\Augmentation</Filter>
+    </ClInclude>
+    <ClInclude Include="Data\Transforms\Collation.h">
+      <Filter>header\Data\Transforms</Filter>
+    </ClInclude>
+    <!-- Model Layer Headers -->
+    <ClInclude Include="Model\Constants.h">
+      <Filter>header\Model</Filter>
+    </ClInclude>
+    <!-- Model Module Headers -->
+    <ClInclude Include="Model\Modules\Activation.h">
+      <Filter>header\Model\Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Modules\Attention.h">
+      <Filter>header\Model\Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Modules\Block.h">
+      <Filter>header\Model\Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Modules\Conv.h">
+      <Filter>header\Model\Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Modules\Head.h">
+      <Filter>header\Model\Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Modules\Transformer.h">
+      <Filter>header\Model\Modules</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Modules\Utils.h">
+      <Filter>header\Model\Modules</Filter>
+    </ClInclude>
+    <!-- Model Loss Headers -->
+    <ClInclude Include="Model\Loss\BaseLoss.h">
+      <Filter>header\Model\Loss</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Loss\AnomalyLoss.h">
+      <Filter>header\Model\Loss</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Loss\ClassificationLoss.h">
+      <Filter>header\Model\Loss</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Loss\DetectionLoss.h">
+      <Filter>header\Model\Loss</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Loss\OBBLoss.h">
+      <Filter>header\Model\Loss</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Loss\SegmentationLoss.h">
+      <Filter>header\Model\Loss</Filter>
+    </ClInclude>
+    <!-- Model Task Headers -->
+    <ClInclude Include="Model\Task\BaseModel.h">
+      <Filter>header\Model\Task</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Task\AnomalyModel.h">
+      <Filter>header\Model\Task</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Task\ClassificationModel.h">
+      <Filter>header\Model\Task</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Task\DetectionModel.h">
+      <Filter>header\Model\Task</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Task\OBBModel.h">
+      <Filter>header\Model\Task</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Task\SegmentationModel.h">
+      <Filter>header\Model\Task</Filter>
+    </ClInclude>
+    <!-- Model Builder Headers -->
+    <ClInclude Include="Model\Builder\ModelBuilder.h">
+      <Filter>header\Model\Builder</Filter>
+    </ClInclude>
+    <!-- Model Builder Factory Headers -->
+    <ClInclude Include="Model\Builder\Factory\AttentionFactory.h">
+      <Filter>header\Model\Builder\Factory</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Builder\Factory\BlockFactory.h">
+      <Filter>header\Model\Builder\Factory</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Builder\Factory\ConvolutionFactory.h">
+      <Filter>header\Model\Builder\Factory</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Builder\Factory\HeadFactory.h">
+      <Filter>header\Model\Builder\Factory</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Builder\Factory\ModuleFactory.h">
+      <Filter>header\Model\Builder\Factory</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Builder\Factory\ModuleFactoryRegistry.h">
+      <Filter>header\Model\Builder\Factory</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Builder\Factory\UtilityFactory.h">
+      <Filter>header\Model\Builder\Factory</Filter>
+    </ClInclude>
+    <!-- Model Utils Headers -->
+    <ClInclude Include="Model\Utils\IoU.h">
+      <Filter>header\Model\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Utils\TaskAlignedAssigner.h">
+      <Filter>header\Model\Utils</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <!-- Source Files -->
+  <ItemGroup>
+    <!-- Logger Sources -->
+    <ClCompile Include="Utils\Logger\Logger.cpp">
+      <Filter>source\Utils\Logger</Filter>
+    </ClCompile>
+    <!-- ThreadPool Sources -->
+    <ClCompile Include="Utils\ThreadPool\ThreadPool.cpp">
+      <Filter>source\Utils\ThreadPool</Filter>
+    </ClCompile>
+    <!-- Error Sources -->
+    <ClCompile Include="Utils\Error\WheelLibException.cpp">
+      <Filter>source\Utils\Error</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\Error\ErrorHandler.cpp">
+      <Filter>source\Utils\Error</Filter>
+    </ClCompile>
+    <!-- Path Sources -->
+    <ClCompile Include="Utils\Path\PathValidator.cpp">
+      <Filter>source\Utils\Path</Filter>
+    </ClCompile>
+    <!-- Profiler Sources -->
+    <ClCompile Include="Utils\Profiler\PerformanceProfiler.cpp">
+      <Filter>source\Utils\Profiler</Filter>
+    </ClCompile>
+    <!-- Common Sources -->
+    <ClCompile Include="Utils\Common\Timer.cpp">
+      <Filter>source\Utils\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\Common\Random.cpp">
+      <Filter>source\Utils\Common</Filter>
+    </ClCompile>
+    <!-- Config Sources -->
+    <ClCompile Include="Config\YamlParser.cpp">
+      <Filter>source\Config</Filter>
+    </ClCompile>
+    <ClCompile Include="Config\Configuration.cpp">
+      <Filter>source\Config</Filter>
+    </ClCompile>
+    <!-- Memory Sources -->
+    <ClCompile Include="Utils\Memory\MemoryManager.cpp">
+      <Filter>source\Utils\Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\Memory\GPUMemoryGuard.cpp">
+      <Filter>source\Utils\Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\Memory\GPUMemoryPool.cpp">
+      <Filter>source\Utils\Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\Memory\DynamicBatchSizer.cpp">
+      <Filter>source\Utils\Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="dllmain.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <!-- Data Layer Sources -->
+    <ClCompile Include="Data\Common\Annotation.cpp">
+      <Filter>source\Data\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Data\Cache\CacheManager.cpp">
+      <Filter>source\Data\Cache</Filter>
+    </ClCompile>
+    <ClCompile Include="Data\Cache\RAMCache.cpp">
+      <Filter>source\Data\Cache</Filter>
+    </ClCompile>
+    <ClCompile Include="Data\Utils\ImageIO.cpp">
+      <Filter>source\Data\Utils</Filter>
+    </ClCompile>
+    <!-- Data Layer Dataset Sources -->
+    <ClCompile Include="Data\Dataset\ClassificationDataset.cpp">
+      <Filter>source\Data\Dataset</Filter>
+    </ClCompile>
+    <ClCompile Include="Data\Dataset\DetectionDataset.cpp">
+      <Filter>source\Data\Dataset</Filter>
+    </ClCompile>
+    <ClCompile Include="Data\Dataset\OBBDataset.cpp">
+      <Filter>source\Data\Dataset</Filter>
+    </ClCompile>
+    <ClCompile Include="Data\Dataset\SegmentationDataset.cpp">
+      <Filter>source\Data\Dataset</Filter>
+    </ClCompile>
+    <ClCompile Include="Data\Dataset\AnomalyDataset.cpp">
+      <Filter>source\Data\Dataset</Filter>
+    </ClCompile>
+    <!-- Data Layer Transform Sources -->
+    <ClCompile Include="Data\Transforms\Transform.cpp">
+      <Filter>source\Data\Transforms</Filter>
+    </ClCompile>
+    <!-- yaml-cpp Sources -->
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\binary.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\convert.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\depthguard.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\directives.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\emit.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\emitfromevents.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\emitter.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\emitterstate.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\emitterutils.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\exceptions.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\exp.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\memory.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\node.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\nodebuilder.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\nodeevents.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\node_data.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\null.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\ostream_wrapper.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\parse.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\parser.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\regex_yaml.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\scanner.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\scanscalar.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\scantag.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\scantoken.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\simplekey.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\singledocparser.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\stream.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\tag.cpp">
+      <Filter>3rdparty\yaml-cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\contrib\graphbuilder.cpp">
+      <Filter>3rdparty\yaml-cpp\contrib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\contrib\graphbuilderadapter.cpp">
+      <Filter>3rdparty\yaml-cpp\contrib</Filter>
+    </ClCompile>
+    <ClCompile Include="Data\Transforms\GeometricTransforms.cpp">
+      <Filter>source\Data\Transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="Data\Transforms\ColorTransforms.cpp">
+      <Filter>source\Data\Transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="Data\Augmentation\DatasetAugmentation.cpp">
+      <Filter>source\Data\Augmentation</Filter>
+    </ClCompile>
+    <ClCompile Include="Data\Transforms\Collation.cpp">
+      <Filter>source\Data\Transforms</Filter>
+    </ClCompile>
+    <!-- Model Layer Module Sources -->
+    <ClCompile Include="Model\Modules\Activation.cpp">
+      <Filter>source\Model\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Modules\Attention.cpp">
+      <Filter>source\Model\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Modules\Block.cpp">
+      <Filter>source\Model\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Modules\Conv.cpp">
+      <Filter>source\Model\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Modules\Head.cpp">
+      <Filter>source\Model\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Modules\Transformer.cpp">
+      <Filter>source\Model\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Modules\Utils.cpp">
+      <Filter>source\Model\Modules</Filter>
+    </ClCompile>
+    <!-- Model Layer Loss Sources -->
+    <ClCompile Include="Model\Loss\BaseLoss.cpp">
+      <Filter>source\Model\Loss</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Loss\AnomalyLoss.cpp">
+      <Filter>source\Model\Loss</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Loss\ClassificationLoss.cpp">
+      <Filter>source\Model\Loss</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Loss\DetectionLoss.cpp">
+      <Filter>source\Model\Loss</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Loss\OBBLoss.cpp">
+      <Filter>source\Model\Loss</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Loss\SegmentationLoss.cpp">
+      <Filter>source\Model\Loss</Filter>
+    </ClCompile>
+    <!-- Model Layer Task Sources -->
+    <ClCompile Include="Model\Task\BaseModel.cpp">
+      <Filter>source\Model\Task</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Task\AnomalyModel.cpp">
+      <Filter>source\Model\Task</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Task\ClassificationModel.cpp">
+      <Filter>source\Model\Task</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Task\DetectionModel.cpp">
+      <Filter>source\Model\Task</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Task\OBBModel.cpp">
+      <Filter>source\Model\Task</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Task\SegmentationModel.cpp">
+      <Filter>source\Model\Task</Filter>
+    </ClCompile>
+    <!-- Model Layer Builder Sources -->
+    <ClCompile Include="Model\Builder\ModelBuilder.cpp">
+      <Filter>source\Model\Builder</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Builder\Factory\ModuleFactoryRegistry.cpp">
+      <Filter>source\Model\Builder\Factory</Filter>
+    </ClCompile>
+    <!-- Model Layer Utils Sources -->
+    <ClCompile Include="Model\Utils\IoU.cpp">
+      <Filter>source\Model\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Utils\TaskAlignedAssigner.cpp">
+      <Filter>source\Model\Utils</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

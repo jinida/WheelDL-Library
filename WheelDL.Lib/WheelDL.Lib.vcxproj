@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{589355e0-d39b-4e7a-8c77-a8237d983652}</ProjectGuid>
+    <RootNamespace>WheelDLLib</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(MSBuildProjectDirectory);$(IncludePath)</IncludePath>
+    <LibraryPath>C:\opencv\install\x64\vc17\lib;C:\torchlib\debug\libtorch\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\lib\x64;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>$(MSBuildProjectDirectory);$(IncludePath)</IncludePath>
+    <LibraryPath>C:\opencv\install\x64\vc17\lib;C:\torchlib\release\libtorch\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\lib\x64;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;WHEELDLLIB_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;C:\torchlib\$(Configuration)\libtorch\include;C:\torchlib\$(Configuration)\libtorch\include\torch\csrc\api\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;WHEELDLLIB_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;C:\torchlib\$(Configuration)\libtorch\include;C:\torchlib\$(Configuration)\libtorch\include\torch\csrc\api\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>USE_CUDA;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;C:\opencv\install\include;C:\torchlib\$(Configuration)\libtorch\include;C:\torchlib\$(Configuration)\libtorch\include\torch\csrc\api\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/utf-8 /FS %(AdditionalOptions)</AdditionalOptions>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>opencv_core4110d.lib;opencv_imgproc4110d.lib;opencv_imgcodecs4110d.lib;c10.lib;c10_cuda.lib;torch.lib;torch_cpu.lib;torch_cuda.lib;cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>USE_CUDA;NDEBUG;WHEELDLLIB_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;C:\opencv\install\include;C:\torchlib\$(Configuration)\libtorch\include;C:\torchlib\$(Configuration)\libtorch\include\torch\csrc\api\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/utf-8 /FS %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>opencv_core4110.lib;opencv_imgproc4110.lib;opencv_imgcodecs4110.lib;c10.lib;c10_cuda.lib;torch.lib;torch_cpu.lib;torch_cuda.lib;cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="Data\Transforms\Collation.h" />
+    <ClInclude Include="framework.h" />
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="WheelDLExport.h" />
+    <ClInclude Include="Utils\Logger\Logger.h" />
+    <ClInclude Include="Utils\ThreadPool\ThreadPool.h" />
+    <ClInclude Include="Utils\Error\ErrorCodes.h" />
+    <ClInclude Include="Utils\Error\WheelLibException.h" />
+    <ClInclude Include="Utils\Path\PathValidator.h" />
+    <ClInclude Include="Utils\Profiler\PerformanceProfiler.h" />
+    <ClInclude Include="Utils\Common\Types.h" />
+    <ClInclude Include="Utils\Common\Constants.h" />
+    <ClInclude Include="Utils\Common\Timer.h" />
+    <ClInclude Include="Utils\Common\Random.h" />
+    <ClInclude Include="Utils\Error\ErrorHandler.h" />
+    <ClInclude Include="Config\YamlParser.h" />
+    <ClInclude Include="Config\Configuration.h" />
+    <ClInclude Include="Utils\Memory\MemoryManager.h" />
+    <ClInclude Include="Utils\Memory\GPUMemoryGuard.h" />
+    <ClInclude Include="Utils\Memory\GPUMemoryPool.h" />
+    <ClInclude Include="Utils\Memory\DynamicBatchSizer.h" />
+    <ClInclude Include="Data\Common\Annotation.h" />
+    <ClInclude Include="Data\Cache\CacheManager.h" />
+    <ClInclude Include="Data\Cache\RAMCache.h" />
+    <ClInclude Include="Data\Utils\ImageIO.h" />
+    <ClInclude Include="Data\Dataset\BaseDataset.h" />
+    <ClInclude Include="Data\Dataset\ClassificationDataset.h" />
+    <ClInclude Include="Data\Dataset\DetectionDataset.h" />
+    <ClInclude Include="Data\Dataset\OBBDataset.h" />
+    <ClInclude Include="Data\Dataset\SegmentationDataset.h" />
+    <ClInclude Include="Data\Dataset\AnomalyDataset.h" />
+    <ClInclude Include="Data\Transforms\Transform.h" />
+    <ClInclude Include="Data\Transforms\GeometricTransforms.h" />
+    <ClInclude Include="Data\Transforms\ColorTransforms.h" />
+    <ClInclude Include="Data\Augmentation\DatasetAugmentation.h" />
+    <!-- Model Layer Headers -->
+    <ClInclude Include="Model\Constants.h" />
+    <ClInclude Include="Model\Modules\Activation.h" />
+    <ClInclude Include="Model\Modules\Attention.h" />
+    <ClInclude Include="Model\Modules\Block.h" />
+    <ClInclude Include="Model\Modules\Conv.h" />
+    <ClInclude Include="Model\Modules\Head.h" />
+    <ClInclude Include="Model\Modules\Transformer.h" />
+    <ClInclude Include="Model\Modules\Utils.h" />
+    <ClInclude Include="Model\Loss\BaseLoss.h" />
+    <ClInclude Include="Model\Loss\AnomalyLoss.h" />
+    <ClInclude Include="Model\Loss\ClassificationLoss.h" />
+    <ClInclude Include="Model\Loss\DetectionLoss.h" />
+    <ClInclude Include="Model\Loss\OBBLoss.h" />
+    <ClInclude Include="Model\Loss\SegmentationLoss.h" />
+    <ClInclude Include="Model\Task\BaseModel.h" />
+    <ClInclude Include="Model\Task\AnomalyModel.h" />
+    <ClInclude Include="Model\Task\ClassificationModel.h" />
+    <ClInclude Include="Model\Task\DetectionModel.h" />
+    <ClInclude Include="Model\Task\OBBModel.h" />
+    <ClInclude Include="Model\Task\SegmentationModel.h" />
+    <ClInclude Include="Model\Builder\ModelBuilder.h" />
+    <ClInclude Include="Model\Builder\Factory\AttentionFactory.h" />
+    <ClInclude Include="Model\Builder\Factory\BlockFactory.h" />
+    <ClInclude Include="Model\Builder\Factory\ConvolutionFactory.h" />
+    <ClInclude Include="Model\Builder\Factory\HeadFactory.h" />
+    <ClInclude Include="Model\Builder\Factory\ModuleFactory.h" />
+    <ClInclude Include="Model\Builder\Factory\ModuleFactoryRegistry.h" />
+    <ClInclude Include="Model\Builder\Factory\UtilityFactory.h" />
+    <ClInclude Include="Model\Utils\IoU.h" />
+    <ClInclude Include="Model\Utils\TaskAlignedAssigner.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Data\Transforms\ColorTransforms.cpp" />
+    <ClCompile Include="Data\Augmentation\DatasetAugmentation.cpp" />
+    <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="pch.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="Utils\Logger\Logger.cpp" />
+    <ClCompile Include="Utils\ThreadPool\ThreadPool.cpp" />
+    <ClCompile Include="Utils\Error\WheelLibException.cpp" />
+    <ClCompile Include="Utils\Path\PathValidator.cpp" />
+    <ClCompile Include="Utils\Profiler\PerformanceProfiler.cpp" />
+    <ClCompile Include="Utils\Common\Timer.cpp" />
+    <ClCompile Include="Utils\Common\Random.cpp" />
+    <ClCompile Include="Utils\Error\ErrorHandler.cpp" />
+    <ClCompile Include="Config\YamlParser.cpp" />
+    <ClCompile Include="Config\Configuration.cpp" />
+    <ClCompile Include="Utils\Memory\MemoryManager.cpp" />
+    <ClCompile Include="Utils\Memory\GPUMemoryGuard.cpp" />
+    <ClCompile Include="Utils\Memory\GPUMemoryPool.cpp" />
+    <ClCompile Include="Utils\Memory\DynamicBatchSizer.cpp" />
+    <ClCompile Include="Data\Common\Annotation.cpp" />
+    <ClCompile Include="Data\Cache\CacheManager.cpp" />
+    <ClCompile Include="Data\Cache\RAMCache.cpp" />
+    <ClCompile Include="Data\Utils\ImageIO.cpp" />
+    <ClCompile Include="Data\Transforms\Collation.cpp" />
+    <ClCompile Include="Data\Dataset\ClassificationDataset.cpp" />
+    <ClCompile Include="Data\Dataset\DetectionDataset.cpp" />
+    <ClCompile Include="Data\Dataset\OBBDataset.cpp" />
+    <ClCompile Include="Data\Dataset\SegmentationDataset.cpp" />
+    <ClCompile Include="Data\Dataset\AnomalyDataset.cpp" />
+    <ClCompile Include="Data\Transforms\Transform.cpp" />
+    <ClCompile Include="Data\Transforms\GeometricTransforms.cpp" />
+    <!-- Model Layer Sources -->
+    <ClCompile Include="Model\Modules\Activation.cpp" />
+    <ClCompile Include="Model\Modules\Attention.cpp" />
+    <ClCompile Include="Model\Modules\Block.cpp" />
+    <ClCompile Include="Model\Modules\Conv.cpp" />
+    <ClCompile Include="Model\Modules\Head.cpp" />
+    <ClCompile Include="Model\Modules\Transformer.cpp" />
+    <ClCompile Include="Model\Modules\Utils.cpp" />
+    <ClCompile Include="Model\Loss\BaseLoss.cpp" />
+    <ClCompile Include="Model\Loss\AnomalyLoss.cpp" />
+    <ClCompile Include="Model\Loss\ClassificationLoss.cpp" />
+    <ClCompile Include="Model\Loss\DetectionLoss.cpp" />
+    <ClCompile Include="Model\Loss\OBBLoss.cpp" />
+    <ClCompile Include="Model\Loss\SegmentationLoss.cpp" />
+    <ClCompile Include="Model\Task\BaseModel.cpp" />
+    <ClCompile Include="Model\Task\AnomalyModel.cpp" />
+    <ClCompile Include="Model\Task\ClassificationModel.cpp" />
+    <ClCompile Include="Model\Task\DetectionModel.cpp" />
+    <ClCompile Include="Model\Task\OBBModel.cpp" />
+    <ClCompile Include="Model\Task\SegmentationModel.cpp" />
+    <ClCompile Include="Model\Builder\ModelBuilder.cpp" />
+    <ClCompile Include="Model\Builder\Factory\ModuleFactoryRegistry.cpp" />
+    <ClCompile Include="Model\Utils\IoU.cpp" />
+    <ClCompile Include="Model\Utils\TaskAlignedAssigner.cpp" />
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\binary.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\convert.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\depthguard.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\directives.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\emit.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\emitfromevents.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\emitter.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\emitterstate.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\emitterutils.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\exceptions.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\exp.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\memory.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\node.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\nodebuilder.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\nodeevents.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\node_data.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\null.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\ostream_wrapper.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\parse.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\parser.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\regex_yaml.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\scanner.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\scanscalar.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\scantag.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\scantoken.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\simplekey.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\singledocparser.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\stream.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\tag.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\contrib\graphbuilder.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\yaml-cpp-src\src\contrib\graphbuilderadapter.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

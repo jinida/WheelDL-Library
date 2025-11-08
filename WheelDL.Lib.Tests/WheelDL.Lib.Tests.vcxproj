@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{a1a51131-34d4-442f-b589-eaae34190b64}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ExecutablePath>$(ExecutablePath)</ExecutablePath>
+    <IncludePath>$(MSBuildProjectDirectory);$(IncludePath)</IncludePath>
+    <LibraryPath>C:\opencv\install\x64\vc17\lib;C:\torchlib\debug\libtorch\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\lib\x64;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ExecutablePath>$(ExecutablePath)</ExecutablePath>
+    <IncludePath>$(MSBuildProjectDirectory);$(IncludePath)</IncludePath>
+    <LibraryPath>C:\opencv\install\x64\vc17\lib;C:\torchlib\release\libtorch\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\lib\x64;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\WheelDL.Lib;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>USE_CUDA;X64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\WheelDL.Lib;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;C:\opencv\install\include;C:\torchlib\$(Configuration)\libtorch\include;C:\torchlib\$(Configuration)\libtorch\include\torch\csrc\api\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>opencv_core4110d.lib;opencv_imgproc4110d.lib;opencv_imgcodecs4110d.lib;c10.lib;c10_cuda.lib;torch.lib;torch_cpu.lib;torch_cuda.lib;cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>-INCLUDE:?warp_size@cuda@at@@YAHXZ %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\WheelDL.Lib;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <PreprocessorDefinitions>USE_CUDA;X64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\WheelDL.Lib;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;C:\opencv\install\include;C:\torchlib\$(Configuration)\libtorch\include;C:\torchlib\$(Configuration)\libtorch\include\torch\csrc\api\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <AdditionalDependencies>opencv_core4110.lib;opencv_imgproc4110.lib;opencv_imgcodecs4110.lib;c10.lib;c10_cuda.lib;torch.lib;torch_cpu.lib;torch_cuda.lib;cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>-INCLUDE:?warp_size@cuda@at@@YAHXZ %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Integration\Phase2IntegrationTest.cpp" />
+    <ClCompile Include="pch.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\LoggerTest.cpp" />
+    <ClCompile Include="Unit\Phase1\ThreadPoolTest.cpp" />
+    <ClCompile Include="Unit\Phase1\PathValidatorTest.cpp" />
+    <ClCompile Include="Unit\Phase1\PerformanceProfilerTest.cpp" />
+    <ClCompile Include="Unit\Phase1\WheelLibExceptionTest.cpp" />
+    <ClCompile Include="Unit\Phase1\TimerTest.cpp" />
+    <ClCompile Include="Unit\Phase1\RandomTest.cpp" />
+    <ClCompile Include="Unit\Phase1\ErrorHandlerTest.cpp" />
+    <ClCompile Include="Unit\Phase1\YamlParserTest.cpp" />
+    <ClCompile Include="Unit\Phase1\ConfigurationTest.cpp" />
+    <ClCompile Include="Unit\Phase1\MemoryManagerTest.cpp" />
+    <ClCompile Include="Unit\Phase1\GPUMemoryGuardTest.cpp" />
+    <ClCompile Include="Unit\Phase1\GPUMemoryPoolTest.cpp" />
+    <ClCompile Include="Unit\Phase1\DynamicBatchSizerTest.cpp" />
+    <ClCompile Include="Unit\Phase2\AnnotationTest.cpp" />
+    <ClCompile Include="Unit\Phase2\AnnotationTransformTest.cpp" />
+    <ClCompile Include="Unit\Phase2\AnomalyDatasetTest.cpp" />
+    <ClCompile Include="Unit\Phase2\BatchGenerationTest.cpp" />
+    <ClCompile Include="Unit\Phase2\CacheComprehensiveTest.cpp" />
+    <ClCompile Include="Unit\Phase2\CacheManagerTest.cpp" />
+    <ClCompile Include="Unit\Phase2\CacheStressTest.cpp" />
+    <ClCompile Include="Unit\Phase2\ClassificationDatasetTest.cpp" />
+    <ClCompile Include="Unit\Phase2\ConfigTaskSpecificTest.cpp" />
+    <ClCompile Include="Unit\Phase2\ConfigurationVariationTest.cpp" />
+    <ClCompile Include="Unit\Phase2\DataAugmentationTest.cpp" />
+    <ClCompile Include="Unit\Phase2\DataLoaderCollationTest.cpp" />
+    <ClCompile Include="Unit\Phase2\LibTorchDataLoaderTest.cpp" />
+    <ClCompile Include="Unit\Phase2\DatasetStressTest.cpp" />
+    <ClCompile Include="Unit\Phase2\DetectionDatasetTest.cpp" />
+    <ClCompile Include="Unit\Phase2\EdgeCaseTest.cpp" />
+    <ClCompile Include="Unit\Phase2\ImageIOComprehensiveTest.cpp" />
+    <ClCompile Include="Unit\Phase2\ImageIOTest.cpp" />
+    <ClCompile Include="Unit\Phase2\ImageIOTestExtended.cpp" />
+    <ClCompile Include="Unit\Phase2\MosaicAugmentationTest.cpp" />
+    <ClCompile Include="Unit\Phase2\OBBDatasetTest.cpp" />
+    <ClCompile Include="Unit\Phase2\PerformanceTest.cpp" />
+    <ClCompile Include="Unit\Phase2\RAMCacheTest.cpp" />
+    <ClCompile Include="Unit\Phase2\RAMCacheTestComprehensive.cpp" />
+    <ClCompile Include="Unit\Phase2\RegressionTest.cpp" />
+    <ClCompile Include="Unit\Phase2\RobustnessTest.cpp" />
+    <ClCompile Include="Unit\Phase2\SegmentationDatasetTest.cpp" />
+    <ClCompile Include="Unit\Phase2\TransformComprehensiveTest.cpp" />
+    <ClCompile Include="Unit\Phase2\TransformPipelineTest.cpp" />
+    <ClCompile Include="Unit\Phase2\TransformStressTest.cpp" />
+    <ClCompile Include="Unit\Phase2\YamlParserEdgeCaseTest.cpp" />
+    <ClCompile Include="Integration\Phase1Integration.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WheelDL.Lib\WheelDL.Lib.vcxproj">
+      <Project>{589355e0-d39b-4e7a-8c77-a8237d983652}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\packages\Microsoft.googletest.v140.windesktop.msvcstl.dyn.rt-dyn.1.8.1.7\build\native\Microsoft.googletest.v140.windesktop.msvcstl.dyn.rt-dyn.targets" Condition="Exists('..\packages\Microsoft.googletest.v140.windesktop.msvcstl.dyn.rt-dyn.1.8.1.7\build\native\Microsoft.googletest.v140.windesktop.msvcstl.dyn.rt-dyn.targets')" />
+  </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>이 프로젝트는 이 컴퓨터에 없는 NuGet 패키지를 참조합니다. 해당 패키지를 다운로드하려면 NuGet 패키지 복원을 사용하십시오. 자세한 내용은 http://go.microsoft.com/fwlink/?LinkID=322105를 참조하십시오. 누락된 파일은 {0}입니다.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\Microsoft.googletest.v140.windesktop.msvcstl.dyn.rt-dyn.1.8.1.7\build\native\Microsoft.googletest.v140.windesktop.msvcstl.dyn.rt-dyn.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.googletest.v140.windesktop.msvcstl.dyn.rt-dyn.1.8.1.7\build\native\Microsoft.googletest.v140.windesktop.msvcstl.dyn.rt-dyn.targets'))" />
+  </Target>
+</Project>
