@@ -1,0 +1,4 @@
+# Format test 1: Device as string
+device: cuda
+batch_size: 32
+lr: 0.001

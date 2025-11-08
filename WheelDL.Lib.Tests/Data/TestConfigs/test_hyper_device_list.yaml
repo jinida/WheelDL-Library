@@ -1,0 +1,5 @@
+# Test hyperparameters with device as list
+epochs: 10
+batch_size: 16
+device: [0, 1, 2, 3]
+lr0: 0.01

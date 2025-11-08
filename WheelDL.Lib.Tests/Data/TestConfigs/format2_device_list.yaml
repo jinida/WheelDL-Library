@@ -1,0 +1,4 @@
+# Format test 2: Device as list
+device: [0, 1]
+batch_size: 64
+lr: 0.001

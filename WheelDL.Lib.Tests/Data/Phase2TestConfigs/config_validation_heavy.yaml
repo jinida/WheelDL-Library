@@ -1,0 +1,59 @@
+# Heavy Validation Settings Configuration
+task_type: detection
+image_size: 640
+batch_size: 8
+num_workers: 4
+seed: 42
+
+# Cache Configuration
+cache_type: ram
+cache_size: 500
+
+# Light Augmentation
+degrees: 10.0
+translate: 0.1
+scale: 0.3
+shear: 0.0
+perspective: 0.0
+flipud: 0.5
+fliplr: 0.5
+
+# Light Color Augmentation
+hsv_h: 0.015
+hsv_s: 0.7
+hsv_v: 0.4
+
+# No Blur
+blur_probability: 0.0
+blur_kernel_size: 3
+
+# No Mosaic
+mosaic: 0.0
+
+fill_border: 114
+
+# Heavy Validation Settings
+iou_threshold: 0.7
+conf_threshold: 0.5
+max_det: 1000
+nms_iou_threshold: 0.5
+
+# Validation Configuration
+val_split: 0.2
+plots: true
+save_json: true
+save_hybrid: true
+
+# Class Configuration
+num_classes: 10
+class_names:
+  - "0"
+  - "1"
+  - "2"
+  - "3"
+  - "4"
+  - "5"
+  - "6"
+  - "7"
+  - "8"
+  - "9"

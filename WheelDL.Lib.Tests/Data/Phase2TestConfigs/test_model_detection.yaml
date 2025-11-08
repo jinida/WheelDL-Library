@@ -1,0 +1,10 @@
+# Test Model Configuration
+task: detect
+num_classes: 80
+head:
+  - [-1, 1, Detect, []]
+default_act: ReLU
+scale:
+  width_multiple: 1.0
+  depth_multiple: 1.0
+  max_channels: 1024

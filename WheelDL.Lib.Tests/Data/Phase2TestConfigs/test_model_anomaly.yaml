@@ -1,0 +1,10 @@
+# Test Model Configuration
+task: anomaly
+num_classes: 2
+head:
+  - [-1, 1, Anomaly, []]
+default_act: ReLU
+scale:
+  width_multiple: 1.0
+  depth_multiple: 1.0
+  max_channels: 1024

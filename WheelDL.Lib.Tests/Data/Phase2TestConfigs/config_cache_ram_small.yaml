@@ -1,0 +1,81 @@
+# Phase2 Test Configuration: Small RAM Cache (128MB)
+# Purpose: Test cache behavior with limited memory
+# Cache: 128MB RAM cache (constrained environment simulation)
+# Use case: Testing cache eviction policies and memory management
+
+# Dataset Configuration
+name: mnist_classification_small_cache
+task: classification
+image_path: C:\Users\PC\source\repos\WheelLib\WheelDL.Lib.Tests\Data\mnist\images\
+label_path: C:\Users\PC\source\repos\WheelLib\WheelDL.Lib.Tests\Data\mnist\labels\classification\
+
+# Class names
+names:
+  0: zero
+  1: one
+  2: two
+  3: three
+  4: four
+  5: five
+  6: six
+  7: seven
+  8: eight
+  9: nine
+
+# Training Parameters
+epochs: 30
+patience: 10
+batch_size: 32
+image_size: 28
+workers: 2  # Fewer workers for constrained environment
+seed: 100
+deterministic: true
+
+# Device Configuration
+device: 0
+
+# Cache Configuration - SMALL
+cache: ram
+cache_size: 128  # 128MB RAM cache (small)
+cache_compression: false  # No compression for small cache test
+cache_verify: true  # Verify cache integrity
+
+# Optimizer Configuration
+optimizer: SGD
+lr0: 0.01
+lrf: 0.1
+momentum: 0.9
+weight_decay: 0.0001
+warmup_epochs: 1.0
+warmup_momentum: 0.8
+warmup_bias_lr: 0.05
+
+# Learning Rate Scheduler
+cos_lr: false
+close_mosaic: 0
+
+# Mixed Precision Training
+amp: false  # Disable AMP for testing
+
+# Classification Parameters
+dropout: 0.1
+
+# Data Augmentation (Light)
+hsv_h: 0.01
+hsv_s: 0.3
+hsv_v: 0.2
+degrees: 5.0
+translate: 0.05
+scale: 0.1
+shear: 0.0
+perspective: 0.0
+flipud: 0.0
+fliplr: 0.3
+mosaic: 0.0
+mixup: 0.0
+auto_augment: none
+erasing: 0.0
+
+# Validation
+val: true
+save: false

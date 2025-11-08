@@ -1,0 +1,10 @@
+# Test dataset configuration
+name: TestDataset
+image_path: images/test/
+label_path: labels/test/
+
+names:
+  0: cat
+  1: dog
+  2: bird
+  3: fish

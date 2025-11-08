@@ -1,0 +1,6 @@
+# Test classification model
+num_classes: 100
+
+head:
+  type: classification
+  module: ClassificationHead

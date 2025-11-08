@@ -1,0 +1,56 @@
+# Cache Stress Testing Configuration
+task_type: detection
+image_size: 640
+batch_size: 32
+num_workers: 8
+seed: 42
+
+# RAM Cache with Small Limit - Stress Testing
+cache_type: ram
+cache_size: 100
+
+# Light Augmentation
+degrees: 10.0
+translate: 0.1
+scale: 0.3
+shear: 0.0
+perspective: 0.0
+flipud: 0.5
+fliplr: 0.5
+
+# Light Color Augmentation
+hsv_h: 0.015
+hsv_s: 0.7
+hsv_v: 0.4
+
+# No Blur for Speed
+blur_probability: 0.0
+blur_kernel_size: 3
+
+# Mosaic enabled
+mosaic: 0.5
+
+fill_border: 114
+
+# High Worker Count for Stress Testing
+prefetch_factor: 4
+persistent_workers: true
+
+# Training Configuration
+epochs: 100
+patience: 20
+save_period: 10
+
+# Class Configuration
+num_classes: 10
+class_names:
+  - "0"
+  - "1"
+  - "2"
+  - "3"
+  - "4"
+  - "5"
+  - "6"
+  - "7"
+  - "8"
+  - "9"

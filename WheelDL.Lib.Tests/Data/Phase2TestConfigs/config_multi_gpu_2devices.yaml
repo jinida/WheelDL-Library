@@ -1,0 +1,104 @@
+# Phase2 Test Configuration: Multi-GPU 2 Devices
+# Purpose: Test distributed training with 2 GPUs
+# GPUs: 2 devices (cuda:0, cuda:1)
+# Use case: Basic multi-GPU training and synchronization testing
+
+# Dataset Configuration
+name: mnist_detection_2gpu
+task: detection
+image_path: C:\Users\PC\source\repos\WheelLib\WheelDL.Lib.Tests\Data\mnist\images\
+label_path: C:\Users\PC\source\repos\WheelLib\WheelDL.Lib.Tests\Data\mnist\labels\objectdetection\
+
+# Class names
+names:
+  0: zero
+  1: one
+  2: two
+  3: three
+  4: four
+  5: five
+  6: six
+  7: seven
+  8: eight
+  9: nine
+
+# Training Parameters
+epochs: 100
+patience: 20
+batch_size: 64  # Per-device batch size (128 total across 2 GPUs)
+image_size: 640
+workers: 8  # Workers per device (16 total)
+seed: 42
+deterministic: true
+
+# Multi-GPU Device Configuration
+device: [0, 1]  # 2 GPUs
+world_size: 2
+dist_url: auto
+dist_backend: nccl  # NVIDIA Collective Communications Library
+find_unused_parameters: false
+
+# Distributed Training Settings
+sync_bn: true  # Synchronized batch normalization
+broadcast_buffers: true
+gradient_as_bucket_view: true
+
+# Cache Configuration
+cache: ram
+cache_size: 512  # Per-device cache
+
+# Optimizer Configuration
+optimizer: AdamW
+lr0: 0.002  # Scaled for 2 GPUs
+lrf: 0.01
+momentum: 0.937
+weight_decay: 0.0005
+warmup_epochs: 3.0
+warmup_momentum: 0.8
+warmup_bias_lr: 0.1
+
+# Learning Rate Scheduler
+cos_lr: true
+close_mosaic: 10
+
+# Mixed Precision Training
+amp: true
+
+# Detection Parameters
+box: 7.5
+cls: 0.5
+dfl: 1.5
+nbs: 128  # Nominal batch size (64 * 2 GPUs)
+
+# Validation Settings
+iou: 0.7
+max_det: 300
+
+# Data Augmentation (Heavy)
+hsv_h: 0.015
+hsv_s: 0.7
+hsv_v: 0.4
+degrees: 0.0
+translate: 0.1
+scale: 0.5
+shear: 0.0
+perspective: 0.0001
+flipud: 0.0
+fliplr: 0.5
+bgr: 0.0
+mosaic: 1.0
+mixup: 0.15
+cutmix: 0.1
+
+# Validation
+val: true
+save: true
+save_period: 10
+
+# Multi-GPU Test Settings
+test_distributed: true
+test_synchronization: true
+verify_gradient_sync: true
+test_device_memory_balance: true
+rank: -1  # Auto-assign rank
+local_rank: -1  # Auto-assign local rank

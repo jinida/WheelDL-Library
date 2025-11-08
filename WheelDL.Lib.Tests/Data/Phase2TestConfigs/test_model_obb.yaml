@@ -1,0 +1,10 @@
+# Test Model Configuration
+task: obb
+num_classes: 80
+head:
+  - [-1, 1, OBB, []]
+default_act: ReLU
+scale:
+  width_multiple: 1.0
+  depth_multiple: 1.0
+  max_channels: 1024

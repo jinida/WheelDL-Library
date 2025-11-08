@@ -1,0 +1,6 @@
+# Test dataset with list format class names
+name: TestDatasetList
+image_path: images/
+label_path: labels/
+
+names: [person, car, truck, bicycle]

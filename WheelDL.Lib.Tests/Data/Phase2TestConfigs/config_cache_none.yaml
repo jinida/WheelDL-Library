@@ -1,0 +1,92 @@
+# Phase2 Test Configuration: No Cache
+# Purpose: Test baseline performance without caching
+# Cache: Disabled (direct disk I/O)
+# Use case: Baseline performance measurement and disk I/O testing
+
+# Dataset Configuration
+name: mnist_segmentation_no_cache
+task: segmentation
+image_path: C:\Users\PC\source\repos\WheelLib\WheelDL.Lib.Tests\Data\mnist\images\
+label_path: C:\Users\PC\source\repos\WheelLib\WheelDL.Lib.Tests\Data\mnist\labels\segmentation\
+
+# Class names
+names:
+  0: zero
+  1: one
+  2: two
+  3: three
+  4: four
+  5: five
+  6: six
+  7: seven
+  8: eight
+  9: nine
+
+# Training Parameters
+epochs: 50
+patience: 15
+batch_size: 16
+image_size: 640
+workers: 4
+seed: 300
+deterministic: true
+
+# Device Configuration
+device: cuda:0
+
+# Cache Configuration - NONE
+cache: false  # No caching - direct disk I/O
+prefetch: true  # Enable prefetching to mitigate disk I/O overhead
+pin_memory: true  # Pin memory for faster GPU transfer
+
+# Optimizer Configuration
+optimizer: Adam
+lr0: 0.001
+lrf: 0.01
+momentum: 0.937
+weight_decay: 0.0005
+warmup_epochs: 2.0
+warmup_momentum: 0.8
+warmup_bias_lr: 0.1
+
+# Learning Rate Scheduler
+cos_lr: true
+close_mosaic: 5
+
+# Mixed Precision Training
+amp: true
+
+# Segmentation Parameters
+overlap_mask: true
+mask_ratio: 4
+box: 7.5
+cls: 0.5
+dfl: 1.5
+nbs: 64
+
+# Validation Settings
+iou: 0.7
+max_det: 300
+
+# Data Augmentation (Moderate)
+hsv_h: 0.015
+hsv_s: 0.6
+hsv_v: 0.3
+degrees: 10.0
+translate: 0.1
+scale: 0.4
+shear: 5.0
+perspective: 0.0001
+flipud: 0.0
+fliplr: 0.5
+bgr: 0.0
+mosaic: 0.7
+mixup: 0.1
+cutmix: 0.0
+copy_paste: 0.2
+copy_paste_mode: flip
+
+# Validation
+val: true
+save: true
+save_period: 10

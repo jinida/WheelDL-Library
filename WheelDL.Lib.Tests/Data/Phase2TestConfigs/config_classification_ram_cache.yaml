@@ -1,0 +1,40 @@
+# Configuration for Classification with RAM Cache
+task_type: classification
+image_size: 640
+batch_size: 32
+num_workers: 4
+seed: 42
+
+# Cache Configuration
+cache_type: ram
+cache_size: 1000
+
+# Training Augmentation
+degrees: 10.0
+translate: 0.1
+scale: 0.5
+shear: 0.0
+perspective: 0.0
+flipud: 0.5
+fliplr: 0.5
+hsv_h: 0.015
+hsv_s: 0.7
+hsv_v: 0.4
+mosaic: 0.0
+blur_probability: 0.1
+blur_kernel_size: 5
+fill_border: 114
+
+# Class Configuration
+num_classes: 10
+class_names:
+  - "0"
+  - "1"
+  - "2"
+  - "3"
+  - "4"
+  - "5"
+  - "6"
+  - "7"
+  - "8"
+  - "9"

@@ -1,0 +1,40 @@
+# Configuration with Heavy Augmentation
+task_type: detection
+image_size: 640
+batch_size: 16
+num_workers: 4
+seed: 42
+
+# Cache Configuration
+cache_type: ram
+cache_size: 500
+
+# Heavy Training Augmentation
+degrees: 30.0
+translate: 0.3
+scale: 1.5
+shear: 5.0
+perspective: 0.005
+flipud: 0.7
+fliplr: 0.7
+hsv_h: 0.05
+hsv_s: 0.9
+hsv_v: 0.6
+mosaic: 1.0
+blur_probability: 0.5
+blur_kernel_size: 9
+fill_border: 114
+
+# Class Configuration
+num_classes: 10
+class_names:
+  - "0"
+  - "1"
+  - "2"
+  - "3"
+  - "4"
+  - "5"
+  - "6"
+  - "7"
+  - "8"
+  - "9"
