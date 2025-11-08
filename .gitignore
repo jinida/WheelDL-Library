@@ -1,0 +1,25 @@
+# Markdown files are now allowed
+# *md
+*.log
+*.png
+*.txt
+*.dll
+*.exe
+*.tlog
+*.lib
+*.exp
+*.pdb
+*.pch
+*.obj
+*.recipe
+*.Up2Date
+*.idb
+*.pump
+*.ps1
+
+.claude
+.vs
+.vscode
+__pycache__
+docs
+python_src
