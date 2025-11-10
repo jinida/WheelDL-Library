@@ -238,7 +238,7 @@ public:
     [[nodiscard]] std::string name() const override { return "BCEWithLogitsLoss"; }
 
 private:
-    torch::nn::BCEWithLogitsLoss _criterion;
+    torch::nn::BCEWithLogitsLoss _criterion = nullptr;
 };
 
 /**
@@ -262,7 +262,7 @@ public:
     [[nodiscard]] std::string name() const override { return "MSELoss"; }
 
 private:
-    torch::nn::MSELoss _criterion;
+    torch::nn::MSELoss _criterion = nullptr;
 };
 
 /**
@@ -286,7 +286,7 @@ public:
     [[nodiscard]] std::string name() const override { return "MAELoss"; }
 
 private:
-    torch::nn::L1Loss _criterion;
+    torch::nn::L1Loss _criterion = nullptr;
 };
 
 /**
@@ -311,7 +311,7 @@ public:
     [[nodiscard]] std::string name() const override { return "SmoothL1Loss"; }
 
 private:
-    torch::nn::SmoothL1Loss _criterion;
+    torch::nn::SmoothL1Loss _criterion = nullptr;
 };
 
 // ============================================================================

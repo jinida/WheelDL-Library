@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "AnomalyModel.h"
 #include "../Builder/ModelBuilder.h"
 #include "../../Utils/Error/WheelLibException.h"
@@ -14,7 +15,6 @@ namespace WheelDL {
         AnomalyModel::AnomalyModel(std::shared_ptr<Configuration> config,
             const std::string& modelYamlPath)
             : _lossType(AnomalyLoss::LossType::MSE),
-            _perceptualWeight(0.0f),
             _ssimWeight(0.0f)
         {
             _taskType = TaskType::ANOMALY;
@@ -47,7 +47,6 @@ namespace WheelDL {
 
                 // Get loss parameters from configuration if available
                 // For now, use default values
-                _perceptualWeight = 0.0f;
                 _ssimWeight = 0.0f;
 
                 // Get model parameters from configuration
@@ -101,7 +100,6 @@ namespace WheelDL {
             // Create and return anomaly loss
             return std::make_unique<AnomalyLoss>(
                 _lossType,
-                _perceptualWeight,
                 _ssimWeight
             );
         }

@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "BaseLoss.h"
 #include <stdexcept>
 #include <string_view>
@@ -7,17 +8,24 @@ namespace WheelDL {
         namespace Loss {
 
             // Helper function to convert reduction string to torch reduction enum
-            // Uses std::string_view for better performance (C++17)
+            // Template function to handle proper type deduction for reduction options
             namespace {
-                inline torch::Reduction::Reduction getReductionType(std::string_view reduction) {
-                    if (reduction == "none") return torch::kNone;
-                    if (reduction == "mean") return torch::kMean;
-                    if (reduction == "sum") return torch::kSum;
-                    // Fixed: Optimize string concatenation to avoid multiple allocations
-                    throw std::invalid_argument(
-                        "Invalid reduction: " + std::string(reduction) +
-                        ". Must be 'none', 'mean', or 'sum'"
-                    );
+                template<typename T>
+                inline T getReductionOptions(const std::string& reduction) {
+                    T options;
+                    if (reduction == "none") {
+                        options.reduction(torch::kNone);
+                    } else if (reduction == "mean") {
+                        options.reduction(torch::kMean);
+                    } else if (reduction == "sum") {
+                        options.reduction(torch::kSum);
+                    } else {
+                        throw std::invalid_argument(
+                            "Invalid reduction: " + reduction +
+                            ". Must be 'none', 'mean', or 'sum'"
+                        );
+                    }
+                    return options;
                 }
             }
 
@@ -25,9 +33,8 @@ namespace WheelDL {
             // BCEWithLogitsLoss Implementation
             // ============================================================================
             BCEWithLogitsLoss::BCEWithLogitsLoss(const std::string& reduction)
-                : _criterion(torch::nn::BCEWithLogitsLossOptions())
+                : _criterion(getReductionOptions<torch::nn::BCEWithLogitsLossOptions>(reduction))
             {
-                _criterion->options.reduction(getReductionType(reduction));
             }
 
             std::unordered_map<std::string, torch::Tensor> BCEWithLogitsLoss::compute(
@@ -49,9 +56,8 @@ namespace WheelDL {
             // MSELoss Implementation
             // ============================================================================
             MSELoss::MSELoss(const std::string& reduction)
-                : _criterion(torch::nn::MSELossOptions())
+                : _criterion(getReductionOptions<torch::nn::MSELossOptions>(reduction))
             {
-                _criterion->options.reduction(getReductionType(reduction));
             }
 
             std::unordered_map<std::string, torch::Tensor> MSELoss::compute(
@@ -72,9 +78,8 @@ namespace WheelDL {
             // MAELoss Implementation
             // ============================================================================
             MAELoss::MAELoss(const std::string& reduction)
-                : _criterion(torch::nn::L1LossOptions())
+                : _criterion(getReductionOptions<torch::nn::L1LossOptions>(reduction))
             {
-                _criterion->options.reduction(getReductionType(reduction));
             }
 
             std::unordered_map<std::string, torch::Tensor> MAELoss::compute(
@@ -95,9 +100,18 @@ namespace WheelDL {
             // SmoothL1Loss Implementation
             // ============================================================================
             SmoothL1Loss::SmoothL1Loss(float beta, const std::string& reduction)
-                : _criterion(torch::nn::SmoothL1LossOptions().beta(beta))
+                : _criterion([&]() {
+                    auto options = torch::nn::SmoothL1LossOptions().beta(beta);
+                    if (reduction == "none") {
+                        options.reduction(torch::kNone);
+                    } else if (reduction == "mean") {
+                        options.reduction(torch::kMean);
+                    } else {
+                        options.reduction(torch::kSum);
+                    }
+                    return options;
+                }())
             {
-                _criterion->options.reduction(getReductionType(reduction));
             }
 
             std::unordered_map<std::string, torch::Tensor> SmoothL1Loss::compute(

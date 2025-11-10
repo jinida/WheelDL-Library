@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "Head.h"
 #include "Utils.h"
 #include <cmath>
@@ -23,58 +24,64 @@ namespace WheelDL {
                     throw std::invalid_argument("DetectImpl: regMax must be positive, got: " + std::to_string(regMax));
                 }
 
-                no = nc + regMax * 4;  // number of outputs per anchor
+                no = nc + regMax * 4;
                 stride = torch::zeros(nl);
 
-                // Calculate channel sizes
                 int64_t c2 = std::max({ HeadConstants::MIN_CHANNEL_SIZE, ch[0] / 4, regMax * 4 });
                 int64_t c3 = std::max(ch[0], std::min(nc, HeadConstants::MAX_CLASS_CHANNELS));
 
-                // Build cv2 (box regression layers)
-                for (int64_t i = 0; i < nl; ++i) {
-                    torch::nn::Sequential seq;
-                    seq->push_back(Conv(ch[i], c2, 3));
-                    seq->push_back(Conv(c2, c2, 3));
-                    seq->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(c2, 4 * regMax, 1)));
-                    _cv2->push_back(seq);
+				// Build cv2 (box regression layers)
+                {
+                    torch::nn::ModuleList list;
+                    for (int64_t i = 0; i < nl; ++i) {
+                        torch::nn::Sequential seq;
+                        seq->push_back(Conv(ch[i], c2, 3));
+                        seq->push_back(Conv(c2, c2, 3));
+                        seq->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(c2, 4 * regMax, 1)));
+                        list->push_back(seq);
+                    }
+                    _cv2 = register_module("cv2", list);
                 }
-                register_module("cv2", _cv2);
 
-                // Build cv3 (classification layers)
-                for (int64_t i = 0; i < nl; ++i) {
-                    torch::nn::Sequential seq;
-                    torch::nn::Sequential dwConvSeq;
-                    dwConvSeq->push_back(DWConv(ch[i], ch[i], 3));
-                    dwConvSeq->push_back(Conv(ch[i], c3, 1));
-                    seq->push_back(dwConvSeq);
+				// Build cv3 (classification layers)
+                {
+                    torch::nn::ModuleList list;
+                    for (int64_t i = 0; i < nl; ++i) 
+                    {
+                        torch::nn::Sequential seq;
+                        seq->push_back(DWConv(ch[i], ch[i], 3));
+						seq->push_back(Conv(ch[i], c3, 1));
 
-                    torch::nn::Sequential dwConvSeq2;
-                    dwConvSeq2->push_back(DWConv(c3, c3, 3));
-                    dwConvSeq2->push_back(Conv(c3, c3, 1));
-                    seq->push_back(dwConvSeq2);
+                        /*torch::nn::Sequential dw2;
+                        dw2->push_back(DWConv(c3, c3, 3));
+                        dw2->push_back(Conv(c3, c3, 1));
+                        */
+						seq->push_back(DWConv(c3, c3, 3));
+						seq->push_back(Conv(c3, c3, 1));
 
-                    seq->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(c3, nc, 1)));
-                    _cv3->push_back(seq);
+                        seq->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(c3, nc, 1)));
+                        list->push_back(seq);
+                    }
+                    _cv3 = register_module("cv3", list);
                 }
-                register_module("cv3", _cv3);
 
-                // Build DFL layer
                 if (regMax > 1) {
                     auto dfl = DFL(regMax);
                     _dfl = dfl.ptr();
                     register_module("dfl", dfl);
                 }
                 else {
-                    auto identity = torch::nn::Identity();
-                    _dfl = identity.ptr();
-                    register_module("dfl", identity);
+                    auto id = torch::nn::Identity();
+                    _dfl = id.ptr();
+                    register_module("dfl", id);
                 }
 
                 anchors = torch::empty(0);
                 strides = torch::empty(0);
             }
 
-            torch::autograd::variable_list DetectImpl::forward(std::vector<torch::Tensor> x) {
+            std::vector<torch::Tensor> DetectImpl::forward(std::vector<torch::Tensor> x)
+            {
                 // Standard detection mode
                 for (int64_t i = 0; i < nl; ++i) {
                     // Validate module list bounds
@@ -114,7 +121,8 @@ namespace WheelDL {
 
                 std::vector<torch::Tensor> xCatList;
                 xCatList.reserve(x.size());
-                for (auto& xi : x) {
+                for (auto& xi : x)
+                {
                     xCatList.push_back(xi.view({ shape[0], no, -1 }));
                 }
                 auto xCat = torch::cat(xCatList, 2);
@@ -202,7 +210,8 @@ namespace WheelDL {
                 : DetectImpl(nc, ch), ne(ne) {
 
                 int64_t c4 = std::max(ch[0] / 4, ne);
-                for (int64_t i = 0; i < nl; ++i) {
+                for (int64_t i = 0; i < nl; ++i)
+                {
                     torch::nn::Sequential seq;
                     seq->push_back(Conv(ch[i], c4, 3));
                     seq->push_back(Conv(c4, c4, 3));
@@ -212,12 +221,13 @@ namespace WheelDL {
                 register_module("cv4", _cv4);
             }
 
-            torch::autograd::variable_list OBBImpl::forward(std::vector<torch::Tensor> x) {
+            std::vector<torch::Tensor> OBBImpl::forward(std::vector<torch::Tensor> x) {
                 auto bs = x[0].size(0);
 
                 std::vector<torch::Tensor> angleList;
                 angleList.reserve(nl);
-                for (int64_t i = 0; i < nl; ++i) {
+                for (int64_t i = 0; i < nl; ++i)
+                {
                     auto cv4Out = _cv4->ptr(i)->as<torch::nn::Sequential>()->forward(x[i]);
                     angleList.push_back(cv4Out.view({ bs, ne, -1 }));
                 }
@@ -242,7 +252,8 @@ namespace WheelDL {
                 return { torch::cat({detOut[0], angle}, 1), detOut[1], angle };
             }
 
-            torch::Tensor OBBImpl::decodeBboxes(const torch::Tensor& bboxes, const torch::Tensor& anchors) {
+            torch::Tensor OBBImpl::decodeBboxes(const torch::Tensor& bboxes, const torch::Tensor& anchors)
+            {
                 return dist2rbox(bboxes, angle, anchors, 1);
             }
 
@@ -282,11 +293,10 @@ namespace WheelDL {
                 return export_ ? y : x;
             }
 
-            torch::Tensor ClassifyImpl::forward(const std::vector<torch::Tensor>& x) {
-                auto xCat = torch::cat(x, 1);
-                return forward(xCat);
-            }
-
+            torch::Tensor ClassifyImpl::forwardMulti(std::vector<torch::Tensor> x) 
+            {
+				return forward(torch::cat(x, 1));
+			}
         } // namespace Modules
     } // namespace Model
 } // namespace WheelDL

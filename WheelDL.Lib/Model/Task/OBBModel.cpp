@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "OBBModel.h"
 #include "../Builder/ModelBuilder.h"
 #include "../../Utils/Error/WheelLibException.h"

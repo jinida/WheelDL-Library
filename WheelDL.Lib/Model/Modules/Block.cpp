@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "Block.h"
 #include <limits>
 
@@ -6,13 +7,15 @@ namespace WheelDL {
         namespace Modules {
 
             // Helper function to safely multiply channels with expansion ratio
-            inline int64_t safeChannelMultiply(int64_t c, double e, const char* context) {
+            inline int64_t safeChannelMultiply(int64_t c, double e, const char* context)
+            {
                 double result = c * e;
                 if (result > static_cast<double>(std::numeric_limits<int64_t>::max())) {
                     throw std::overflow_error(std::string(context) +
                                              ": Channel calculation would overflow (c=" +
                                              std::to_string(c) + ", e=" + std::to_string(e) + ")");
                 }
+
                 if (result < 0) {
                     throw std::invalid_argument(std::string(context) +
                                                ": Channel calculation resulted in negative value");
@@ -36,7 +39,8 @@ namespace WheelDL {
                 _conv->weight.data().copy_(x.view({ 1, c1, 1, 1 }));
             }
 
-            torch::Tensor DFLImpl::forward(torch::Tensor x) {
+            torch::Tensor DFLImpl::forward(torch::Tensor x)
+            {
                 auto b = x.size(0);
                 auto a = x.size(2);
 
@@ -97,7 +101,8 @@ namespace WheelDL {
 
                 for (auto& m : *_m) {
                     auto maxpool = m->as<torch::nn::MaxPool2d>();
-                    if (!maxpool) {
+                    if (!maxpool)
+                    {
                         throw std::runtime_error("SPPImpl::forward - MaxPool2d module is null");
                     }
                     outputs.push_back(maxpool->forward(x));
@@ -110,7 +115,8 @@ namespace WheelDL {
             // SPPF Implementation
             // ============================================================================
 
-            SPPFImpl::SPPFImpl(int64_t c1, int64_t c2, int64_t k) {
+            SPPFImpl::SPPFImpl(int64_t c1, int64_t c2, int64_t k)
+            {
                 // Validate c1 is even to avoid integer division truncation
                 if (c1 % 2 != 0) {
                     throw std::invalid_argument("SPPFImpl: c1 must be even, got: " + std::to_string(c1));
@@ -300,20 +306,20 @@ namespace WheelDL {
                 convSeq->push_back(GhostConv(c1, cMid, 1, 1));
 
                 if (s == 2) {
-                    convSeq->push_back(DWConv(cMid, cMid, k, s, 1, false));
+                    convSeq->push_back(DWConv(cMid, cMid, k, s, 1));
                 }
                 else {
                     convSeq->push_back(torch::nn::Identity());
                 }
 
-                convSeq->push_back(GhostConv(cMid, c2, 1, 1, 1, false));
+                convSeq->push_back(GhostConv(cMid, c2, 1, 1, 1));
                 _conv = register_module("conv", convSeq);
 
                 // Build shortcut sequence
                 torch::nn::Sequential shortcutSeq;
                 if (s == 2) {
-                    shortcutSeq->push_back(DWConv(c1, c1, k, s, 1, false));
-                    shortcutSeq->push_back(Conv(c1, c2, 1, 1, std::nullopt, 1, 1, false));
+                    shortcutSeq->push_back(DWConv(c1, c1, k, s, 1));
+                    shortcutSeq->push_back(Conv(c1, c2, 1, 1, std::nullopt, 1, 1));
                 }
                 else {
                     shortcutSeq->push_back(torch::nn::Identity());
@@ -371,10 +377,12 @@ namespace WheelDL {
 
                 for (int64_t i = 0; i < n; ++i) {
                     int64_t inputChannels = (i == 0) ? c1 : cm;
-                    if (lightConv) {
+                    if (lightConv)
+                    {
                         _m->push_back(LightConv(inputChannels, cm, k));
                     }
-                    else {
+                    else
+                    {
                         _m->push_back(Conv(inputChannels, cm, k));
                     }
                 }
@@ -384,30 +392,31 @@ namespace WheelDL {
                 _add = shortcut && (c1 == c2);
             }
 
-            torch::Tensor HGBlockImpl::forward(torch::Tensor x) {
+            torch::Tensor HGBlockImpl::forward(torch::Tensor x)
+            {
                 std::vector<torch::Tensor> y;
                 y.push_back(x);
 
-                for (int64_t i = 0; i < _m->size(); ++i) {
-                    torch::nn::AnyModule module = (*_m)[i];
-
-                    if (_lightConv) {
-                        auto lightConv = module.ptr<LightConv>();
-                        if (!lightConv) {
-                            throw std::runtime_error("Expected LightConv at index " + std::to_string(i) +
-                                                   " but module type mismatch");
+                for (auto& module : *_m)
+                {
+                    if (_lightConv)
+                    {
+                        auto lightConv = module->as<LightConv>();
+                        if (!lightConv)
+                        {
+                            throw std::runtime_error("HGBlockImpl::forward - LightConv module is null");
                         }
                         y.push_back(lightConv->forward(y.back()));
-                    } else {
-                        auto conv = module.ptr<Conv>();
+                    }
+                    else
+                    {
+                        auto conv = module->as<Conv>();
                         if (!conv) {
-                            throw std::runtime_error("Expected Conv at index " + std::to_string(i) +
-                                                   " but module type mismatch");
+                            throw std::runtime_error("HGBlockImpl::forward - Conv module is null");
                         }
                         y.push_back(conv->forward(y.back()));
                     }
-                }
-
+				}
                 auto output = _ec->forward(_sc->forward(torch::cat(y, 1)));
                 return _add ? (output + x) : output;
             }
@@ -758,8 +767,8 @@ namespace WheelDL {
             // ============================================================================
 
             RepVGGDWImpl::RepVGGDWImpl(int64_t ed) {
-                _conv = register_module("conv", Conv(ed, ed, 7, 1, 3, ed, 1, false));
-                _conv1 = register_module("conv1", Conv(ed, ed, 3, 1, 1, ed, 1, false));
+                _conv = register_module("conv", Conv(ed, ed, 7, 1, 3, ed, 1));
+                _conv1 = register_module("conv1", Conv(ed, ed, 3, 1, 1, ed, 1));
                 _dim = ed;
                 _act = register_module("act", torch::nn::SiLU());
             }
@@ -816,7 +825,7 @@ namespace WheelDL {
 
             SCDownImpl::SCDownImpl(int64_t c1, int64_t c2, int64_t k, int64_t s) {
                 _cv1 = register_module("cv1", Conv(c1, c2, 1, 1));
-                _cv2 = register_module("cv2", Conv(c2, c2, k, s, std::nullopt, c2, 1, false));
+                _cv2 = register_module("cv2", Conv(c2, c2, k, s, std::nullopt, c2, 1));
             }
 
             torch::Tensor SCDownImpl::forward(torch::Tensor x) {
@@ -894,12 +903,12 @@ namespace WheelDL {
                 int64_t c3 = safeChannelMultiply(c2, e, "ResNetBlockImpl");
 
                 _cv1 = register_module("cv1", Conv(c1, c2, 1, 1));
-                _cv2 = register_module("cv2", Conv(c2, c2, 3, s, std::nullopt, 1, 1, false));
-                _cv3 = register_module("cv3", Conv(c2, c3, 1, 1, std::nullopt, 1, 1, false));
+                _cv2 = register_module("cv2", Conv(c2, c2, 3, s, std::nullopt, 1, 1));
+                _cv3 = register_module("cv3", Conv(c2, c3, 1, 1, std::nullopt, 1, 1));
 
                 torch::nn::Sequential identity;
                 if (s != 1 || c1 != c3) {
-                    identity->push_back(Conv(c1, c3, 1, s, std::nullopt, 1, 1, false));
+                    identity->push_back(Conv(c1, c3, 1, s, std::nullopt, 1, 1));
                 }
                 else {
                     identity->push_back(torch::nn::Identity());

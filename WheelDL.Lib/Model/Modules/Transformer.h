@@ -60,9 +60,9 @@ public:
     torch::Tensor forward(torch::Tensor x);
 
 private:
-    torch::nn::Linear _lin1;
-    torch::nn::Linear _lin2;
-    torch::nn::GELU _act;
+    torch::nn::Linear _lin1 = nullptr;
+    torch::nn::Linear _lin2 = nullptr;
+    torch::nn::GELU _act = nullptr;
 };
 
 TORCH_MODULE(MLPBlock);
@@ -94,9 +94,9 @@ public:
 
 private:
     int64_t _numLayers;
-    torch::nn::ModuleList _layers;
+    torch::nn::ModuleList _layers = nullptr;
     bool _sigmoid;
-    torch::nn::ReLU _act;
+    torch::nn::ReLU _act = nullptr;
 };
 
 TORCH_MODULE(MLP);
@@ -123,12 +123,12 @@ public:
     torch::Tensor forward(torch::Tensor x);
 
 private:
-    torch::nn::Linear _q;
-    torch::nn::Linear _k;
-    torch::nn::Linear _v;
-    torch::nn::MultiheadAttention _ma;
-    torch::nn::Linear _fc1;
-    torch::nn::Linear _fc2;
+    torch::nn::Linear _q = nullptr;
+    torch::nn::Linear _k = nullptr;
+    torch::nn::Linear _v = nullptr;
+    torch::nn::MultiheadAttention _ma = nullptr;
+    torch::nn::Linear _fc1 = nullptr;
+    torch::nn::Linear _fc2 = nullptr;
 };
 
 TORCH_MODULE(TransformerLayer);
@@ -157,9 +157,9 @@ public:
     torch::Tensor forward(torch::Tensor x);
 
 private:
-    Conv _conv;
-    torch::nn::Linear _linear;
-    torch::nn::Sequential _tr;
+    Conv _conv = nullptr;
+    torch::nn::Linear _linear = nullptr;
+    torch::nn::Sequential _tr = nullptr;
     int64_t _c2;
 };
 
@@ -211,15 +211,15 @@ private:
     torch::Tensor applyAttention(const torch::Tensor& q, const torch::Tensor& k, const torch::Tensor& v,
                                   const torch::Tensor& srcMask, const torch::Tensor& srcKeyPaddingMask);
 
-    torch::nn::MultiheadAttention _ma;
-    torch::nn::Linear _fc1;
-    torch::nn::Linear _fc2;
-    torch::nn::LayerNorm _norm1;
-    torch::nn::LayerNorm _norm2;
-    torch::nn::Dropout _dropout;
-    torch::nn::Dropout _dropout1;
-    torch::nn::Dropout _dropout2;
-    torch::nn::GELU _act;
+    torch::nn::MultiheadAttention _ma = nullptr;
+    torch::nn::Linear _fc1 = nullptr;
+    torch::nn::Linear _fc2 = nullptr;
+    torch::nn::LayerNorm _norm1 = nullptr;
+    torch::nn::LayerNorm _norm2 = nullptr;
+    torch::nn::Dropout _dropout = nullptr;
+    torch::nn::Dropout _dropout1 = nullptr;
+    torch::nn::Dropout _dropout2 = nullptr;
+    torch::nn::GELU _act = nullptr;
     bool _normalizeBefore;
 };
 
@@ -303,10 +303,10 @@ private:
     int64_t _nLevels;
     int64_t _nHeads;
     int64_t _nPoints;
-    torch::nn::Linear _samplingOffsets;
-    torch::nn::Linear _attentionWeights;
-    torch::nn::Linear _valueProj;
-    torch::nn::Linear _outputProj;
+    torch::nn::Linear _samplingOffsets = nullptr;
+    torch::nn::Linear _attentionWeights = nullptr;
+    torch::nn::Linear _valueProj = nullptr;
+    torch::nn::Linear _outputProj = nullptr;
 };
 
 TORCH_MODULE(MSDeformAttn);
@@ -356,18 +356,18 @@ public:
 private:
     torch::Tensor forwardFfn(torch::Tensor tgt);
 
-    torch::nn::MultiheadAttention _selfAttn;
-    torch::nn::Dropout _dropout1;
-    torch::nn::LayerNorm _norm1;
-    MSDeformAttn _crossAttn;
-    torch::nn::Dropout _dropout2;
-    torch::nn::LayerNorm _norm2;
-    torch::nn::Linear _linear1;
-    torch::nn::ReLU _act;
-    torch::nn::Dropout _dropout3;
-    torch::nn::Linear _linear2;
-    torch::nn::Dropout _dropout4;
-    torch::nn::LayerNorm _norm3;
+    torch::nn::MultiheadAttention _selfAttn = nullptr;
+    torch::nn::Dropout _dropout1 = nullptr;
+    torch::nn::LayerNorm _norm1 = nullptr;
+    MSDeformAttn _crossAttn = nullptr;
+    torch::nn::Dropout _dropout2 = nullptr;
+    torch::nn::LayerNorm _norm2 = nullptr;
+    torch::nn::Linear _linear1 = nullptr;
+    torch::nn::ReLU _act = nullptr;
+    torch::nn::Dropout _dropout3 = nullptr;
+    torch::nn::Linear _linear2 = nullptr;
+    torch::nn::Dropout _dropout4 = nullptr;
+    torch::nn::LayerNorm _norm3 = nullptr;
 };
 
 TORCH_MODULE(DeformableTransformerDecoderLayer);
@@ -409,7 +409,7 @@ public:
         const torch::Tensor& attnMask = {}, const torch::Tensor& paddingMask = {});
 
 private:
-    torch::nn::ModuleList _layers;
+    torch::nn::ModuleList _layers = nullptr;
     int64_t _numLayers;
     int64_t _hiddenDim;
     int64_t _evalIdx;

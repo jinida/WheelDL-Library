@@ -90,7 +90,7 @@ public:
 private:
     int64_t _numClasses;                      ///< Number of classes
     float _diceWeight;                        ///< Weight for Dice loss
-    torch::nn::CrossEntropyLoss _ceLoss;      ///< Cross-entropy loss
+    torch::nn::CrossEntropyLoss _ceLoss = nullptr;      ///< Cross-entropy loss
 
     /**
      * @brief Compute Dice loss for better boundary handling

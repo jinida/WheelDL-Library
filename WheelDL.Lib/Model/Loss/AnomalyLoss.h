@@ -105,7 +105,7 @@ namespace WheelDL {
             private:
                 LossType _lossType;               ///< Type of loss
                 float _ssimWeight;                ///< Weight for SSIM in combined mode
-                torch::nn::MSELoss _mseLoss;      ///< MSE loss
+                torch::nn::MSELoss _mseLoss = nullptr;      ///< MSE loss
 
                 /**
                  * @brief Compute SSIM (Structural Similarity Index)

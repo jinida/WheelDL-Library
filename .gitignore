@@ -16,6 +16,7 @@
 *.idb
 *.pump
 *.ps1
+*.yaml
 
 .claude
 .vs
@@ -23,3 +24,6 @@
 __pycache__
 docs
 python_src
+3rdparty
+packages
+LibTorch_apitest

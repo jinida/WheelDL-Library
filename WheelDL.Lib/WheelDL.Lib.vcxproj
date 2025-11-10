@@ -162,6 +162,7 @@
   <ItemGroup>
     <ClInclude Include="Data\Transforms\Collation.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="Interfaces.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="WheelDLExport.h" />
     <ClInclude Include="Utils\Logger\Logger.h" />

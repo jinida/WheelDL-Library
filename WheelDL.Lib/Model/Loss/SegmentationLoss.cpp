@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "SegmentationLoss.h"
 #include "../Constants.h"
 #include <algorithm>

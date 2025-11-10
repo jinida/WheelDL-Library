@@ -32,9 +32,9 @@ public:
     torch::Tensor forward(torch::Tensor x);
 
 private:
-    torch::nn::AdaptiveAvgPool2d _pool;
-    torch::nn::Conv2d _fc;
-    torch::nn::Sigmoid _act;
+    torch::nn::AdaptiveAvgPool2d _pool = nullptr;
+    torch::nn::Conv2d _fc = nullptr;
+    torch::nn::Sigmoid _act = nullptr;
 };
 
 TORCH_MODULE(ChannelAttention);
@@ -62,8 +62,8 @@ public:
     torch::Tensor forward(torch::Tensor x);
 
 private:
-    torch::nn::Conv2d _cv1;
-    torch::nn::Sigmoid _act;
+    torch::nn::Conv2d _cv1 = nullptr;
+    torch::nn::Sigmoid _act = nullptr;
 };
 
 TORCH_MODULE(SpatialAttention);
@@ -92,8 +92,8 @@ public:
     torch::Tensor forward(torch::Tensor x);
 
 private:
-    ChannelAttention _channelAttention;
-    SpatialAttention _spatialAttention;
+    ChannelAttention _channelAttention = nullptr;
+    SpatialAttention _spatialAttention = nullptr;
 };
 
 TORCH_MODULE(CBAM);
@@ -127,9 +127,9 @@ private:
     int64_t _headDim;
     int64_t _keyDim;
     double _scale;
-    Conv _qkv;
-    Conv _proj;
-    Conv _pe;
+    Conv _qkv = nullptr;
+    Conv _proj = nullptr;
+    Conv _pe = nullptr;
 };
 
 TORCH_MODULE(Attention);
@@ -160,8 +160,9 @@ public:
     torch::Tensor forward(torch::Tensor x);
 
 private:
-    Attention _attn;
-    torch::nn::Sequential _ffn;
+    Attention _attn = nullptr;
+    Conv _ffn_cv1 = nullptr;
+    Conv _ffn_cv2 = nullptr;
     bool _add;
 };
 
@@ -193,10 +194,11 @@ public:
 
 private:
     int64_t _c;
-    Conv _cv1;
-    Conv _cv2;
-    Attention _attn;
-    torch::nn::Sequential _ffn;
+    Conv _cv1 = nullptr;
+    Conv _cv2 = nullptr;
+    Attention _attn = nullptr;
+    Conv _ffn_cv1 = nullptr;
+    Conv _ffn_cv2 = nullptr;
 };
 
 TORCH_MODULE(PSA);

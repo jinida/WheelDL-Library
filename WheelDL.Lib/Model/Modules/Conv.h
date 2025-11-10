@@ -1,6 +1,7 @@
 #pragma once
 
 #include <torch/torch.h>
+#include "Interfaces.h"
 
 namespace WheelDL {
     namespace Model {
@@ -21,7 +22,8 @@ namespace WheelDL {
              *
              * This module implements: Conv2d -> BatchNorm2d -> Activation
              */
-            class ConvImpl : public torch::nn::Module {
+
+            class ConvImpl : public IBlockImpl {
             public:
                 /**
                  * @brief Construct a new Conv module
@@ -49,8 +51,8 @@ namespace WheelDL {
 
 
             protected:
-                torch::nn::Conv2d _conv;
-                torch::nn::BatchNorm2d _bn;
+                torch::nn::Conv2d _conv = nullptr;
+                torch::nn::BatchNorm2d _bn = nullptr;
                 torch::nn::AnyModule _act;
             };
 
@@ -111,7 +113,7 @@ namespace WheelDL {
                 torch::Tensor forward(torch::Tensor x);
 
             private:
-                torch::nn::Conv2d _cv2;
+                torch::nn::Conv2d _cv2 = nullptr;
             };
 
             TORCH_MODULE(Conv2);
@@ -119,7 +121,7 @@ namespace WheelDL {
             /**
              * @brief Light Convolution with 1x1 and depthwise convolutions
              */
-            class LightConvImpl : public torch::nn::Module {
+            class LightConvImpl : public IBlockImpl {
             public:
                 /**
                  * @brief Construct a new LightConv module
@@ -139,8 +141,8 @@ namespace WheelDL {
                 torch::Tensor forward(torch::Tensor x);
 
             private:
-                Conv _conv1;
-                DWConv _conv2;
+                Conv _conv1 = nullptr;
+                DWConv _conv2 = nullptr;
             };
 
             TORCH_MODULE(LightConv);
@@ -152,7 +154,7 @@ namespace WheelDL {
              *
              * Reference: https://github.com/huawei-noah/Efficient-AI-Backbones
              */
-            class GhostConvImpl : public torch::nn::Module {
+            class GhostConvImpl : public IBlockImpl {
             public:
                 /**
                  * @brief Construct a new GhostConv module
@@ -176,8 +178,8 @@ namespace WheelDL {
                 torch::Tensor forward(torch::Tensor x);
 
             private:
-                Conv _cv1;
-                Conv _cv2;
+                Conv _cv1 = nullptr;
+                Conv _cv2 = nullptr;
             };
 
             TORCH_MODULE(GhostConv);
@@ -189,7 +191,7 @@ namespace WheelDL {
              *
              * Reference: https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py
              */
-            class RepConvImpl : public torch::nn::Module {
+            class RepConvImpl : public IBlockImpl {
             public:
                 /**
                  * @brief Construct a new RepConv module
@@ -222,9 +224,9 @@ namespace WheelDL {
                 int64_t _c1;
                 int64_t _c2;
                 torch::nn::AnyModule _act;
-                torch::nn::BatchNorm2d _bn;
-                Conv _conv1;
-                Conv _conv2;
+                torch::nn::BatchNorm2d _bn = nullptr;
+                Conv _conv1 = nullptr;
+                Conv _conv2 = nullptr;
             };
 
             TORCH_MODULE(RepConv);
@@ -255,7 +257,7 @@ namespace WheelDL {
             /**
              * @brief Transpose Convolution with optional batch normalization and activation
              */
-            class ConvTransposeImpl : public torch::nn::Module {
+            class ConvTransposeImpl : public IBlockImpl {
             public:
                 /**
                  * @brief Construct a new ConvTranspose module
@@ -280,7 +282,7 @@ namespace WheelDL {
                 torch::Tensor forward(torch::Tensor x);
 
             private:
-                torch::nn::ConvTranspose2d _convTranspose;
+                torch::nn::ConvTranspose2d _convTranspose = nullptr;
                 torch::nn::AnyModule _bn;
                 torch::nn::AnyModule _act;
             };
@@ -292,7 +294,7 @@ namespace WheelDL {
              *
              * Slices input tensor into 4 parts and concatenates them in the channel dimension
              */
-            class FocusImpl : public torch::nn::Module {
+            class FocusImpl : public IBlockImpl {
             public:
                 /**
                  * @brief Construct a new Focus module
@@ -319,7 +321,7 @@ namespace WheelDL {
                 torch::Tensor forward(torch::Tensor x);
 
             private:
-                Conv _conv;
+                Conv _conv = nullptr;
             };
 
             TORCH_MODULE(Focus);
@@ -334,7 +336,7 @@ namespace WheelDL {
                  *
                  * @param dimension Dimension along which to concatenate tensors (default: 1)
                  */
-                explicit ConcatImpl(int64_t dimension = 1);
+                ConcatImpl(int64_t dimension = 1);
 
                 /**
                  * @brief Concatenate input tensors along specified dimension
@@ -360,7 +362,7 @@ namespace WheelDL {
                  *
                  * @param index Index to select from input (default: 0)
                  */
-                explicit IndexImpl(int64_t index = 0);
+                IndexImpl(int64_t index = 0);
 
                 /**
                  * @brief Select and return a particular index from input
@@ -375,7 +377,6 @@ namespace WheelDL {
             };
 
             TORCH_MODULE(Index);
-
         } // namespace Modules
     } // namespace Model
 } // namespace WheelDL

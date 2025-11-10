@@ -378,6 +378,9 @@
     <ClInclude Include="Model\Utils\TaskAlignedAssigner.h">
       <Filter>header\Model\Utils</Filter>
     </ClInclude>
+    <ClInclude Include="Interfaces.h">
+      <Filter>header\Model\Modules</Filter>
+    </ClInclude>
   </ItemGroup>
   <!-- Source Files -->
   <ItemGroup>

@@ -40,7 +40,7 @@ private:
     torch::Tensor _kappa;
 
     /// Softplus activation with beta = -1.0
-    torch::nn::Softplus _act;
+    torch::nn::Softplus _act = nullptr;
 };
 
 TORCH_MODULE(AGLU);

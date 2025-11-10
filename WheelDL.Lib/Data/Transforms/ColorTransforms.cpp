@@ -806,7 +806,7 @@ namespace WheelDL
 
             std::unique_ptr<Transform> GaussianNoise::clone() const
             {
-                return std::make_unique<GaussianNoise>(mean_, stddev_, probability_);
+                return std::make_unique<GaussianNoise>(mean_, stddev_);
             }
 
             // ========================================
@@ -910,7 +910,7 @@ namespace WheelDL
 
             std::unique_ptr<Transform> RandomGamma::clone() const
             {
-                return std::make_unique<RandomGamma>(gammaRange_, probability_);
+                return std::make_unique<RandomGamma>(gammaRange_);
             }
 
             // ========================================

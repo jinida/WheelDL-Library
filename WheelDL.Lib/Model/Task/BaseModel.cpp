@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "BaseModel.h"
 #include "../Loss/BaseLoss.h"
 #include "../Loss/DetectionLoss.h"
@@ -66,11 +67,13 @@ namespace WheelDL {
             // Forward through backbone (all modules except head)
             for (size_t i = 0; i < headIdx; ++i) {
                 // Determine input based on _fromIndices
-                if (!_fromIndices.empty() && i < _fromIndices.size()) {
+                if (!_fromIndices.empty() && i < _fromIndices.size()) 
+                {
                     int64_t fromIdx = _fromIndices[i];
-                    if (fromIdx != -1) {
-                        // Get input from specific layer(s)
-                        if (fromIdx >= 0 && static_cast<size_t>(fromIdx) < layerOutputs.size()) {
+                    if (fromIdx != -1) 
+                    {
+                        if (fromIdx >= 0 && static_cast<size_t>(fromIdx) < layerOutputs.size())
+                        {
                             currentInput = layerOutputs[fromIdx];
                         }
                         // Could also handle multiple inputs here for concat layers
@@ -83,24 +86,30 @@ namespace WheelDL {
                 currentInput = module->forward(currentInput);
 
                 // Save output if in save indices
-                if (std::find(_saveIndices.begin(), _saveIndices.end(), i) != _saveIndices.end()) {
+                if (std::find(_saveIndices.begin(), _saveIndices.end(), i) != _saveIndices.end())
+                {
                     layerOutputs[i] = currentInput;
                 }
             }
 
             // Head inference
-            if (headIdx < _model->size()) {
+            if (headIdx < _model->size()) 
+            {
                 std::vector<torch::Tensor> headInputs;
                 if (!_headInputIndices.empty()) {
                     for (int64_t idx : _headInputIndices) {
                         if (idx >= 0 && static_cast<size_t>(idx) < layerOutputs.size() &&
-                            layerOutputs[idx].defined()) {
+                            layerOutputs[idx].defined()) 
+                        {
                             headInputs.push_back(layerOutputs[idx]);
                         }
                     }
-                } else {
+                } 
+                else 
+                {
                     // Fallback: collect all saved outputs
-                    for (size_t i = 0; i < layerOutputs.size(); ++i) {
+                    for (size_t i = 0; i < layerOutputs.size(); ++i) 
+                    {
                         if (layerOutputs[i].defined() &&
                             std::find(_saveIndices.begin(), _saveIndices.end(), i) != _saveIndices.end()) {
                             headInputs.push_back(layerOutputs[i]);
@@ -124,7 +133,7 @@ namespace WheelDL {
                         // Classify returns single tensor - wrap in vector
                         torch::Tensor output;
                         if (headInputs.size() > 1) {
-                            output = classifyHead->forward(headInputs);
+                            output = classifyHead->forwardMulti(headInputs);
                         }
                         else {
                             output = classifyHead->forward(headInputs[0]);
