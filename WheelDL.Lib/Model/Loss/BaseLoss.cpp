@@ -128,6 +128,20 @@ namespace WheelDL {
                 return { {"total", loss} };
             }
 
+            // ============================================================================
+            // BaseLoss default implementation
+            // ============================================================================
+            std::unordered_map<std::string, torch::Tensor> BaseLoss::compute(
+                const torch::Tensor& prediction,
+                const torch::Tensor& target) {
+                // Create a DataExample with the target tensor
+                Data::Dataset::DataExample example;
+                example.targets = target;
+
+                // Call the main compute method
+                return compute(prediction, example);
+            }
+
         } // namespace Loss
     } // namespace Model
 } // namespace WheelDL
