@@ -377,6 +377,136 @@ namespace WheelDL {
             };
 
             TORCH_MODULE(Index);
+
+			class UpsampleImpl : public IBlockImpl {
+			public:
+				UpsampleImpl(double scale_factor = 2.0, const std::string& mode = "nearest");
+				torch::Tensor forward(torch::Tensor x);
+			private:
+				torch::nn::Upsample _upsample = nullptr;
+			};
+			TORCH_MODULE(Upsample);
+
+			/**
+			 * @brief MaxPool2d module
+			 *
+			 * Wraps torch::nn::MaxPool2d for consistent interface
+			 */
+			class MaxPool2dImpl : public IBlockImpl {
+			public:
+				/**
+				 * @brief Construct a new MaxPool2d module
+				 *
+				 * @param kernel_size Kernel size
+				 * @param stride Stride (default: same as kernel_size)
+				 * @param padding Padding (default: 0)
+				 */
+				MaxPool2dImpl(int64_t k, int64_t s = -1, std::optional<int64_t> p = std::nullopt);
+
+				/**
+				 * @brief Apply max pooling
+				 *
+				 * @param x Input tensor
+				 * @return torch::Tensor Output tensor
+				 */
+				torch::Tensor forward(torch::Tensor x);
+
+			private:
+				torch::nn::MaxPool2d _pool = nullptr;
+			};
+			TORCH_MODULE(MaxPool2d);
+
+			/**
+			 * @brief AvgPool2d module
+			 *
+			 * Wraps torch::nn::AvgPool2d for consistent interface
+			 */
+			class AvgPool2dImpl : public IBlockImpl {
+			public:
+				/**
+				 * @brief Construct a new AvgPool2d module
+				 *
+				 * @param kernel_size Kernel size
+				 * @param stride Stride (default: same as kernel_size)
+				 * @param padding Padding (default: 0)
+				 */
+				AvgPool2dImpl(int64_t k, int64_t s = -1, std::optional<int64_t> p = std::nullopt);
+
+				/**
+				 * @brief Apply average pooling
+				 *
+				 * @param x Input tensor
+				 * @return torch::Tensor Output tensor
+				 */
+				torch::Tensor forward(torch::Tensor x);
+
+			private:
+				torch::nn::AvgPool2d _pool = nullptr;
+			};
+			TORCH_MODULE(AvgPool2d);
+
+			/**
+			 * @brief Naive Convolution (Conv2d only, no BatchNorm or Activation)
+			 *
+			 * Simple wrapper around torch::nn::Conv2d without batch normalization or activation.
+			 * Useful for architectures that apply normalization/activation separately (e.g., ConvNeXt).
+			 */
+			class NaiveConvImpl : public IBlockImpl {
+			public:
+				/**
+				 * @brief Construct a new NaiveConv module
+				 *
+				 * @param c1 Number of input channels
+				 * @param c2 Number of output channels
+				 * @param k Kernel size
+				 * @param s Stride (default: 1)
+				 * @param p Padding (optional, auto-calculated if not provided)
+				 * @param g Groups (default: 1)
+				 * @param d Dilation (default: 1)
+				 */
+				NaiveConvImpl(int64_t c1, int64_t c2, int64_t k = 1, int64_t s = 1,
+				              std::optional<int64_t> p = std::nullopt, int64_t g = 1, int64_t d = 1);
+
+				/**
+				 * @brief Forward pass: Conv only
+				 *
+				 * @param x Input tensor
+				 * @return torch::Tensor Output tensor
+				 */
+				torch::Tensor forward(torch::Tensor x);
+
+			private:
+				torch::nn::Conv2d _conv = nullptr;
+			};
+			TORCH_MODULE(NaiveConv);
+
+			/**
+			 * @brief Global Average Pooling module
+			 *
+			 * Applies adaptive average pooling to reduce spatial dimensions to 1x1
+			 */
+			class GlobalAvgPoolImpl : public IBlockImpl {
+			public:
+				/**
+				 * @brief Construct a new GlobalAvgPool module
+				 */
+				GlobalAvgPoolImpl();
+
+				/**
+				 * @brief Apply global average pooling
+				 *
+				 * Input: (N, C, H, W) -> Output: (N, C, 1, 1)
+				 *
+				 * @param x Input tensor
+				 * @return torch::Tensor Output tensor with spatial dimensions 1x1
+				 */
+				torch::Tensor forward(torch::Tensor x);
+
+			private:
+				torch::nn::AdaptiveAvgPool2d _pool = nullptr;
+			};
+			TORCH_MODULE(GlobalAvgPool);
+
         } // namespace Modules
     } // namespace Model
 } // namespace WheelDL
