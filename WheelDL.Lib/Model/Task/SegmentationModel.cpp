@@ -65,8 +65,8 @@ namespace WheelDL {
                 setModel(model);
 
                 // Get metadata from builder
-                _saveIndices = builder.getSaveIndices();
-                _headInputIndices = builder.getHeadInputIndices();
+                setFromIndices(builder.getFromIndices());
+                setSaveIndices(builder.getSaveIndices());
 
                 // Initialize criterion
                 _criterion = initCriterion();

@@ -18,289 +18,307 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cassert>
 
 namespace WheelDL {
-    namespace Model {
+	namespace Model {
+		using namespace Modules;
+		BaseModel::BaseModel()
+			: _taskType(WheelDL::TaskType::UNKNOWN)
+			, _isInitialized(false)
+			, _inplace(true)
+			, _training(false)
+		{
+			_stride = torch::tensor({ 32.0 });  // Default stride
+		}
 
-        using namespace Modules;
+		std::vector<torch::Tensor> BaseModel::forward(const torch::Tensor& x) 
+		{
+			return predict(x);
+		}
 
-        // ==================== BaseModel Implementation ====================
+		std::unordered_map<std::string, torch::Tensor> BaseModel::forward(const Data::Dataset::DataExample& data) 
+		{
+			return loss(data);
+		}
 
-        BaseModel::BaseModel()
-            : _taskType(WheelDL::TaskType::UNKNOWN)
-            , _isInitialized(false)
-            , _inplace(true)
-            , _training(false)
-        {
-            _stride = torch::tensor({ 32.0 });  // Default stride
-        }
+		std::vector<torch::Tensor> BaseModel::predict(const torch::Tensor& x)
+		{
+			if (_model->is_empty()) {
+				return { x };
+			}
 
-        std::vector<torch::Tensor> BaseModel::forward(const torch::Tensor& x) {
-            // Inference mode
-            return predict(x);
-        }
+			if (_saveIndices.empty() && _fromIndices.empty()) {
+				return { _model->forward(x) };
+			}
 
-        std::unordered_map<std::string, torch::Tensor> BaseModel::forward(const Data::Dataset::DataExample& data) {
-            // Training mode - compute loss
-            return loss(data);
-        }
+			// Build a set of indices that need to be saved
+			std::unordered_set<size_t> indicesToSave;
+			indicesToSave.insert(0);  // Always save input (Layer 0)
 
-        std::vector<torch::Tensor> BaseModel::predict(const torch::Tensor& x)
-        {
-            if (_model->is_empty()) {
-                return {x};
-            }
+			// Add all saveIndices
+			for (int64_t idx : _saveIndices) {
+				indicesToSave.insert(static_cast<size_t>(idx));
+			}
 
-            if (_saveIndices.empty() && _fromIndices.empty())
-            {
-                // Simple forward pass - wrap in vector
-                return {_model->forward(x)};
-            }
+			// Storage for layer outputs (sparse - only saved layers)
+			std::unordered_map<size_t, torch::Tensor> layerOutputs;
+			layerOutputs[0] = x;  // Layer 0 is the input image
+			torch::Tensor previousOutput = x;  // Keep track of previous layer output
 
-            // Head is always the last module
-            size_t headIdx = _model->size() - 1;
+			// Lambda to resolve negative layer indices
+			auto resolveLayerId = [&](int64_t layerId, size_t currentLayer) -> size_t {
+				if (layerId < 0) {
+					// -1 means previous layer, -2 means two layers back, etc.
+					return currentLayer + layerId;
+				}
+				return static_cast<size_t>(layerId);
+				};
 
-            // Storage for layer outputs (y in original)
-            std::vector<torch::Tensor> layerOutputs(_model->size());
-            torch::Tensor currentInput = x;
+			// Forward through all modules (backbone + head)
+			for (size_t i = 0; i < _model->size(); ++i)
+			{
+				size_t currentLayerId = i + 1;  // Layer ID (1-based, 0 is input)
+				torch::Tensor currentInput;
 
-            // Forward through backbone (all modules except head)
-            for (size_t i = 0; i < headIdx; ++i) {
-                // Determine input based on _fromIndices
-                if (!_fromIndices.empty() && i < _fromIndices.size()) 
-                {
-                    int64_t fromIdx = _fromIndices[i];
-                    if (fromIdx != -1) 
-                    {
-                        if (fromIdx >= 0 && static_cast<size_t>(fromIdx) < layerOutputs.size())
-                        {
-                            currentInput = layerOutputs[fromIdx];
-                        }
-                        // Could also handle multiple inputs here for concat layers
-                    }
-                    // else: use currentInput from previous layer
-                }
+				bool isHead = (i == _model->size() - 1);
+				// Determine input based on _fromIndices
+				if (!_fromIndices.empty() && i < _fromIndices.size())
+				{
+					const auto& fromList = _fromIndices[i];
+					if (fromList.empty() || (fromList.size() == 1 && fromList[0] == -1))
+					{
+						// Use output from previous layer
+						currentInput = previousOutput;
+					}
+					else if (fromList.size() == 1)
+					{
+						// Single input from specific layer
+						int64_t fromIdx = fromList[0];
+						size_t resolvedIdx = resolveLayerId(fromIdx, currentLayerId);
 
-                // Forward through module
-                auto module = _model[i]->as<torch::nn::AnyModule>();
-                currentInput = module->forward(currentInput);
+						auto it = layerOutputs.find(resolvedIdx);
+						// ModelBuilder validated this - should always succeed
+						assert(it != layerOutputs.end() && it->second.defined());
+						currentInput = it->second;
+					}
+					else
+					{
+						// Multiple inputs (for Concat or multi-input heads)
+						std::vector<torch::Tensor> inputs;
+						for (int64_t fromIdx : fromList)
+						{
+							size_t resolvedIdx = resolveLayerId(fromIdx, currentLayerId);
 
-                // Save output if in save indices
-                if (std::find(_saveIndices.begin(), _saveIndices.end(), i) != _saveIndices.end())
-                {
-                    layerOutputs[i] = currentInput;
-                }
-            }
+							// Special case: -1 (previous layer) always uses previousOutput
+							if (fromIdx == -1)
+							{
+								inputs.push_back(previousOutput);
+							}
+							else
+							{
+								auto it = layerOutputs.find(resolvedIdx);
+								// ModelBuilder validated this - should always succeed
+								assert(it != layerOutputs.end() && it->second.defined());
+								inputs.push_back(it->second);
+							}
+						}
 
-            // Head inference
-            if (headIdx < _model->size()) 
-            {
-                std::vector<torch::Tensor> headInputs;
-                if (!_headInputIndices.empty()) {
-                    for (int64_t idx : _headInputIndices) {
-                        if (idx >= 0 && static_cast<size_t>(idx) < layerOutputs.size() &&
-                            layerOutputs[idx].defined()) 
-                        {
-                            headInputs.push_back(layerOutputs[idx]);
-                        }
-                    }
-                } 
-                else 
-                {
-                    // Fallback: collect all saved outputs
-                    for (size_t i = 0; i < layerOutputs.size(); ++i) 
-                    {
-                        if (layerOutputs[i].defined() &&
-                            std::find(_saveIndices.begin(), _saveIndices.end(), i) != _saveIndices.end()) {
-                            headInputs.push_back(layerOutputs[i]);
-                        }
-                    }
-                }
+						if (isHead)
+						{
+							// ModelBuilder validated last layer is IHeadBlockImpl
+							return _model[i]->as<Modules::IHeadBlockImpl>()->forward(inputs);
+						}
+						else
+						{
+							// Backbone module with multiple inputs (e.g., Concat)
+							auto module = _model[i];
 
-                if (!headInputs.empty()) {
-                    auto headModule = _model[headIdx];
+							if (auto* concatModule = dynamic_cast<Modules::ConcatImpl*>(module.get()))
+							{
+								currentInput = concatModule->forward(inputs);
+								previousOutput = currentInput;
+								if (indicesToSave.find(currentLayerId) != indicesToSave.end())
+								{
+									layerOutputs[currentLayerId] = currentInput;
+								}
+								continue;
+							}
+							else
+							{
+								currentInput = inputs[0];
+							}
+						}
+					}
+				}
+				else
+				{
+					currentInput = previousOutput;
+				}
 
-                    if (auto* detectHead = dynamic_cast<Modules::DetectImpl*>(headModule.get()))
-                    {
-                        // DetectImpl returns vector<Tensor>
-                        return detectHead->forward(headInputs);
-                    }
-                    else if (auto* obbHead = dynamic_cast<Modules::OBBImpl*>(headModule.get())) {
-                        // OBBImpl also returns vector<Tensor>
-                        return obbHead->forward(headInputs);
-                    }
-                    else if (auto* classifyHead = dynamic_cast<Modules::ClassifyImpl*>(headModule.get())) {
-                        // Classify returns single tensor - wrap in vector
-                        torch::Tensor output;
-                        if (headInputs.size() > 1) {
-                            output = classifyHead->forwardMulti(headInputs);
-                        }
-                        else {
-                            output = classifyHead->forward(headInputs[0]);
-                        }
-                        return {output};
-                    }
-                    else {
-                        // Unknown head type - try generic forward
-                        auto anyModule = headModule->as<torch::nn::AnyModule>();
-                        if (headInputs.size() > 1) {
-                            return {headInputs.back()};
-                        } else {
-                            return {anyModule->forward(headInputs[0])};
-                        }
-                    }
-                }
-            }
+				if (isHead)
+				{
+					return _model[i]->as<Modules::IHeadBlockImpl>()->forward({ currentInput });
+				}
 
-            // Default: return current input wrapped in vector
-            return {currentInput};
-        }
+				auto module = _model[i]->as<IBlockImpl>();
+				torch::Tensor output = module->forward(currentInput);
 
-        std::unordered_map<std::string, torch::Tensor> BaseModel::loss(
-            const Data::Dataset::DataExample& batch,
-            const std::vector<torch::Tensor>& preds)
-        {
-            if (!_criterion)
-            {
-                _criterion = initCriterion();
-            }
+				// Update previous output
+				previousOutput = output;
 
-            // Compute predictions if not provided
-            std::vector<torch::Tensor> predictions = preds.empty() ? forward(batch.data) : preds;
+				// Store output only if it's in saveIndices
+				if (indicesToSave.find(currentLayerId) != indicesToSave.end())
+				{
+					layerOutputs[currentLayerId] = output;
+				}
+			}
 
-            // Compute loss using the criterion
-            // Loss functions need to be updated to accept vector<Tensor>
-            // For now, pass the predictions vector to the loss
-            return _criterion->compute(predictions, batch);
-        }
+			// Return last layer output
+			return { previousOutput };
+		}
 
-        void BaseModel::loadWeights(const std::string& weights) {
-            try {
-                // Load model state dict from file
-                torch::serialize::InputArchive archive;
-                archive.load_from(weights);
+		std::unordered_map<std::string, torch::Tensor> BaseModel::loss(
+			const Data::Dataset::DataExample& batch,
+			const std::vector<torch::Tensor>& preds)
+		{
+			if (!_criterion)
+			{
+				_criterion = initCriterion();
+			}
 
-                // Load tensors from archive
-                std::unordered_map<std::string, torch::Tensor> stateDict;
-                for (const auto& param : named_parameters()) {
-                    const std::string& name = param.key();
-                    torch::Tensor tensor;
+			std::vector<torch::Tensor> predictions = preds.empty() ? forward(batch.data) : preds;
+			return _criterion->compute(predictions, batch);
+		}
 
-                    // Try to read the tensor from archive
-                    try {
-                        archive.read(name, tensor);
-                        stateDict[name] = tensor;
-                    }
-                    catch (...) {
-                        // Parameter not found in checkpoint, skip
-                        continue;
-                    }
-                }
+		void BaseModel::loadWeights(const std::string& weights) {
+			try {
+				// Load model state dict from file
+				torch::serialize::InputArchive archive;
+				archive.load_from(weights);
 
-                // Apply loaded weights
-                loadWeights(stateDict);
+				// Load tensors from archive
+				std::unordered_map<std::string, torch::Tensor> stateDict;
+				for (const auto& param : named_parameters()) 
+				{
+					const std::string& name = param.key();
+					torch::Tensor tensor;
 
-            }
-            catch (const std::exception& e) {
-                throw WheelDL::Utils::ModelException(
-                    WheelDL::Utils::ErrorCode::MODEL_LOAD_FAILED,
-                    "Failed to load weights from " + weights + ": " + e.what()
-                );
-            }
-        }
+					// Try to read the tensor from archive
+					try {
+						archive.read(name, tensor);
+						stateDict[name] = tensor;
+					}
+					catch (...) {
+						std::cerr << "Warning: Parameter " << name << " not found in checkpoint." << std::endl;
+						continue;
+					}
+				}
 
-        void BaseModel::loadWeights(const std::unordered_map<std::string, torch::Tensor>& stateDict) {
-            // Get current model parameters
-            for (auto& param : named_parameters()) {
-                const std::string& name = param.key();
-                torch::Tensor& tensor = param.value();
+				// Apply loaded weights
+				loadWeights(stateDict);
 
-                auto it = stateDict.find(name);
-                if (it != stateDict.end()) {
-                    // Check shape compatibility
-                    if (tensor.sizes() == it->second.sizes()) {
-                        tensor.data().copy_(it->second);
-                    }
-                }
-            }
-        }
+			}
+			catch (const std::exception& e) {
+				throw WheelDL::Utils::ModelException(
+					WheelDL::Utils::ErrorCode::MODEL_LOAD_FAILED,
+					"Failed to load weights from " + weights + ": " + e.what()
+				);
+			}
+		}
 
-        void BaseModel::saveWeights(const std::string& path) const {
-            try {
-                // Save model state dict
-                torch::serialize::OutputArchive archive;
+		void BaseModel::loadWeights(const std::unordered_map<std::string, torch::Tensor>& stateDict) {
+			// Get current model parameters
+			for (auto& param : named_parameters()) {
+				const std::string& name = param.key();
+				torch::Tensor& tensor = param.value();
 
-                for (const auto& param : named_parameters()) {
-                    const std::string& name = param.key();
-                    const torch::Tensor& tensor = param.value();
-                    archive.write(name, tensor);
-                }
+				auto it = stateDict.find(name);
+				if (it != stateDict.end()) {
+					// Check shape compatibility
+					if (tensor.sizes() == it->second.sizes()) {
+						tensor.data().copy_(it->second);
+					}
+				}
+			}
+		}
 
-                archive.save_to(path);
+		void BaseModel::saveWeights(const std::string& path) const {
+			try {
+				// Save model state dict
+				torch::serialize::OutputArchive archive;
 
-            }
-            catch (const std::exception& e) {
-                throw WheelDL::Utils::ModelException(
-                    WheelDL::Utils::ErrorCode::MODEL_SAVE_FAILED,
-                    "Failed to save weights to " + path + ": " + e.what()
-                );
-            }
-        }
+				for (const auto& param : named_parameters()) {
+					const std::string& name = param.key();
+					const torch::Tensor& tensor = param.value();
+					archive.write(name, tensor);
+				}
 
-        void BaseModel::applyToTensors(const std::function<torch::Tensor(const torch::Tensor&)>& fn) {
-            // Apply function to stride and other model tensors
-            if (_stride.defined()) {
-                _stride = fn(_stride);
-            }
+				archive.save_to(path);
 
-            // Apply to module parameters
-            for (auto& param : parameters()) {
-                param = fn(param);
-            }
-        }
+			}
+			catch (const std::exception& e) {
+				throw WheelDL::Utils::ModelException(
+					WheelDL::Utils::ErrorCode::MODEL_SAVE_FAILED,
+					"Failed to save weights to " + path + ": " + e.what()
+				);
+			}
+		}
 
-        int64_t BaseModel::countParameters() const {
-            int64_t count = 0;
-            for (const auto& p : parameters()) {
-                count += p.numel();
-            }
-            return count;
-        }
+		void BaseModel::applyToTensors(const std::function<torch::Tensor(const torch::Tensor&)>& fn) {
+			// Apply function to stride and other model tensors
+			if (_stride.defined()) {
+				_stride = fn(_stride);
+			}
 
-        double BaseModel::countFlops(const torch::IntArrayRef& inputSize) const {
-            // This is a simplified FLOP counting
-            // For more accurate counting, would need to traverse each layer type
+			// Apply to module parameters
+			for (auto& param : parameters()) {
+				param = fn(param);
+			}
+		}
 
-            double flops = 0.0;
-            int64_t batch = inputSize[0];
-            int64_t channels = inputSize[1];
-            int64_t height = inputSize[2];
-            int64_t width = inputSize[3];
+		int64_t BaseModel::countParameters() const {
+			int64_t count = 0;
+			for (const auto& p : parameters()) 
+			{
+				count += p.numel();
+			}
+			return count;
+		}
 
-            for (const auto& module : modules()) {
-                // Check if it's a Conv2d
-                if (auto conv = dynamic_cast<const torch::nn::Conv2dImpl*>(module.get())) {
-                    auto options = conv->options;
-                    int64_t kernelOps = options.kernel_size()->at(0) * options.kernel_size()->at(1);
-                    int64_t inChannels = options.in_channels();
-                    int64_t outChannels = options.out_channels();
+		double BaseModel::countFlops(const torch::IntArrayRef& inputSize) const {
+			// This is a simplified FLOP counting
+			// For more accurate counting, would need to traverse each layer type
 
-                    // Approximate output size
-                    int64_t outH = height / options.stride()->at(0);
-                    int64_t outW = width / options.stride()->at(1);
+			double flops = 0.0;
+			int64_t batch = inputSize[0];
+			int64_t channels = inputSize[1];
+			int64_t height = inputSize[2];
+			int64_t width = inputSize[3];
 
-                    flops += batch * kernelOps * inChannels * outChannels * outH * outW;
+			for (const auto& module : modules()) {
+				// Check if it's a Conv2d
+				if (auto conv = dynamic_cast<const torch::nn::Conv2dImpl*>(module.get())) {
+					auto options = conv->options;
+					int64_t kernelOps = options.kernel_size()->at(0) * options.kernel_size()->at(1);
+					int64_t inChannels = options.in_channels();
+					int64_t outChannels = options.out_channels();
 
-                    // Update for next layer
-                    height = outH;
-                    width = outW;
-                }
-                // Could add more layer types here (Linear, etc.)
-            }
+					// Approximate output size
+					int64_t outH = height / options.stride()->at(0);
+					int64_t outW = width / options.stride()->at(1);
 
-            // Multiply-accumulate operations count as 2 FLOPs
-            return flops * 2.0;
-        }
+					flops += batch * kernelOps * inChannels * outChannels * outH * outW;
 
-    } // namespace Model
+					// Update for next layer
+					height = outH;
+					width = outW;
+				}
+				// Could add more layer types here (Linear, etc.)
+			}
+
+			// Multiply-accumulate operations count as 2 FLOPs
+			return flops * 2.0;
+		}
+	} // namespace Model
 } // namespace WheelDL

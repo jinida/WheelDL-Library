@@ -64,8 +64,8 @@ namespace WheelDL {
                 setModel(model);
 
                 // Get metadata from builder
-                _saveIndices = builder.getSaveIndices();
-                _headInputIndices = builder.getHeadInputIndices();
+                setFromIndices(builder.getFromIndices());
+                setSaveIndices(builder.getSaveIndices());
 
                 // Calculate stride for detection layers
                 // Use smaller fixed size for efficiency (256 is sufficient to determine stride)
@@ -110,7 +110,10 @@ namespace WheelDL {
         std::unique_ptr<BaseLoss> DetectionModel::initCriterion()
         {
             if (_stride.numel() == 0) {
-                throw std::runtime_error("Stride not initialized");
+                throw WheelDL::Utils::ModelException(
+                    WheelDL::Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
+                    "Stride not initialized - model architecture may be invalid"
+                );
             }
 
             // Create and return detection loss
@@ -137,15 +140,8 @@ namespace WheelDL {
 
             // Run forward pass to get predictions
             std::vector<torch::Tensor> predictions;
-            try {
-                predictions = predict(dummyInput);
-            }
-            catch (const std::exception& e)
-            {
-                predictions = forward(dummyInput);
-            }
 
-            // Calculate stride for each prediction scale
+            predictions = predict(dummyInput);
             std::vector<float> strideValues;
 
             for (const auto& pred : predictions) {
@@ -154,12 +150,6 @@ namespace WheelDL {
                     auto outputSize = pred.size(2);  // height of feature map
                     float stride = static_cast<float>(imageSize) / static_cast<float>(outputSize);
                     strideValues.push_back(stride);
-                }
-                // For concatenated format [batch, channels, num_anchors]
-                else if (pred.dim() == 3)
-                {
-                    strideValues = {8.0f, 16.0f, 32.0f};
-                    break;
                 }
             }
 

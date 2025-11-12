@@ -112,12 +112,22 @@ namespace WheelDL {
 			}
 
 			/**
-			 * @brief Set head input indices (which layers feed into the head)
+			 * @brief Set from indices for each layer (which layers each layer takes input from)
 			 *
-			 * @param indices Vector of layer indices that the head takes input from
+			 * @param indices Vector of vectors containing source layer indices for each layer
 			 */
-			void setHeadInputIndices(const std::vector<int64_t>& indices) {
-				_headInputIndices = indices;
+			void setFromIndices(const std::vector<std::vector<int64_t>>& indices)
+			{
+				_fromIndices = indices;
+			}
+
+			/**
+			 * @brief Set save indices (which layer outputs need to be saved)
+			 *
+			 * @param indices Vector of layer indices whose outputs should be saved
+			 */
+			void setSaveIndices(const std::vector<int64_t>& indices) {
+				_saveIndices = indices;
 			}
 
 			// Setters
@@ -158,8 +168,7 @@ namespace WheelDL {
 			// Model components
 			torch::nn::Sequential _model = nullptr;              // Main model sequential
 			std::vector<int64_t> _saveIndices;        // Layer indices to save outputs
-			std::vector<int64_t> _fromIndices;         // From indices for each layer (-1 = previous)
-			std::vector<int64_t> _headInputIndices;    // Indices of layers that feed into the head
+			std::vector<std::vector<int64_t>> _fromIndices;         // From indices for each layer (supports multi-input like [-1, 6])
 			torch::Tensor _stride;                     // Model stride values
 
 			WheelDL::TaskType _taskType;         // Task type (detection, classification, etc.)

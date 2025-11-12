@@ -66,8 +66,8 @@ namespace WheelDL {
                 setModel(model);
 
                 // Get metadata from builder
-                _saveIndices = builder.getSaveIndices();
-                _headInputIndices = builder.getHeadInputIndices();
+                setFromIndices(builder.getFromIndices());
+                setSaveIndices(builder.getSaveIndices());
 
                 // Calculate stride for OBB detection layers
                 // Use smaller fixed size for efficiency (256 is sufficient to determine stride)
@@ -113,7 +113,10 @@ namespace WheelDL {
         std::unique_ptr<BaseLoss> OBBModel::initCriterion()
         {
             if (_stride.numel() == 0) {
-                throw std::runtime_error("Stride not initialized");
+                throw WheelDL::Utils::ModelException(
+                    WheelDL::Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
+                    "Stride not initialized - model architecture may be invalid"
+                );
             }
 
             // Create and return OBB loss
