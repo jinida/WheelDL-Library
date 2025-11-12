@@ -4,8 +4,9 @@
 #include "../Modules/Block.h"
 #include "../Modules/Head.h"
 #include "../../Config/YamlParser.h"
+#include "../../Utils/Error/WheelLibException.h"
+#include "../../Utils/Error/ErrorCodes.h"
 #include "Factory/ModuleFactoryRegistry.h"
-#include <stdexcept>
 #include <algorithm>
 #include <cmath>
 
@@ -26,6 +27,7 @@ namespace WheelDL {
 
 			ModelBuilder& ModelBuilder::setYamlPath(const std::string& path) {
 				_yamlPath = path;
+				parseYaml();
 				return *this;
 			}
 
@@ -48,7 +50,10 @@ namespace WheelDL {
 				using namespace Config;
 
 				if (_yamlPath.empty()) {
-					throw std::runtime_error("YAML path not set");
+					throw WheelDL::Utils::ConfigurationException(
+						WheelDL::Utils::ErrorCode::INVALID_CONFIG,
+						"YAML path not set"
+					);
 				}
 
 				// Use YamlParser to load and validate
@@ -78,18 +83,25 @@ namespace WheelDL {
 			{
 				// Validate inputs
 				if (channels < 0) {
-					throw std::invalid_argument("applyScale: channels must be non-negative, got: " +
-						std::to_string(channels));
+					throw WheelDL::Utils::ModelException(
+						WheelDL::Utils::ErrorCode::INVALID_ARGUMENT,
+						"applyScale: channels must be non-negative, got: " + std::to_string(channels)
+					);
 				}
 				if (repeats < 0) {
-					throw std::invalid_argument("applyScale: repeats must be non-negative, got: " +
-						std::to_string(repeats));
+					throw WheelDL::Utils::ModelException(
+						WheelDL::Utils::ErrorCode::INVALID_ARGUMENT,
+						"applyScale: repeats must be non-negative, got: " + std::to_string(repeats)
+					);
 				}
 
 				// Check for potential overflow before scaling
 				constexpr int64_t max_safe_channels = std::numeric_limits<int64_t>::max() / 8;
 				if (_widthMultiple > 0 && channels > max_safe_channels / _widthMultiple) {
-					throw std::overflow_error("applyScale: channel scaling would overflow");
+					throw WheelDL::Utils::ModelException(
+						WheelDL::Utils::ErrorCode::MEMORY_ALLOCATION_FAILED,
+						"applyScale: channel scaling would overflow"
+					);
 				}
 
 				// Apply width scaling
@@ -97,7 +109,10 @@ namespace WheelDL {
 
 				// Validate result fits in int64_t
 				if (scaledDouble > static_cast<double>(std::numeric_limits<int64_t>::max())) {
-					throw std::overflow_error("applyScale: scaled channels exceed int64_t max");
+					throw WheelDL::Utils::ModelException(
+						WheelDL::Utils::ErrorCode::MEMORY_ALLOCATION_FAILED,
+						"applyScale: scaled channels exceed int64_t max"
+					);
 				}
 
 				int64_t scaledChannels = static_cast<int64_t>(scaledDouble);
@@ -106,7 +121,10 @@ namespace WheelDL {
 				// Apply depth scaling with overflow check
 				double scaledRepeatsDouble = std::round(repeats * _depthMultiple);
 				if (scaledRepeatsDouble > static_cast<double>(std::numeric_limits<int64_t>::max())) {
-					throw std::overflow_error("applyScale: scaled repeats exceed int64_t max");
+					throw WheelDL::Utils::ModelException(
+						WheelDL::Utils::ErrorCode::MEMORY_ALLOCATION_FAILED,
+						"applyScale: scaled repeats exceed int64_t max"
+					);
 				}
 
 				int64_t scaledRepeats = std::max(static_cast<int64_t>(scaledRepeatsDouble), int64_t(1));
@@ -136,7 +154,10 @@ namespace WheelDL {
 					return _inputChannels;
 				}
 
-				throw std::runtime_error("Cannot find output channels for layer " + std::to_string(layerId));
+				throw WheelDL::Utils::ModelException(
+					WheelDL::Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
+					"Cannot find output channels for layer " + std::to_string(layerId)
+				);
 			}
 
 			torch::nn::AnyModule ModelBuilder::buildModule(
@@ -144,13 +165,16 @@ namespace WheelDL {
 				const YAML::Node& argsNode,
 				int64_t inputChannels,
 				int64_t repeats,
-				int64_t& outputChannels
-			) {
+				int64_t& outputChannels) 
+			{
 				// Get factory from registry
 				auto factory = ModuleFactoryRegistry::instance().getFactory(moduleType);
 
 				if (!factory) {
-					throw std::runtime_error("Unsupported module type: " + moduleType);
+					throw WheelDL::Utils::ModelException(
+						WheelDL::Utils::ErrorCode::MODEL_BUILD_FAILED,
+						"Unsupported module type: " + moduleType
+					);
 				}
 
 				// Create build context
@@ -173,12 +197,11 @@ namespace WheelDL {
 			torch::nn::Sequential ModelBuilder::build()
 			{
 				try {
-					parseYaml();
-
 					// Reset all state to ensure clean build
 					_layerOutputChannels.clear();
 					_headChannels.clear();
 					_saveIndices.clear();
+					_fromIndices.clear();
 					_currentLayerId = 0;
 					_layerOutputChannels[0] = _inputChannels;
 
@@ -198,16 +221,19 @@ namespace WheelDL {
 							auto argsNode = layer[3];
 
 							int64_t inputChannels = 0;
+							std::vector<int64_t> currentFromIndices;
 
 							// Determine input channels based on 'from'
 							// Following Python: save_indices.extend(x for x in ([src] if isinstance(src, int) else src) if x != -1)
 							if (fromNode.IsScalar()) {
 								int64_t fromId = fromNode.as<int64_t>();
+								int64_t resolvedId = resolveLayerId(fromId);
+								currentFromIndices.push_back(fromId);
 								inputChannels = getOutputChannels(fromId);
+
 								// Add to save indices if not -1
 								if (fromId != -1)
 								{
-									int64_t resolvedId = resolveLayerId(fromId);
 									_saveIndices.push_back(resolvedId);
 								}
 							}
@@ -216,15 +242,20 @@ namespace WheelDL {
 								for (const auto& f : fromNode)
 								{
 									int64_t fromId = f.as<int64_t>();
+									int64_t resolvedId = resolveLayerId(fromId);
+									currentFromIndices.push_back(fromId);
 									inputChannels += getOutputChannels(fromId);
+
 									// Add to save indices if not -1
 									if (fromId != -1)
 									{
-										int64_t resolvedId = resolveLayerId(fromId);
 										_saveIndices.push_back(resolvedId);
 									}
 								}
 							}
+
+							// Store from indices for this layer
+							_fromIndices.push_back(currentFromIndices);
 
 							// Build the module using buildModule helper
 							int64_t outputChannels = 0;
@@ -249,41 +280,37 @@ namespace WheelDL {
 							auto argsNode = layer[3];
 
 							int64_t inputChannels = 0;
+							std::vector<int64_t> currentFromIndices;
+
 							if (fromNode.IsScalar())
 							{
 								int64_t fromId = fromNode.as<int64_t>();
+								int64_t resolvedId = resolveLayerId(fromId);
+								currentFromIndices.push_back(fromId);
 								inputChannels = getOutputChannels(fromId);
 
-								// Store head input indices
-								if (fromId != -1) 
-								{
-									int64_t resolvedId = resolveLayerId(fromId);
-									_headInputIndices.push_back(resolvedId);
-								}
-
 								// Add to save indices if not -1
-								if (fromId != -1) 
+								if (fromId != -1)
 								{
-									int64_t resolvedId = resolveLayerId(fromId);
 									_saveIndices.push_back(resolvedId);
 								}
 							}
 							else if (fromNode.IsSequence()) {
 								// For Detect head, collect channel sizes
-								if (moduleType == "Detect" || moduleType == "OBB" || moduleType == "Classify") 
+								if (moduleType == "Detect" || moduleType == "OBB" || moduleType == "Classify")
 								{
 									_headChannels.clear();
 									for (const auto& f : fromNode) {
 										int64_t fromId = f.as<int64_t>();
+										int64_t resolvedId = resolveLayerId(fromId);
+										currentFromIndices.push_back(fromId);
 										int64_t ch = getOutputChannels(fromId);
 										_headChannels.push_back(ch);
 										inputChannels += ch;
 
-										// Store head input indices - these are the layers head takes from
+										// Add to save indices if not -1
 										if (fromId != -1)
 										{
-											int64_t resolvedId = resolveLayerId(fromId);
-											_headInputIndices.push_back(resolvedId);
 											_saveIndices.push_back(resolvedId);
 										}
 									}
@@ -292,16 +319,21 @@ namespace WheelDL {
 									// For Concat
 									for (const auto& f : fromNode) {
 										int64_t fromId = f.as<int64_t>();
+										int64_t resolvedId = resolveLayerId(fromId);
+										currentFromIndices.push_back(fromId);
 										inputChannels += getOutputChannels(fromId);
+
 										// Add to save indices if not -1
 										if (fromId != -1)
 										{
-											int64_t resolvedId = resolveLayerId(fromId);
 											_saveIndices.push_back(resolvedId);
 										}
 									}
 								}
 							}
+
+							// Store from indices for this layer
+							_fromIndices.push_back(currentFromIndices);
 
 							// Build head module using buildModule helper
 							int64_t outputChannels = 0;
@@ -315,15 +347,26 @@ namespace WheelDL {
 					std::sort(_saveIndices.begin(), _saveIndices.end());
 					_saveIndices.erase(std::unique(_saveIndices.begin(), _saveIndices.end()), _saveIndices.end());
 
+					// Validate configuration before returning
+					validateConfiguration(model);
+
 					return model;
 
 				}
-				catch (const std::exception& e) 
+				catch (const WheelDL::Utils::WheelLibException&) {
+					// Re-throw WheelLib exceptions as-is
+					_layerOutputChannels.clear();
+					_headChannels.clear();
+					_currentLayerId = 0;
+					throw;
+				}
+				catch (const std::exception& e)
 				{
 					_layerOutputChannels.clear();
 					_headChannels.clear();
 					_currentLayerId = 0;
-					throw std::runtime_error(
+					throw WheelDL::Utils::ModelException(
+						WheelDL::Utils::ErrorCode::MODEL_BUILD_FAILED,
 						std::string("ModelBuilder::build failed: ") + e.what()
 					);
 				}
@@ -337,8 +380,101 @@ namespace WheelDL {
 				return _saveIndices;
 			}
 
-			std::vector<int64_t> ModelBuilder::getHeadInputIndices() const {
-				return _headInputIndices;
+			std::vector<std::vector<int64_t>> ModelBuilder::getFromIndices() const {
+				return _fromIndices;
+			}
+
+			void ModelBuilder::validateConfiguration(const torch::nn::Sequential& model) {
+				// Check if model has at least one layer
+				if (model->size() == 0) {
+					throw WheelDL::Utils::ModelException(
+						WheelDL::Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
+						"Model is empty - no layers were built"
+					);
+				}
+
+				// Check if the last layer is a Head module (implements IHeadBlockImpl)
+				auto lastModule = model->ptr(model->size() - 1);
+				auto headPtr = dynamic_cast<Modules::IHeadBlockImpl*>(lastModule.get());
+				if (!headPtr) {
+					throw WheelDL::Utils::ModelException(
+						WheelDL::Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
+						"Last layer (layer " + std::to_string(model->size()) +
+						") must be a Head module (Detect/OBB/Classify), but it is not an IHeadBlockImpl"
+					);
+				}
+
+				// Iterate through each layer's fromIndices
+				for (size_t layerIdx = 0; layerIdx < _fromIndices.size(); ++layerIdx) {
+					size_t currentLayerId = layerIdx + 1;  // Layer IDs are 1-based
+					const auto& fromList = _fromIndices[layerIdx];
+
+					for (int64_t fromIdx : fromList) {
+						// Resolve negative index
+						int64_t resolvedIdx;
+						if (fromIdx < 0) {
+							// Check for underflow: currentLayerId + fromIdx must be >= 0
+							if (static_cast<int64_t>(currentLayerId) + fromIdx < 0) {
+								throw WheelDL::Utils::ModelException(
+									WheelDL::Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
+									"Invalid negative index at layer " + std::to_string(currentLayerId) +
+									": fromIdx=" + std::to_string(fromIdx) +
+									" would resolve to negative layer (underflow). " +
+									"Layer " + std::to_string(currentLayerId) + " cannot reference " +
+									std::to_string(abs(fromIdx)) + " layers back."
+								);
+							}
+							resolvedIdx = static_cast<int64_t>(currentLayerId) + fromIdx;
+						} else {
+							resolvedIdx = fromIdx;
+						}
+
+						// Check for forward reference
+						if (resolvedIdx >= static_cast<int64_t>(currentLayerId)) {
+							throw WheelDL::Utils::ModelException(
+								WheelDL::Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
+								"Forward reference detected at layer " + std::to_string(currentLayerId) +
+								": trying to reference layer " + std::to_string(resolvedIdx) +
+								" which hasn't been computed yet."
+							);
+						}
+
+						// Check if resolvedIdx exists in our layer map (except -1 which uses previousOutput)
+						if (fromIdx != -1) {
+							// Layer 0 (input) is always valid
+							if (resolvedIdx > 0 && _layerOutputChannels.find(resolvedIdx) == _layerOutputChannels.end()) {
+								throw WheelDL::Utils::ModelException(
+									WheelDL::Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
+									"Invalid layer reference at layer " + std::to_string(currentLayerId) +
+									": fromIdx=" + std::to_string(fromIdx) +
+									" (resolved to " + std::to_string(resolvedIdx) + ") does not exist."
+								);
+							}
+
+							// Check if the referenced layer is in saveIndices (except for -1)
+							auto saveIt = std::find(_saveIndices.begin(), _saveIndices.end(), resolvedIdx);
+							if (saveIt == _saveIndices.end() && resolvedIdx != 0) {
+								throw WheelDL::Utils::ConfigurationException(
+									WheelDL::Utils::ErrorCode::CONFIG_VALIDATION_FAILED,
+									"Configuration error at layer " + std::to_string(currentLayerId) +
+									": references layer " + std::to_string(resolvedIdx) +
+									" (fromIdx=" + std::to_string(fromIdx) + ") " +
+									"but that layer's output is not saved. " +
+									"Required layer outputs must be included in saveIndices."
+								);
+							}
+						}
+					}
+				}
+
+				// Additional validation: Check for duplicate indices in saveIndices (should already be removed, but verify)
+				std::unordered_set<int64_t> uniqueCheck(_saveIndices.begin(), _saveIndices.end());
+				if (uniqueCheck.size() != _saveIndices.size()) {
+					throw WheelDL::Utils::ModelException(
+						WheelDL::Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
+						"Internal error: duplicate indices found in saveIndices after deduplication."
+					);
+				}
 			}
 		} // namespace Builder
 	} // namespace Model
