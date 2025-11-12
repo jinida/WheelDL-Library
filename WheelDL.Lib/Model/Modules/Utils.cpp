@@ -9,7 +9,8 @@ namespace WheelDL {
     namespace Model {
         namespace Modules {
 
-            float biasInitWithProb(float priorProb) {
+            float biasInitWithProb(float priorProb) 
+            {
                 // Validate input range
                 if (priorProb <= 0.0f || priorProb >= 1.0f) {
                     throw std::invalid_argument("priorProb must be in (0, 1), got: " + std::to_string(priorProb));
@@ -19,7 +20,7 @@ namespace WheelDL {
             }
 
             void linearInit(torch::nn::Linear& module) {
-                auto weight = module->weight;
+                auto& weight = module->weight;
 
                 // Validate weight has non-zero size
                 if (weight.size(0) == 0) {
@@ -31,7 +32,7 @@ namespace WheelDL {
                 torch::nn::init::uniform_(weight, -bound, bound);
 
                 if (module->options.bias()) {
-                    auto bias = module->bias;
+                    auto& bias = module->bias;
                     torch::nn::init::uniform_(bias, -bound, bound);
                 }
             }
@@ -335,8 +336,8 @@ namespace WheelDL {
                     auto sy = torch::arange(0, h, torch::TensorOptions().dtype(dtype).device(device));
 
                     auto meshgridResult = torch::meshgrid({ sy, sx }, "ij");
-                    auto gridY = meshgridResult[0];
-                    auto gridX = meshgridResult[1];
+                    auto& gridY = meshgridResult[0];
+                    auto& gridX = meshgridResult[1];
 
                     // Stack and add offset
                     auto grid = torch::stack({ gridX, gridY }, -1) + gridCellOffset;

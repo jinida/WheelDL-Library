@@ -12,13 +12,13 @@ namespace WheelDL {
                 double result = c * e;
                 if (result > static_cast<double>(std::numeric_limits<int64_t>::max())) {
                     throw std::overflow_error(std::string(context) +
-                                             ": Channel calculation would overflow (c=" +
-                                             std::to_string(c) + ", e=" + std::to_string(e) + ")");
+                        ": Channel calculation would overflow (c=" +
+                        std::to_string(c) + ", e=" + std::to_string(e) + ")");
                 }
 
                 if (result < 0) {
                     throw std::invalid_argument(std::string(context) +
-                                               ": Channel calculation resulted in negative value");
+                        ": Channel calculation resulted in negative value");
                 }
                 return static_cast<int64_t>(result);
             }
@@ -48,10 +48,6 @@ namespace WheelDL {
                 auto reshaped = x.view({ b, 4, _c1, a }).transpose(2, 1).softmax(1);
                 return _conv->forward(reshaped).view({ b, 4, a });
             }
-
-            // ============================================================================
-            // Proto Implementation
-            // ============================================================================
 
             ProtoImpl::ProtoImpl(int64_t c1, int64_t cMid, int64_t c2) {
                 _cv1 = register_module("cv1", Conv(c1, cMid, 3));
@@ -207,8 +203,8 @@ namespace WheelDL {
                 }
                 if (c1 < 0 || c2 < 0 || c1 > totalSize || c1 + c2 > totalSize) {
                     throw std::out_of_range("C2Impl::forward - Invalid split sizes: c1=" + std::to_string(c1) +
-                                          ", c2=" + std::to_string(c2) +
-                                          ", totalSize=" + std::to_string(totalSize));
+                        ", c2=" + std::to_string(c2) +
+                        ", totalSize=" + std::to_string(totalSize));
                 }
 
                 auto a = y.narrow(1, 0, c1);
@@ -239,7 +235,7 @@ namespace WheelDL {
                 // Validate bounds BEFORE calculating split sizes
                 if (totalChannels <= 0) {
                     throw std::out_of_range("C2fImpl::forward - Invalid tensor channels: totalChannels=" +
-                                          std::to_string(totalChannels));
+                        std::to_string(totalChannels));
                 }
 
                 auto c = totalChannels / 2;
@@ -247,7 +243,7 @@ namespace WheelDL {
                 // Ensure narrow operations will be within bounds
                 if (c <= 0 || c > totalChannels || (c + c) > totalChannels) {
                     throw std::out_of_range("C2fImpl::forward - Invalid split size: c=" +
-                                          std::to_string(c) + ", totalChannels=" + std::to_string(totalChannels));
+                        std::to_string(c) + ", totalChannels=" + std::to_string(totalChannels));
                 }
 
                 std::vector<torch::Tensor> y;
@@ -255,9 +251,11 @@ namespace WheelDL {
                 y.push_back(cv1Out.narrow(1, 0, c));
                 y.push_back(cv1Out.narrow(1, c, c));
 
-                for (auto& m : *_m) {
-                    auto bottleneck = m->as<Bottleneck>();
-                    if (!bottleneck) {
+                for (auto& m : *_m)
+                {
+                    auto bottleneck = m->as<IBlockImpl>();
+                    if (!bottleneck)
+                    {
                         throw std::runtime_error("C2fImpl::forward - Bottleneck module is null");
                     }
                     y.push_back(bottleneck->forward(y.back()));
@@ -399,24 +397,9 @@ namespace WheelDL {
 
                 for (auto& module : *_m)
                 {
-                    if (_lightConv)
-                    {
-                        auto lightConv = module->as<LightConv>();
-                        if (!lightConv)
-                        {
-                            throw std::runtime_error("HGBlockImpl::forward - LightConv module is null");
-                        }
-                        y.push_back(lightConv->forward(y.back()));
-                    }
-                    else
-                    {
-                        auto conv = module->as<Conv>();
-                        if (!conv) {
-                            throw std::runtime_error("HGBlockImpl::forward - Conv module is null");
-                        }
-                        y.push_back(conv->forward(y.back()));
-                    }
-				}
+                    auto conv = module->as<IBlockImpl>();
+                    y.push_back(conv->forward(y.back()));
+                }
                 auto output = _ec->forward(_sc->forward(torch::cat(y, 1)));
                 return _add ? (output + x) : output;
             }
@@ -495,7 +478,7 @@ namespace WheelDL {
                 for (int64_t i = 0; i < n; ++i) {
                     seq->push_back(GhostBottleneck(_c, _c));
                 }
-                _m = register_module("m", seq);
+                _m = seq;
             }
 
             // ============================================================================
@@ -571,7 +554,7 @@ namespace WheelDL {
                 // Validate narrow bounds
                 if (c + c > totalChannels) {
                     throw std::out_of_range("ADownImpl::forward - narrow would exceed bounds: c=" +
-                                          std::to_string(c) + ", totalChannels=" + std::to_string(totalChannels));
+                        std::to_string(c) + ", totalChannels=" + std::to_string(totalChannels));
                 }
 
                 auto x1 = _cv1->forward(x.narrow(1, 0, c));
@@ -658,7 +641,7 @@ namespace WheelDL {
                 // Validate narrow bounds
                 if (c + c > totalChannels) {
                     throw std::out_of_range("RepNCSPELAN4Impl::forward - narrow would exceed bounds: c=" +
-                                          std::to_string(c) + ", totalChannels=" + std::to_string(totalChannels));
+                        std::to_string(c) + ", totalChannels=" + std::to_string(totalChannels));
                 }
 
                 std::vector<torch::Tensor> y;
@@ -729,7 +712,7 @@ namespace WheelDL {
                 }
                 if (_idx.size() < xs.size() - 1) {
                     throw std::invalid_argument("_idx size (" + std::to_string(_idx.size()) +
-                                               ") must be >= xs.size()-1 (" + std::to_string(xs.size()-1) + ")");
+                        ") must be >= xs.size()-1 (" + std::to_string(xs.size() - 1) + ")");
                 }
 
                 auto targetSize = xs.back().sizes().slice(2);
@@ -872,11 +855,9 @@ namespace WheelDL {
                 y.push_back(_cv2->forward(x));
                 y.push_back(_cv1->forward(x));
 
-                for (auto& m : *_m) {
-                    auto bottleneck = m->as<Bottleneck>();
-                    if (!bottleneck) {
-                        throw std::runtime_error("C3fImpl::forward - Bottleneck module is null");
-                    }
+                for (auto& m : *_m)
+                {
+                    auto bottleneck = m->as<IBlockImpl>();
                     y.push_back(bottleneck->forward(y.back()));
                 }
 
@@ -924,15 +905,24 @@ namespace WheelDL {
             // ResNetLayer Implementation
             // ============================================================================
 
-            ResNetLayerImpl::ResNetLayerImpl(int64_t c1, int64_t c2, int64_t s,
-                bool isFirst, int64_t n, double e) {
+            ResNetLayerImpl::ResNetLayerImpl(int64_t c1, int64_t c2, int64_t s, bool isFirst, int64_t n, double e)
+            {
 
                 torch::nn::Sequential blocks;
-                blocks->push_back(ResNetBlock(c1, c2, s, e));
-
-                int64_t c3 = safeChannelMultiply(c2, e, "ResNetLayerImpl");
-                for (int64_t i = 1; i < n; ++i) {
-                    blocks->push_back(ResNetBlock(c3, c2, 1, e));
+                if (isFirst)
+                {
+                    blocks->push_back(Conv(c1, c2, 7, 2, 3));
+                    blocks->push_back(torch::nn::MaxPool2d(
+                        torch::nn::MaxPool2dOptions(3).stride(2).padding(1)));
+                }
+                else
+                {
+                    blocks->push_back(ResNetBlock(c1, c2, s, e));
+                    int64_t c3 = safeChannelMultiply(c2, e, "ResNetLayerImpl");
+                    for (int64_t i = 1; i < n; ++i)
+                    {
+                        blocks->push_back(ResNetBlock(c3, c2, 1, e));
+                    }
                 }
 
                 _blocks = register_module("blocks", blocks);
@@ -954,21 +944,20 @@ namespace WheelDL {
                 _m = register_module("m", torch::nn::ModuleList());
                 for (int64_t i = 0; i < n; ++i) {
                     _m->push_back(PSABlock(_c, BlockConstants::PSA_EXPANSION_RATIO,
-                                          BlockConstants::PSA_NUM_HEADS, true));
+                        BlockConstants::PSA_NUM_HEADS, true));
                 }
             }
 
-            torch::Tensor C2PSAImpl::forward(torch::Tensor x) {
+            torch::Tensor C2PSAImpl::forward(torch::Tensor x)
+            {
                 auto cv1Out = _cv1->forward(x);
                 auto c = cv1Out.size(1) / 2;
                 auto a = cv1Out.narrow(1, 0, c);
                 auto b = cv1Out.narrow(1, c, c);
 
-                for (auto& m : *_m) {
-                    auto psaBlock = m->as<PSABlock>();
-                    if (!psaBlock) {
-                        throw std::runtime_error("C2PSAImpl::forward - PSABlock module is null");
-                    }
+                for (auto& m : *_m)
+                {
+                    auto psaBlock = m->as<IBlockImpl>();
                     b = psaBlock->forward(b);
                 }
 
@@ -980,7 +969,8 @@ namespace WheelDL {
             // ============================================================================
 
             C2fPSAImpl::C2fPSAImpl(int64_t c1, int64_t c2, int64_t n, double e)
-                : C2fImpl(c1, c2, n, false, 1, e) {
+                : C2fImpl(c1, c2, n, false, 1, e)
+            {
                 _m = register_module("m", torch::nn::ModuleList());
                 for (int64_t i = 0; i < n; ++i) {
                     _m->push_back(PSABlock(_c, 0.5));
@@ -1011,6 +1001,146 @@ namespace WheelDL {
             torch::Tensor BNContrastiveHeadImpl::forward(torch::Tensor x) {
                 x = _norm->forward(x);
                 return torch::nn::functional::normalize(_linear->forward(x), torch::nn::functional::NormalizeFuncOptions().dim(1));
+            }
+
+            // ============================================================================
+            // DBlock Implementation
+            // ============================================================================
+
+            DBlockImpl::DBlockImpl(int64_t c1, int64_t c2, int64_t growthRate, int64_t bottleNeckSize, const std::string& act)
+            {
+                // Validate parameters
+                if (c1 <= 0) {
+                    throw std::invalid_argument("DBlockImpl: c1 must be positive, got: " + std::to_string(c1));
+                }
+                if (c2 <= 0) {
+                    throw std::invalid_argument("DBlockImpl: c2 must be positive, got: " + std::to_string(c2));
+                }
+                if (growthRate <= 0) {
+                    throw std::invalid_argument("DBlockImpl: growthRate must be positive, got: " + std::to_string(growthRate));
+                }
+                if (bottleNeckSize <= 0) {
+                    throw std::invalid_argument("DBlockImpl: bn_size must be positive, got: " + std::to_string(bottleNeckSize));
+                }
+
+                if ((c2 - c1) % growthRate != 0)
+                {
+                    throw std::invalid_argument(
+                        "DBlockImpl: (c2 - c1) must be divisible by growthRate. " +
+                        std::string("Got c1=") + std::to_string(c1) +
+                        ", c2=" + std::to_string(c2) +
+                        ", growthRate=" + std::to_string(growthRate)
+                    );
+                }
+
+                _numLayers = (c2 - c1) / growthRate;
+
+                if (_numLayers <= 0) {
+                    throw std::invalid_argument(
+                        "DBlockImpl: num_layers must be positive. " +
+                        std::string("Got c1=") + std::to_string(c1) +
+                        ", c2=" + std::to_string(c2) +
+                        ", resulting in num_layers=" + std::to_string(_numLayers)
+                    );
+                }
+
+                // Create layers
+                int64_t currentChannels = c1;
+                for (int64_t i = 0; i < _numLayers; i++) 
+                {
+                    int64_t bottleneckChannels = bottleNeckSize * growthRate;
+                    auto bottleneck = Conv(currentChannels, bottleneckChannels, 1, 1, std::nullopt, 1, 1, act);
+                    _bottlenecks.push_back(register_module("bottleneck" + std::to_string(i), bottleneck));
+
+                    auto conv = Conv(bottleneckChannels, growthRate, 3, 1, std::nullopt, 1, 1, act);
+                    _convs.push_back(register_module("conv" + std::to_string(i), conv));
+
+                    currentChannels += growthRate;
+                }
+            }
+
+            torch::Tensor DBlockImpl::forward(torch::Tensor x) 
+            {
+                std::vector<torch::Tensor> features = { x };
+
+                for (int64_t i = 0; i < _numLayers; i++) 
+                {
+                    torch::Tensor concatenated = torch::cat(features, 1);
+                    torch::Tensor out = _bottlenecks[i]->forward(concatenated);
+                    out = _convs[i]->forward(out);
+
+                    features.push_back(out);
+                }
+
+                // Return concatenation of all features (input + all layer outputs)
+                return torch::cat(features, 1);
+            }
+
+            // ============================================================================
+            // CNXBlock Implementation
+            // ============================================================================
+
+            CNXBlockImpl::CNXBlockImpl(int64_t dim, double layerScaleInit)
+                : _useLayerScale(layerScaleInit > 0)
+            {
+                // Validate input
+                if (dim <= 0) {
+                    throw std::invalid_argument("CNXBlockImpl: dim must be positive, got: " + std::to_string(dim));
+                }
+
+                // 7x7 Depthwise Conv
+                _dwconv = register_module("dwconv",
+                    torch::nn::Conv2d(torch::nn::Conv2dOptions(dim, dim, 7)
+                        .padding(3)
+                        .groups(dim)));
+
+                // LayerNorm2d
+                _norm = register_module("norm", LayerNorm2d(dim, 1e-6));
+
+                // 1x1 Conv expansion (dim -> 4*dim)
+                _pwconv1 = register_module("pwconv1",
+                    torch::nn::Conv2d(torch::nn::Conv2dOptions(dim, 4 * dim, 1)));
+
+                // 1x1 Conv reduction (4*dim -> dim)
+                _pwconv2 = register_module("pwconv2",
+                    torch::nn::Conv2d(torch::nn::Conv2dOptions(4 * dim, dim, 1)));
+
+                // LayerScale parameter
+                if (_useLayerScale) {
+                    _gamma = register_parameter("gamma",
+                        torch::full({ dim, 1, 1 }, layerScaleInit));
+                }
+            }
+
+            torch::Tensor CNXBlockImpl::forward(torch::Tensor x)
+            {
+                torch::Tensor shortcut = x;
+
+                // 1. 7x7 Depthwise Conv
+                x = _dwconv->forward(x);
+
+                // 2. LayerNorm2d
+                x = _norm->forward(x);
+
+                // 3. 1x1 Conv expansion
+                x = _pwconv1->forward(x);
+
+                // 4. GELU activation
+                x = torch::gelu(x);
+
+                // 5. 1x1 Conv reduction
+                x = _pwconv2->forward(x);
+
+                // 6. LayerScale (optional)
+                if (_useLayerScale) 
+                {
+                    x = x * _gamma;
+                }
+
+                // 7. Residual connection
+                x = shortcut + x;
+
+                return x;
             }
 
         } // namespace Modules

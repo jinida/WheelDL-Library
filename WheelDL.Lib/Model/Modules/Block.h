@@ -1081,6 +1081,93 @@ namespace WheelDL {
 
 			TORCH_MODULE(BNContrastiveHead);
 
+			/**
+			 * @brief DenseBlock (DBlock) - Core building block of DenseNet
+			 *
+			 * Each layer concatenates outputs from all preceding layers.
+			 * Growth rate controls channel increase per layer.
+			 *
+			 * Architecture per layer:
+			 * - Conv(1x1, bn_size * growth_rate) with BN+Act (bottleneck)
+			 * - Conv(3x3, growth_rate) with BN+Act (growth)
+			 * - Concatenate with all previous features
+			 */
+			class DBlockImpl : public IBlockImpl {
+			public:
+				/**
+				 * @brief Construct a DenseBlock (DBlock)
+				 *
+				 * @param c1 Input channels
+				 * @param c2 Output channels
+				 * @param growth_rate Growth rate (channels added per layer)
+				 * @param bn_size Bottleneck size multiplier (default: 4)
+				 * @param act Activation type (default: "ReLU")
+				 */
+				
+				DBlockImpl(int64_t c1, int64_t c2, int64_t growthRate, int64_t bottleNeckSize = 4, const std::string& act = "ReLU");
+
+				/**
+				 * @brief Forward pass through DenseBlock
+				 *
+				 * Each layer receives concatenation of all previous features.
+				 * Output is concatenation of input + all layer outputs.
+				 *
+				 * @param x Input tensor (N, C1, H, W)
+				 * @return torch::Tensor Output tensor (N, C2, H, W)
+				 */
+				torch::Tensor forward(torch::Tensor x);
+			private:
+				int64_t _numLayers;
+				std::vector<Conv> _bottlenecks;  // Conv(1x1, bn_size * growth_rate)
+				std::vector<Conv> _convs;        // Conv(3x3, growth_rate)
+			};
+
+			TORCH_MODULE(DBlock);
+
+			/**
+			 * @brief ConvNeXt Block (CNXBlock)
+			 *
+			 * Reference: A ConvNet for the 2020s (https://arxiv.org/abs/2201.03545)
+			 *
+			 * Block structure:
+			 * 1. 7x7 Depthwise Conv
+			 * 2. LayerNorm2d
+			 * 3. 1x1 Conv (expansion: dim -> 4*dim)
+			 * 4. GELU activation
+			 * 5. 1x1 Conv (reduction: 4*dim -> dim)
+			 * 6. LayerScale (optional learnable scaling)
+			 * 7. Residual connection
+			 */
+			class CNXBlockImpl : public IBlockImpl {
+			public:
+				/**
+				 * @brief Construct a new CNXBlock
+				 *
+				 * @param dim Number of input/output channels
+				 * @param layerScaleInit Initial value for layer scale parameter (default: 1e-6)
+				 *                       Set to 0 to disable layer scale
+				 */
+				CNXBlockImpl(int64_t dim, double layerScaleInit = 1e-6);
+
+				/**
+				 * @brief Forward pass through CNXBlock
+				 *
+				 * @param x Input tensor [B, C, H, W]
+				 * @return torch::Tensor Output tensor [B, C, H, W]
+				 */
+				torch::Tensor forward(torch::Tensor x);
+
+			private:
+				torch::nn::Conv2d _dwconv = nullptr;     // 7x7 depthwise conv
+				LayerNorm2d _norm = nullptr;             // LayerNorm for channels
+				torch::nn::Conv2d _pwconv1 = nullptr;    // 1x1 conv (expansion)
+				torch::nn::Conv2d _pwconv2 = nullptr;    // 1x1 conv (reduction)
+				torch::Tensor _gamma;                     // LayerScale parameter (optional)
+				bool _useLayerScale;
+			};
+
+			TORCH_MODULE(CNXBlock);
+
 		} // namespace Modules
 	} // namespace Model
 } // namespace WheelDL

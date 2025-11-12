@@ -1,6 +1,7 @@
 #pragma once
 
 #include <torch/torch.h>
+#include "Interfaces.h"
 #include "Conv.h"
 
 namespace WheelDL {
@@ -14,7 +15,7 @@ namespace Modules {
  *
  * Reference: https://github.com/open-mmlab/mmdetection/tree/v3.0.0rc1/configs/rtmdet
  */
-class ChannelAttentionImpl : public torch::nn::Module {
+class ChannelAttentionImpl : public IBlockImpl {
 public:
     /**
      * @brief Construct a new ChannelAttention module
@@ -44,7 +45,7 @@ TORCH_MODULE(ChannelAttention);
  *
  * Applies attention weights to spatial dimensions based on channel statistics.
  */
-class SpatialAttentionImpl : public torch::nn::Module {
+class SpatialAttentionImpl : public IBlockImpl {
 public:
     /**
      * @brief Construct a new SpatialAttention module
@@ -73,7 +74,7 @@ TORCH_MODULE(SpatialAttention);
  *
  * Combines channel and spatial attention mechanisms for comprehensive feature refinement.
  */
-class CBAMImpl : public torch::nn::Module {
+class CBAMImpl : public IBlockImpl {
 public:
     /**
      * @brief Construct a new CBAM module
@@ -103,7 +104,7 @@ TORCH_MODULE(CBAM);
  *
  * Performs multi-head self-attention on input tensors
  */
-class AttentionImpl : public torch::nn::Module {
+class AttentionImpl : public IBlockImpl {
 public:
     /**
      * @brief Construct a new Attention module
@@ -139,7 +140,7 @@ TORCH_MODULE(Attention);
  *
  * Applies multi-head attention and feed-forward network with optional shortcut
  */
-class PSABlockImpl : public torch::nn::Module {
+class PSABlockImpl : public IBlockImpl {
 public:
     /**
      * @brief Construct a new PSABlock module
@@ -173,7 +174,7 @@ TORCH_MODULE(PSABlock);
  *
  * Enhances feature extraction with position-sensitive attention mechanism
  */
-class PSAImpl : public torch::nn::Module {
+class PSAImpl : public IBlockImpl {
 public:
     /**
      * @brief Construct a new PSA module

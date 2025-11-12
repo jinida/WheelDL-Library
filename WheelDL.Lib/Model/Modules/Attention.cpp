@@ -47,7 +47,8 @@ namespace WheelDL {
 				_act = register_module("act", torch::nn::Sigmoid());
 			}
 
-			torch::Tensor SpatialAttentionImpl::forward(torch::Tensor x) {
+			torch::Tensor SpatialAttentionImpl::forward(torch::Tensor x) 
+			{
 				// Compute channel-wise statistics
 				auto meanChannel = torch::mean(x, /*dim=*/1, /*keepdim=*/true);
 				auto maxChannel = std::get<0>(torch::max(x, /*dim=*/1, /*keepdim=*/true));
@@ -123,9 +124,9 @@ namespace WheelDL {
 				qkv = qkv.view({ B, _numHeads, _keyDim * 2 + _headDim, N });
 
 				auto splits = qkv.split({ _keyDim, _keyDim, _headDim }, /*dim=*/2);
-				auto q = splits[0];
-				auto k = splits[1];
-				auto v = splits[2];
+				auto& q = splits[0];
+				auto& k = splits[1];
+				auto& v = splits[2];
 
 				// Standard attention: (Q @ K.T) * scale
 				auto attn = torch::matmul(q, k.transpose(-2, -1)) * _scale;
@@ -210,8 +211,8 @@ namespace WheelDL {
 
 			torch::Tensor PSAImpl::forward(torch::Tensor x) {
 				auto splits = _cv1->forward(x).split({ _c, _c }, /*dim=*/1);
-				auto a = splits[0];
-				auto b = splits[1];
+				auto& a = splits[0];
+				auto& b = splits[1];
 
 				b = b + _attn->forward(b);
 				b = _ffn_cv1->forward(b);

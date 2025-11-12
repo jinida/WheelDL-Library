@@ -17,7 +17,8 @@ namespace WheelDL {
                 _bias = register_parameter("bias", torch::zeros({ numChannels }));
             }
 
-            torch::Tensor LayerNorm2dImpl::forward(torch::Tensor x) {
+            torch::Tensor LayerNorm2dImpl::forward(torch::Tensor x) 
+            {
                 auto u = x.mean(1, /*keepdim=*/true);
                 auto s = (x - u).pow(2).mean(1, /*keepdim=*/true);
 
