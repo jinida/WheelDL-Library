@@ -51,11 +51,6 @@ namespace WheelDL {
                         torch::nn::Sequential seq;
                         seq->push_back(DWConv(ch[i], ch[i], 3));
 						seq->push_back(Conv(ch[i], c3, 1));
-
-                        /*torch::nn::Sequential dw2;
-                        dw2->push_back(DWConv(c3, c3, 3));
-                        dw2->push_back(Conv(c3, c3, 1));
-                        */
 						seq->push_back(DWConv(c3, c3, 3));
 						seq->push_back(Conv(c3, c3, 1));
 
@@ -157,8 +152,8 @@ namespace WheelDL {
                 }
 
                 auto splits = xCat.split({ regMax * 4, nc }, 1);
-                auto box = splits[0];
-                auto cls = splits[1];
+                auto& box = splits[0];
+                auto& cls = splits[1];
 
                 torch::Tensor dbox;
                 if (regMax > 1) {
@@ -210,15 +205,16 @@ namespace WheelDL {
                 : DetectImpl(nc, ch), ne(ne) {
 
                 int64_t c4 = std::max(ch[0] / 4, ne);
+				torch::nn::ModuleList cv4;
                 for (int64_t i = 0; i < nl; ++i)
                 {
                     torch::nn::Sequential seq;
                     seq->push_back(Conv(ch[i], c4, 3));
                     seq->push_back(Conv(c4, c4, 3));
                     seq->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(c4, ne, 1)));
-                    _cv4->push_back(seq);
+                    cv4->push_back(seq);
                 }
-                register_module("cv4", _cv4);
+                _cv4 = register_module("cv4", cv4);
             }
 
             std::vector<torch::Tensor> OBBImpl::forward(std::vector<torch::Tensor> x) {
@@ -232,8 +228,6 @@ namespace WheelDL {
                     angleList.push_back(cv4Out.view({ bs, ne, -1 }));
                 }
                 auto angleTensor = torch::cat(angleList, 2);
-
-                // Transform angle: (sigmoid - 0.25) * pi to get range [-pi/4, 3pi/4]
                 angle = (angleTensor.sigmoid() - 0.25) * M_PI;
 
                 auto detOut = DetectImpl::forward(x);
@@ -246,9 +240,10 @@ namespace WheelDL {
 
                 if (export_)
                 {
+                    // TODO
                     return { torch::cat({detOut[0], angle}, 1) };
                 }
-
+                // TODO
                 return { torch::cat({detOut[0], angle}, 1), detOut[1], angle };
             }
 
@@ -261,28 +256,21 @@ namespace WheelDL {
             // ClassifyImpl Implementation
             // ============================================================================
 
-            ClassifyImpl::ClassifyImpl(int64_t c1, int64_t c2, int64_t k, int64_t s,
-                std::optional<int64_t> p, int64_t g) {
-                int64_t c_ = HeadConstants::EFFICIENTNET_B0_CHANNELS;
-
+            ClassifyImpl::ClassifyImpl(int64_t c1, int64_t c2, int64_t k, int64_t s, std::optional<int64_t> p, int64_t g) {
+                int64_t c_ = HeadConstants::CLASSIFY_HIDDEN_CHANNELS;
                 _conv = Conv(c1, c_, k, s, p, g);
                 register_module("conv", _conv);
-
                 _pool = torch::nn::AdaptiveAvgPool2d(1);
                 register_module("pool", _pool);
-
-                _drop = torch::nn::Dropout(torch::nn::DropoutOptions().p(0.0).inplace(true));
-                register_module("drop", _drop);
-
                 _linear = torch::nn::Linear(c_, c2);
                 register_module("linear", _linear);
             }
 
-            torch::Tensor ClassifyImpl::forward(torch::Tensor x) {
+            torch::Tensor ClassifyImpl::_forward(torch::Tensor x) 
+            {
                 x = _conv->forward(x);
                 x = _pool->forward(x);
                 x = x.flatten(1);
-                x = _drop->forward(x);
                 x = _linear->forward(x);
 
                 if (is_training()) {
@@ -293,9 +281,9 @@ namespace WheelDL {
                 return export_ ? y : x;
             }
 
-            torch::Tensor ClassifyImpl::forwardMulti(std::vector<torch::Tensor> x) 
+            std::vector<torch::Tensor> ClassifyImpl::forward(std::vector<torch::Tensor> x)
             {
-				return forward(torch::cat(x, 1));
+                return { _forward(torch::cat(x, 1)) };
 			}
         } // namespace Modules
     } // namespace Model

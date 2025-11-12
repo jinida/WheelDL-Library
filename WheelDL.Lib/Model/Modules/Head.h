@@ -2,6 +2,7 @@
 
 #include <torch/torch.h>
 #include <vector>
+#include "Interfaces.h"
 #include "Conv.h"
 #include "Block.h"
 #include "Transformer.h"
@@ -16,7 +17,7 @@ namespace WheelDL {
 				constexpr int64_t MAX_CLASS_CHANNELS = 100;
 				constexpr int64_t DEFAULT_REG_MAX = 16;
 				constexpr double DEFAULT_INPUT_SIZE = 640.0;
-				constexpr int64_t EFFICIENTNET_B0_CHANNELS = 1280;
+				constexpr int64_t CLASSIFY_HIDDEN_CHANNELS = 256;
 			}
 
 			/**
@@ -25,7 +26,14 @@ namespace WheelDL {
 			 * This class implements the detection head used in YOLO models for predicting
 			 * bounding boxes and class probabilities.
 			 */
-			class DetectImpl : public torch::nn::Module {
+
+			class IHeadBlockImpl : public torch::nn::Module
+			{
+			public:
+				virtual std::vector<torch::Tensor> forward(std::vector<torch::Tensor> x) = 0;
+			};
+
+			class DetectImpl : public IHeadBlockImpl {
 			public:
 				/**
 				 * @brief Initialize the YOLO detection layer
@@ -134,7 +142,7 @@ namespace WheelDL {
 			 *
 			 * Transforms feature maps into class predictions.
 			 */
-			class ClassifyImpl : public torch::nn::Module {
+			class ClassifyImpl : public IHeadBlockImpl {
 			public:
 				/**
 				 * @brief Initialize classification head
@@ -149,19 +157,12 @@ namespace WheelDL {
 				ClassifyImpl(int64_t c1, int64_t c2, int64_t k = 1, int64_t s = 1,
 					std::optional<int64_t> p = std::nullopt, int64_t g = 1);
 
-				/**
-				 * @brief Perform forward pass
-				 *
-				 * @param x Input tensor or list of tensors
-				 * @return torch::Tensor Class predictions
-				 */
-				torch::Tensor forward(torch::Tensor x);
-
-				torch::Tensor forwardMulti(std::vector < torch::Tensor> x);
+				std::vector<torch::Tensor> forward(std::vector<torch::Tensor> x) override;
 
 				bool export_ = false;
 
 			protected:
+				torch::Tensor _forward(torch::Tensor x);
 				Conv _conv = nullptr;
 				torch::nn::AdaptiveAvgPool2d _pool = nullptr;
 				torch::nn::Dropout _drop = nullptr;
