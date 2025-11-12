@@ -1,14 +1,14 @@
 #pragma once
 
-#include "Data/Common/Annotation.h"
-#include "Data/Cache/RAMCache.h"
-#include "Data/Cache/CacheManager.h"
-#include "Data/Utils/ImageIO.h"
-#include "Data/Transforms/Transform.h"
-#include "Data/Transforms/GeometricTransforms.h"
-#include "Data/Transforms/ColorTransforms.h"
-#include "Data/Augmentation/DatasetAugmentation.h"
-#include "Config/Configuration.h"
+#include "../Common/Annotation.h"
+#include "../Cache/RAMCache.h"
+#include "../Cache/CacheManager.h"
+#include "../Utils/ImageIO.h"
+#include "../Transforms/Transform.h"
+#include "../Transforms/GeometricTransforms.h"
+#include "../Transforms/ColorTransforms.h"
+#include "../Augmentation/DatasetAugmentation.h"
+#include "../../Config/Configuration.h"
 #include <torch/torch.h>
 #include <string>
 #include <vector>
