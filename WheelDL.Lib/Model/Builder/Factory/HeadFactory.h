@@ -52,10 +52,28 @@ public:
         return {"Classify"};
     }
 
-    ModuleBuildResult create(const YAML::Node& argsNode, const ModuleBuildContext& ctx) override 
+    ModuleBuildResult create(const YAML::Node& argsNode, const ModuleBuildContext& ctx) override
     {
         ModuleBuildResult result;
         result.module = torch::nn::AnyModule(Modules::Classify(ctx.inputChannels, ctx.numClasses));
+        result.outputChannels = ctx.numClasses;
+        return result;
+    }
+};
+
+/**
+ * @brief Factory for Segment module
+ */
+class SegmentFactory : public IModuleFactory {
+public:
+    std::vector<std::string> supportedTypes() const override {
+        return {"Segment"};
+    }
+
+    ModuleBuildResult create(const YAML::Node& argsNode, const ModuleBuildContext& ctx) override
+    {
+        ModuleBuildResult result;
+        result.module = torch::nn::AnyModule(Modules::Segment(ctx.inputChannels, ctx.numClasses, ctx.defaultAct));
         result.outputChannels = ctx.numClasses;
         return result;
     }

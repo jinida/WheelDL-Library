@@ -139,6 +139,7 @@ namespace WheelDL {
                 registerFactory("Detect", std::make_shared<DetectFactory>());
                 registerFactory("OBB", std::make_shared<OBBFactory>());
                 registerFactory("Classify", std::make_shared<ClassifyFactory>());
+                registerFactory("Segment", std::make_shared<SegmentFactory>());
             }
 
         } // namespace Builder

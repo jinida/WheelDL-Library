@@ -285,6 +285,50 @@ namespace WheelDL {
             {
                 return { _forward(torch::cat(x, 1)) };
 			}
+
+            // ============================================================================
+            // SegmentImpl Implementation
+            // ============================================================================
+
+            SegmentImpl::SegmentImpl(int64_t c1, int64_t c2, const std::string& act) {
+                // Conv(k=3) with BN and activation
+                _conv1 = Conv(c1, c1, 3, 1, std::nullopt, 1, 1, act);
+                register_module("conv1", _conv1);
+
+                // Conv(k=1) without BN/activation (final output layer)
+                _conv2 = torch::nn::Conv2d(torch::nn::Conv2dOptions(c1, c2, 1).bias(true));
+                register_module("conv2", _conv2);
+            }
+
+            torch::Tensor SegmentImpl::_forward(torch::Tensor x) {
+                x = _conv1->forward(x);
+                x = _conv2->forward(x);
+
+                // Apply sigmoid for inference mode
+                if (!is_training()) {
+                    x = x.sigmoid();
+                }
+
+                return x;
+            }
+
+            std::vector<torch::Tensor> SegmentImpl::forward(std::vector<torch::Tensor> x) {
+                if (x.empty()) {
+                    throw std::invalid_argument("SegmentImpl::forward - input vector is empty");
+                }
+
+                // Use the last feature map or concatenate if multiple inputs
+                torch::Tensor input = x.size() == 1 ? x[0] : torch::cat(x, 1);
+                auto output = _forward(input);
+
+                // In export mode, return probabilities directly
+                if (export_) {
+                    return { output };
+                }
+
+                return { output };
+            }
+
         } // namespace Modules
     } // namespace Model
 } // namespace WheelDL

@@ -12,7 +12,7 @@ namespace Modules {
  *
  * Normalizes across the channel dimension while preserving spatial dimensions
  */
-class LayerNorm2dImpl : public torch::nn::Module {
+class LayerNorm2dImpl : public IBlockImpl {
 public:
     /**
      * @brief Construct a new LayerNorm2d module
@@ -41,7 +41,7 @@ TORCH_MODULE(LayerNorm2d);
 /**
  * @brief Multi-layer perceptron block
  */
-class MLPBlockImpl : public torch::nn::Module {
+class MLPBlockImpl : public IBlockImpl {
 public:
     /**
      * @brief Construct a new MLPBlock module
@@ -70,7 +70,7 @@ TORCH_MODULE(MLPBlock);
 /**
  * @brief Simple multi-layer perceptron (FFN)
  */
-class MLPImpl : public torch::nn::Module {
+class MLPImpl : public IBlockImpl {
 public:
     /**
      * @brief Construct a new MLP module
@@ -104,7 +104,7 @@ TORCH_MODULE(MLP);
 /**
  * @brief Transformer layer without LayerNorm
  */
-class TransformerLayerImpl : public torch::nn::Module {
+class TransformerLayerImpl : public IBlockImpl {
 public:
     /**
      * @brief Construct a new TransformerLayer module
@@ -136,7 +136,7 @@ TORCH_MODULE(TransformerLayer);
 /**
  * @brief Vision Transformer block
  */
-class TransformerBlockImpl : public torch::nn::Module {
+class TransformerBlockImpl : public IBlockImpl {
 public:
     /**
      * @brief Construct a new TransformerBlock module

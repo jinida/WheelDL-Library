@@ -1107,8 +1107,7 @@ namespace WheelDL {
 
                 // LayerScale parameter
                 if (_useLayerScale) {
-                    _gamma = register_parameter("gamma",
-                        torch::full({ dim, 1, 1 }, layerScaleInit));
+                    _gamma = register_parameter("gamma", torch::full({ dim, 1, 1 }, layerScaleInit));
                 }
             }
 
@@ -1116,28 +1115,17 @@ namespace WheelDL {
             {
                 torch::Tensor shortcut = x;
 
-                // 1. 7x7 Depthwise Conv
                 x = _dwconv->forward(x);
-
-                // 2. LayerNorm2d
                 x = _norm->forward(x);
-
-                // 3. 1x1 Conv expansion
                 x = _pwconv1->forward(x);
-
-                // 4. GELU activation
                 x = torch::gelu(x);
-
-                // 5. 1x1 Conv reduction
                 x = _pwconv2->forward(x);
 
-                // 6. LayerScale (optional)
                 if (_useLayerScale) 
                 {
                     x = x * _gamma;
                 }
 
-                // 7. Residual connection
                 x = shortcut + x;
 
                 return x;

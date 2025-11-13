@@ -451,17 +451,17 @@ namespace WheelDL {
                 }
 
                 ModuleBuildResult create(const YAML::Node& argsNode,
-                    const ModuleBuildContext& ctx) override {
+                    const ModuleBuildContext& ctx) override 
+                {
                     // Parse YAML args: [out_channels, growth_rate, bn_size?]
                     int64_t outCh = YamlArgsParser::getInt(argsNode, 0, 256);
                     int64_t growthRate = YamlArgsParser::getInt(argsNode, 1, 32);
                     int64_t bnSize = YamlArgsParser::getInt(argsNode, 2, 4);
 
-                    // Apply scaling to output channels
                     auto scaled = ctx.applyScale(outCh, 1);
+					auto scaledGrowth = ctx.applyScale(growthRate, 1);
                     ModuleBuildResult result;
-                    // Constructor: DBlockImpl(c1, c2, growth_rate, bn_size, act)
-                    result.module = torch::nn::AnyModule(Modules::DBlock(ctx.inputChannels, scaled.first, growthRate, bnSize, ctx.defaultAct));
+                    result.module = torch::nn::AnyModule(Modules::DBlock(ctx.inputChannels, scaled.first, scaledGrowth.first, bnSize, ctx.defaultAct));
                     result.outputChannels = scaled.first;
                     return result;
                 }

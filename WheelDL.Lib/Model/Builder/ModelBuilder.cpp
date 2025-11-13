@@ -297,7 +297,7 @@ namespace WheelDL {
 							}
 							else if (fromNode.IsSequence()) {
 								// For Detect head, collect channel sizes
-								if (moduleType == "Detect" || moduleType == "OBB" || moduleType == "Classify")
+								if (moduleType == "Detect" || moduleType == "OBB" || moduleType == "Classify" || moduleType == "Segment")
 								{
 									_headChannels.clear();
 									for (const auto& f : fromNode) {

@@ -171,6 +171,48 @@ namespace WheelDL {
 
 			TORCH_MODULE(Classify);
 
+			/**
+			 * @brief Segmentation head
+			 *
+			 * Simple segmentation head with Conv(k=3) -> Conv(k=1) structure.
+			 * During training, outputs logits (before sigmoid).
+			 * During inference, outputs probabilities (after sigmoid).
+			 */
+			class SegmentImpl : public IHeadBlockImpl {
+			public:
+				/**
+				 * @brief Initialize segmentation head
+				 *
+				 * @param c1 Number of input channels
+				 * @param c2 Number of output channels (num_classes)
+				 * @param act Activation function (default: "ReLU")
+				 */
+				SegmentImpl(int64_t c1, int64_t c2, const std::string& act = "ReLU");
+
+				/**
+				 * @brief Forward pass for segmentation
+				 *
+				 * @param x Input feature maps (vector format)
+				 * @return std::vector<torch::Tensor> Segmentation output
+				 *         - Training: logits [N, num_classes, H, W]
+				 *         - Inference: probabilities [N, num_classes, H, W] (after sigmoid)
+				 */
+				std::vector<torch::Tensor> forward(std::vector<torch::Tensor> x) override;
+			protected:
+				/**
+				 * @brief Forward pass for single tensor
+				 *
+				 * @param x Input tensor
+				 * @return torch::Tensor Segmentation output
+				 */
+				torch::Tensor _forward(torch::Tensor x);
+				Conv _conv1 = nullptr;
+				torch::nn::Conv2d _conv2 = nullptr;
+				bool export = false;
+			};
+
+			TORCH_MODULE(Segment);
+
 		} // namespace Modules
 	} // namespace Model
 } // namespace WheelDL

@@ -358,7 +358,7 @@ namespace WheelDL {
 			{
 				// If stride is -1, use kernel_size as stride (PyTorch default behavior)
 				int64_t actual_stride = (s == -1) ? k : s;
-				int64_t padding = (actual_stride == 1) ? autoPad(k, p, 1) : 0;
+				int64_t padding = (actual_stride == k) ? 0 : autoPad(k, p, 1);
 				auto options = torch::nn::MaxPool2dOptions(k)
 					.stride(actual_stride)
 					.padding(padding);
@@ -379,7 +379,7 @@ namespace WheelDL {
 			{
 				// If stride is -1, use kernel_size as stride (PyTorch default behavior)
 				int64_t actual_stride = (s == -1) ? k : s;
-				int64_t padding = (actual_stride == 1) ? autoPad(k, p, 1) : 0;
+				int64_t padding = (actual_stride == k) ? 0 : autoPad(k, p, 1);
 
 				auto options = torch::nn::AvgPool2dOptions(k)
 					.stride(actual_stride)
