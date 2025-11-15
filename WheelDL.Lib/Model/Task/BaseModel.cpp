@@ -57,7 +57,8 @@ namespace WheelDL {
 			indicesToSave.insert(0);  // Always save input (Layer 0)
 
 			// Add all saveIndices
-			for (int64_t idx : _saveIndices) {
+			for (int64_t idx : _saveIndices) 
+			{
 				indicesToSave.insert(static_cast<size_t>(idx));
 			}
 
@@ -178,9 +179,7 @@ namespace WheelDL {
 			return { previousOutput };
 		}
 
-		std::unordered_map<std::string, torch::Tensor> BaseModel::loss(
-			const Data::Dataset::DataExample& batch,
-			const std::vector<torch::Tensor>& preds)
+		std::unordered_map<std::string, torch::Tensor> BaseModel::loss(const Data::Dataset::DataExample& batch, const std::vector<torch::Tensor>& preds)
 		{
 			if (!_criterion)
 			{

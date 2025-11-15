@@ -1,5 +1,7 @@
 #include "pch.h"
 #include "AnomalyModel.h"
+#include "../Modules/Model.h"
+#include "../Modules/Head.h"
 #include "../Builder/ModelBuilder.h"
 #include "../../Utils/Error/WheelLibException.h"
 #include "../../Utils/Error/ErrorCodes.h"
@@ -14,8 +16,7 @@ namespace WheelDL {
 
         AnomalyModel::AnomalyModel(std::shared_ptr<Configuration> config,
             const std::string& modelYamlPath)
-            : _lossType(AnomalyLoss::LossType::MSE),
-            _ssimWeight(0.0f)
+            : _lossType(AnomalyLoss::LossType::EfficientAD)
         {
             _taskType = TaskType::ANOMALY;
 
@@ -44,11 +45,6 @@ namespace WheelDL {
                         "Configuration task type is not ANOMALY"
                     );
                 }
-
-                // Get loss parameters from configuration if available
-                // For now, use default values
-                _ssimWeight = 0.0f;
-
                 // Get model parameters from configuration
                 auto numClasses = config->getNumClasses();  // May be 1 for anomaly detection
                 auto imageSize = config->getImageSize();
@@ -69,10 +65,10 @@ namespace WheelDL {
                 setFromIndices(builder.getFromIndices());
                 setSaveIndices(builder.getSaveIndices());
 
-                // Initialize criterion
+                determineLossType();
+
                 _criterion = initCriterion();
                 _isInitialized = true;
-
             }
             catch (const std::exception& e) {
                 throw WheelDL::Utils::ModelException(
@@ -99,10 +95,65 @@ namespace WheelDL {
         {
             // Create and return anomaly loss
             return std::make_unique<AnomalyLoss>(
-                _lossType,
-                _ssimWeight
+                _lossType
             );
         }
 
+        void AnomalyModel::determineLossType()
+        {
+            for (int i = 0; i < _model->size(); ++i)
+            {
+                auto module = _model->ptr(i);
+                // Check if module is a Head block
+                auto headBlock = std::dynamic_pointer_cast<Modules::AnomalyImpl>(module);
+                if (headBlock)
+                {
+                    // Extract and store anomaly model
+                    _anomalyModel = headBlock->getAnomalyModel();
+
+                    std::string modelType = headBlock->getModelType();
+                    if (modelType == "EfficientAD") {
+                        _lossType = AnomalyLoss::LossType::EfficientAD;
+                        return;
+                    }
+                    else if (modelType == "PatchCore") 
+                    {
+                        _lossType = AnomalyLoss::LossType::PatchCore;
+                        return;
+                    }
+                    else if (modelType == "SimpleNet") {
+                        _lossType = AnomalyLoss::LossType::SimpleNet;
+                        return;
+                    }
+                    else {
+                        throw WheelDL::Utils::ConfigurationException(
+                            WheelDL::Utils::ErrorCode::INVALID_CONFIG,
+                            "Unsupported anomaly model type: " + modelType
+                        );
+                    }
+                }
+            }
+
+            // No Anomaly head found
+            throw WheelDL::Utils::ModelException(
+                WheelDL::Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
+                "No Anomaly head found in model sequence"
+            );
+        }
+
+        std::unordered_map<std::string, torch::Tensor> AnomalyModel::forward(const Data::Dataset::DataExample& data)
+        {
+            if (_lossType != Loss::AnomalyLoss::LossType::EfficientAD && !this->is_training())
+            {
+                return loss(data);
+			}
+            else
+            {
+                Data::Dataset::DataExample currentData;
+                currentData.data = torch::cat({ data.data, data.targets }, 1);
+			    currentData.classes = data.classes;
+                return loss(currentData);
+            }
+        }
     } // namespace Model
 } // namespace WheelDL
