@@ -381,6 +381,9 @@
     <ClInclude Include="Interfaces.h">
       <Filter>header\Model\Modules</Filter>
     </ClInclude>
+    <ClInclude Include="Model\Modules\Model.h">
+      <Filter>header\Model\Modules</Filter>
+    </ClInclude>
   </ItemGroup>
   <!-- Source Files -->
   <ItemGroup>
@@ -652,6 +655,9 @@
     </ClCompile>
     <ClCompile Include="Model\Utils\TaskAlignedAssigner.cpp">
       <Filter>source\Model\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Modules\Model.cpp">
+      <Filter>source\Model\Modules</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
