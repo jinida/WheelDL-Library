@@ -208,10 +208,53 @@ namespace WheelDL {
 				torch::Tensor _forward(torch::Tensor x);
 				Conv _conv1 = nullptr;
 				torch::nn::Conv2d _conv2 = nullptr;
-				bool export = false;
+				bool export_ = false;
 			};
 
 			TORCH_MODULE(Segment);
+
+			class AnomalyImpl : public IHeadBlockImpl {
+			public:
+				/**
+				 * @brief Initialize anomaly detection head with injected model
+				 *
+				 * @param anomalyModel Shared pointer to the anomaly detection model
+				 */
+				explicit AnomalyImpl(std::shared_ptr<IAnomalyModel> anomalyModel);
+
+				/**
+				 * @brief Forward pass
+				 *
+				 * Delegates to the underlying anomaly detection model.
+				 * Input/output format depends on model type and training mode.
+				 *
+				 * @param x Input tensors from backbone
+				 * @return std::vector<torch::Tensor> Model outputs
+				 */
+				std::vector<torch::Tensor> forward(std::vector<torch::Tensor> x) override;
+
+				/**
+				 * @brief Get model type name
+				 */
+				std::string getModelType() const {
+					return _anomalyModel ? _anomalyModel->getModelType() : "Unknown";
+				}
+
+				/**
+				 * @brief Get the underlying anomaly model
+				 * @return Shared pointer to the anomaly model
+				 */
+				std::shared_ptr<IAnomalyModel> getAnomalyModel() const {
+					return _anomalyModel;
+				}
+
+				bool export_ = false;
+
+			private:
+				std::shared_ptr<IAnomalyModel> _anomalyModel;  ///< Anomaly detection model
+			};
+
+			TORCH_MODULE(Anomaly);
 
 		} // namespace Modules
 	} // namespace Model

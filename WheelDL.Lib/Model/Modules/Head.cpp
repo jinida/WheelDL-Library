@@ -329,6 +329,32 @@ namespace WheelDL {
                 return { output };
             }
 
+            // ============================================================================
+            // AnomalyImpl Implementation
+            // ============================================================================
+
+            AnomalyImpl::AnomalyImpl(std::shared_ptr<IAnomalyModel> anomalyModel)
+                : _anomalyModel(anomalyModel)
+            {
+                if (!_anomalyModel) 
+                {
+                    throw std::invalid_argument("AnomalyImpl: anomalyModel is null");
+                }
+
+                // Register the anomaly model as a submodule
+                register_module("anomaly_model", _anomalyModel);
+            }
+
+            std::vector<torch::Tensor> AnomalyImpl::forward(std::vector<torch::Tensor> x) {
+                // Delegate to the underlying anomaly model
+                if (!_anomalyModel) {
+                    throw std::runtime_error("AnomalyImpl::forward - anomaly model is null");
+                }
+
+                // The anomaly model handles all the logic
+                return _anomalyModel->forward(x);
+            }
+
         } // namespace Modules
     } // namespace Model
 } // namespace WheelDL
