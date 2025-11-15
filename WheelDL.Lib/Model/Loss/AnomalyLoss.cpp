@@ -8,126 +8,130 @@ namespace WheelDL {
     namespace Model {
         namespace Loss {
 
-            AnomalyLoss::AnomalyLoss(LossType lossType, float ssimWeight)
-                : _lossType(lossType)
-                , _ssimWeight(std::clamp(ssimWeight, 0.0f, 1.0f))
-                , _mseLoss(torch::nn::MSELoss()) {
-            }
+            AnomalyLoss::AnomalyLoss(LossType lossType)
+                : _lossType(lossType) {}
 
             std::unordered_map<std::string, torch::Tensor> AnomalyLoss::compute(
                 const torch::Tensor& prediction,
-                const Data::Dataset::DataExample& target) {
-                // Delegate to tensor overload
+                const Data::Dataset::DataExample& target) 
+            {
                 return compute(prediction, target.data);
             }
 
             std::unordered_map<std::string, torch::Tensor> AnomalyLoss::compute(
                 const torch::Tensor& prediction,
-                const torch::Tensor& target) {
-                // Validate inputs
-                if (prediction.sizes() != target.sizes()) {
-                    throw std::invalid_argument("Prediction and target must have same shape");
-                }
+                const torch::Tensor& target)
+            {
+                // This method is for simple reconstruction losses (not used for EfficientAD/PatchCore/SimpleNet)
+                throw std::runtime_error("Use compute(vector, DataExample) for " + name());
+            }
 
-                if (prediction.dim() != 4) {
-                    throw std::invalid_argument("Inputs must be 4D tensors [N, C, H, W]");
-                }
-
-                torch::Tensor loss;
-
+            std::unordered_map<std::string, torch::Tensor> AnomalyLoss::compute(
+                const std::vector<torch::Tensor>& predictions,
+                const Data::Dataset::DataExample& target)
+            {
                 switch (_lossType) {
-                case LossType::MSE:
-                    // Simple MSE reconstruction loss
-                    loss = _mseLoss->forward(prediction, target);
-                    break;
+                case LossType::EfficientAD:
+                    return computeEfficientAD(predictions);
 
-                case LossType::SSIM:
-                    // SSIM-based loss for perceptual quality
-                    loss = computeSSIMLoss(prediction, target);
-                    break;
+                case LossType::PatchCore:
+                    return computePatchCore(predictions);
 
-                case LossType::COMBINED:
-                    // Combine MSE and SSIM
-                {
-                    auto mseLoss = _mseLoss->forward(prediction, target);
-                    auto ssimLoss = computeSSIMLoss(prediction, target);
-                    loss = mseLoss * (1.0f - _ssimWeight) + ssimLoss * _ssimWeight;
-                    break;
-                }
+                case LossType::SimpleNet:
+                    return computeSimpleNet(predictions);
 
                 default:
                     throw std::runtime_error("Unknown loss type");
                 }
+			}
 
-                // Validate loss for NaN/Inf values
-                validateLoss(loss, name());
-                return {{"total", loss}};
-            }
-
-            std::string AnomalyLoss::name() const {
-                switch (_lossType) {
-                case LossType::MSE:
-                    return "AnomalyLoss(MSE)";
-                case LossType::SSIM:
-                    return "AnomalyLoss(SSIM)";
-                case LossType::COMBINED:
-                    return "AnomalyLoss(MSE+SSIM)";
-                default:
-                    return "AnomalyLoss(Unknown)";
-                }
-            }
-
-            torch::Tensor AnomalyLoss::computeSSIM(const torch::Tensor& img1,
-                const torch::Tensor& img2) {
-                // Fixed: Add input validation to prevent runtime errors
-                if (img1.sizes() != img2.sizes()) {
+            std::unordered_map<std::string, torch::Tensor> AnomalyLoss::computeEfficientAD(
+                const std::vector<torch::Tensor>& predictions)
+            {
+                // Validate input size
+                if (predictions.size() != 5) {
                     throw std::invalid_argument(
-                        "SSIM: Images must have same shape, got img1=" +
-                        std::to_string(img1.dim()) + "D and img2=" +
-                        std::to_string(img2.dim()) + "D"
-                    );
-                }
-                if (img1.dim() != 4) {
-                    throw std::invalid_argument(
-                        "SSIM: Images must be 4D tensors [N, C, H, W], got " +
-                        std::to_string(img1.dim()) + "D"
+                        "EfficientAD loss requires exactly 5 inputs: "
+                        "[teacher_out, student_out, ae_teacher_out, ae_student_out, ae_out], got " +
+                        std::to_string(predictions.size())
                     );
                 }
 
-                // Fixed: Use unified constants from Constants.h
-                // SSIM (Structural Similarity Index Measure) constants for numerical stability
-                // Reference: Wang et al. "Image Quality Assessment: From Error Visibility to
-                // Structural Similarity" IEEE TIP 2004
-                using namespace Constants;
-                constexpr float C1 = SSIM_C1;  // = 0.0001
-                constexpr float C2 = SSIM_C2;  // = 0.0009
+                auto teacherOut = predictions[0];      // [N, C, H, W]
+                auto studentOut = predictions[1];      // [N, C, H, W]
+                auto aeTeacherOut = predictions[2];    // [N, C, H, W]
+                auto aeStudentOut = predictions[3];    // [N, C, H, W]
+                auto aeOut = predictions[4];           // [N, C, H, W]
 
-                // Compute mean (mu)
-                auto mu1 = img1.mean({ 2, 3 }, /*keepdim=*/true);
-                auto mu2 = img2.mean({ 2, 3 }, /*keepdim=*/true);
+                // 1. Hard Loss: Focus on difficult samples (top 0.1%)
+                // Distance between teacher and student outputs
+                auto distanceOut = torch::pow(teacherOut - studentOut, 2);
 
-                // Compute variance and covariance
-                auto mu1_sq = mu1.pow(2);
-                auto mu2_sq = mu2.pow(2);
-                auto mu1_mu2 = mu1 * mu2;
+                // Get 99.9th percentile threshold (top 0.1% hardest samples)
+                auto dHard = torch::quantile(distanceOut.flatten(), 0.999f);
 
-                // Clamp to prevent negative variance due to floating point errors
-                auto sigma1_sq = (img1.pow(2).mean({ 2, 3 }, /*keepdim=*/true) - mu1_sq).clamp_min(0.0f);
-                auto sigma2_sq = (img2.pow(2).mean({ 2, 3 }, /*keepdim=*/true) - mu2_sq).clamp_min(0.0f);
-                auto sigma12 = (img1 * img2).mean({ 2, 3 }, /*keepdim=*/true) - mu1_mu2;
+                // Create mask for hard samples
+                auto hardMask = distanceOut >= dHard;
 
-                // SSIM formula:
-                // SSIM = (2*mu1*mu2 + C1) * (2*sigma12 + C2) / ((mu1^2 + mu2^2 + C1) * (sigma1^2 + sigma2^2 + C2))
-                auto numerator = (2.0f * mu1_mu2 + C1) * (2.0f * sigma12 + C2);
-                auto denominator = (mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2);
+                // Compute hard loss only on difficult samples
+                auto lossHard = hardMask.any().item<bool>() ?
+                    torch::mean(distanceOut.masked_select(hardMask)) :
+                    torch::zeros({}, distanceOut.options());
 
-                // Add epsilon to prevent division by zero for numerical stability
-                auto ssim = numerator / torch::clamp_min(denominator, 1e-8f);
+                // 2. AE Loss: AutoEncoder reconstruction of teacher features
+                // This ensures the autoencoder can reconstruct normal (teacher) features
+                auto distanceAe = torch::pow(aeTeacherOut - aeOut, 2);
+                auto lossAe = torch::mean(distanceAe);
 
-                // Return mean SSIM across batch and channels
-                return ssim.mean();
+                // 3. STAE Loss: Student-Teacher-AutoEncoder alignment
+                // This ensures student features align with autoencoder output
+                auto distanceStae = torch::pow(aeStudentOut - aeOut, 2);
+                auto lossStae = torch::mean(distanceStae);
+
+                // Total loss (all components equally weighted)
+                auto totalLoss = lossHard + lossAe + lossStae;
+
+                validateLoss(totalLoss, name());
+
+                return {
+                    {"hard", lossHard.detach()},
+                    {"ae", lossAe.detach()},
+                    {"stae", lossStae.detach()},
+                    {"total", totalLoss}
+                };
             }
 
+            std::unordered_map<std::string, torch::Tensor> AnomalyLoss::computePatchCore(
+                const std::vector<torch::Tensor>& predictions)
+            {
+                return { };
+            }
+
+            std::unordered_map<std::string, torch::Tensor> AnomalyLoss::computeSimpleNet(
+                const std::vector<torch::Tensor>& predictions)
+            {
+                // TODO: Implement SimpleNet loss (feature matching)
+                // For now, return a mockup loss
+                auto mockLoss = torch::zeros({}, torch::kFloat32);
+
+                validateLoss(mockLoss, name());
+                return { {"total", mockLoss} };
+            }
+
+            std::string AnomalyLoss::name() const 
+            {
+                switch (_lossType) 
+                {
+                    case LossType::SimpleNet:
+						return "AnomalyLoss::SimpleNet";
+                    case LossType::EfficientAD:
+                        return "AnomalyLoss::EfficientAD";
+                    case LossType::PatchCore:
+                        return "AnomalyLoss::PatchCore";
+                    default:
+						return "AnomalyLoss::Unknown";
+                }
+            }
         } // namespace Loss
     } // namespace Model
 } // namespace WheelDL

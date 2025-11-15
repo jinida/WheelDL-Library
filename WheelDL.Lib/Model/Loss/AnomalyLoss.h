@@ -27,19 +27,17 @@ namespace WheelDL {
                  * @brief Loss type for anomaly detection
                  */
                 enum class LossType {
-                    MSE,        ///< Mean Squared Error (simple, fast)
-                    SSIM,       ///< Structural Similarity Index (perceptual)
-                    COMBINED    ///< MSE + SSIM combination
+                    SimpleNet,
+					EfficientAD,
+                    PatchCore
                 };
 
                 /**
                  * @brief Construct an anomaly detection loss
                  *
                  * @param lossType Type of loss to use (default: MSE)
-                 * @param ssimWeight Weight for SSIM in combined mode (default: 0.5)
                  */
-                explicit AnomalyLoss(LossType lossType = LossType::MSE,
-                    float ssimWeight = 0.5f);
+                explicit AnomalyLoss(LossType lossType = LossType::SimpleNet);
 
                 /**
                  * @brief Destructor
@@ -68,6 +66,10 @@ namespace WheelDL {
                     const torch::Tensor& prediction,
                     const torch::Tensor& target) override;
 
+                [[nodiscard]] std::unordered_map<std::string, torch::Tensor> compute(
+                    const std::vector<torch::Tensor>& predictions,
+					const Data::Dataset::DataExample& target) override;
+
                 /**
                  * @brief Get loss name
                  *
@@ -93,46 +95,21 @@ namespace WheelDL {
                     return _lossType;
                 }
 
-                /**
-                 * @brief Set SSIM weight for combined mode
-                 *
-                 * @param weight SSIM weight in [0, 1]
-                 */
-                void setSSIMWeight(float weight) {
-                    _ssimWeight = std::clamp(weight, 0.0f, 1.0f);
-                }
-
             private:
-                LossType _lossType;               ///< Type of loss
-                float _ssimWeight;                ///< Weight for SSIM in combined mode
-                torch::nn::MSELoss _mseLoss = nullptr;      ///< MSE loss
+                LossType _lossType;
 
                 /**
-                 * @brief Compute SSIM (Structural Similarity Index)
-                 *
-                 * SSIM measures perceptual similarity between two images.
-                 * Range: [-1, 1], where 1 means identical images.
-                 *
-                 * @param img1 First image [N, C, H, W]
-                 * @param img2 Second image [N, C, H, W]
-                 * @return SSIM value (scalar)
+                 * @brief Private helper methods for specific loss types
                  */
-                [[nodiscard]] torch::Tensor computeSSIM(const torch::Tensor& img1,
-                    const torch::Tensor& img2);
+                [[nodiscard]] std::unordered_map<std::string, torch::Tensor> computeEfficientAD(
+                    const std::vector<torch::Tensor>& predictions);
 
-                /**
-                 * @brief Compute SSIM loss (1 - SSIM)
-                 *
-                 * @param img1 First image [N, C, H, W]
-                 * @param img2 Second image [N, C, H, W]
-                 * @return SSIM loss (scalar)
-                 */
-                [[nodiscard]] torch::Tensor computeSSIMLoss(const torch::Tensor& img1,
-                    const torch::Tensor& img2) {
-                    return 1.0f - computeSSIM(img1, img2);
-                }
+                [[nodiscard]] std::unordered_map<std::string, torch::Tensor> computePatchCore(
+                    const std::vector<torch::Tensor>& predictions);
+
+                [[nodiscard]] std::unordered_map<std::string, torch::Tensor> computeSimpleNet(
+                    const std::vector<torch::Tensor>& predictions);
             };
-
         } // namespace Loss
     } // namespace Model
 } // namespace WheelDL
