@@ -57,20 +57,13 @@ namespace WheelDL {
                  * @param maskGt Mask for valid GT boxes [batch, max_num_gt, 1]
                  * @return Tuple of (target_labels, target_bboxes, target_scores, fg_mask, target_gt_idx)
                  */
-                [[nodiscard]] std::tuple<
-                    torch::Tensor,  // target_labels [batch, num_anchors]
-                    torch::Tensor,  // target_bboxes [batch, num_anchors, 4]
-                    torch::Tensor,  // target_scores [batch, num_anchors, num_classes]
-                    torch::Tensor,  // fg_mask [batch, num_anchors]
-                    torch::Tensor   // target_gt_idx [batch, num_anchors]
-                > forward(
-                    const torch::Tensor& pdScores,
-                    const torch::Tensor& pdBboxes,
-                    const torch::Tensor& ancPoints,
-                    const torch::Tensor& gtLabels,
-                    const torch::Tensor& gtBboxes,
-                    const torch::Tensor& maskGt
-                );
+                [[nodiscard]] std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> 
+                    forward(const torch::Tensor& pdScores, 
+                        const torch::Tensor& pdBboxes, 
+                        const torch::Tensor& ancPoints, 
+                        const torch::Tensor& gtLabels, 
+                        const torch::Tensor& gtBboxes, 
+                        const torch::Tensor& maskGt);
 
             protected:
                 /**

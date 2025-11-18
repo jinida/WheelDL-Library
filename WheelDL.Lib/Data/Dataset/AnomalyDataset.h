@@ -70,6 +70,7 @@ namespace WheelDL
 
             private:
                 bool _train;  // Training mode flag
+                std::shared_ptr<Transforms::Transform> _aeTransforms;
             };
 
         } // namespace Dataset

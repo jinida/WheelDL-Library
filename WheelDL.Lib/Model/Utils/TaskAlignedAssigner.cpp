@@ -101,20 +101,23 @@ TaskAlignedAssigner::forward(
             gtLabels, gtBboxes, targetGtIdx, fgMask
         );
 
+        // OPTIMIZATION: Use inplace operations to reduce memory allocations
         // Python: align_metric *= mask_pos
-        alignMetric = alignMetric * maskPosUpdated;
+        alignMetric.mul_(maskPosUpdated);
 
         // Python: pos_align_metrics = align_metric.amax(dim=-1, keepdim=True)
         auto posAlignMetrics = alignMetric.amax(/*dim=*/-1, /*keepdim=*/true);
 
         // Python: pos_overlaps = (overlaps * mask_pos).amax(dim=-1, keepdim=True)
-        auto posOverlaps = (overlaps * maskPosUpdated).amax(/*dim=*/-1, /*keepdim=*/true);
+        auto posOverlaps = overlaps.mul(maskPosUpdated).amax(/*dim=*/-1, /*keepdim=*/true);
 
         // Python: norm_align_metric = (align_metric * pos_overlaps / (pos_align_metrics + self.eps)).amax(-2).unsqueeze(-1)
-        auto normAlignMetric = (alignMetric * posOverlaps / (posAlignMetrics + _eps))
+        auto normAlignMetric = alignMetric.mul(posOverlaps)
+                                .div_(posAlignMetrics + _eps)
                                 .amax(/*dim=*/-2).unsqueeze(-1);
 
         // Python: target_scores = target_scores * norm_align_metric
+        // Note: Cannot use inplace mul_ because targetScores is int64 and normAlignMetric is float
         targetScores = targetScores * normAlignMetric;
 
         // Python: return target_labels, target_bboxes, target_scores, fg_mask.bool(), target_gt_idx
@@ -129,7 +132,6 @@ TaskAlignedAssigner::forward(
     } catch (const c10::Error& e) {
         // Handle CUDA out of memory errors by falling back to CPU computation
         if (!isCudaOutOfMemoryError(e)) {
-            // Re-throw if it's not an OOM error
             throw;
         }
 
@@ -194,56 +196,84 @@ TaskAlignedAssigner::getBoxMetrics(
     const torch::Tensor& gtBboxes,
     const torch::Tensor& maskGt
 ) {
-    // Python: na = pd_bboxes.shape[-2]
+    // OPTIMIZATION: Memory-efficient implementation processing only valid GTs
     auto na = pdBboxes.size(1);
-
-    // Python: mask_gt = mask_gt.bool()
     auto maskGtBool = maskGt.to(torch::kBool);
 
-    // Python: overlaps = torch.zeros([self.bs, self.n_max_boxes, na], dtype=pd_bboxes.dtype, device=pd_bboxes.device)
+    // Early exit if no valid GT boxes
+    if (!maskGtBool.any().item<bool>()) {
+        auto zeros = torch::zeros(
+            {_bs, _nMaxBoxes, na},
+            torch::TensorOptions().dtype(pdBboxes.dtype()).device(pdBboxes.device())
+        );
+        return std::make_tuple(zeros.clone(), zeros);
+    }
+
+    // Allocate output tensors
     auto overlaps = torch::zeros(
         {_bs, _nMaxBoxes, na},
         torch::TensorOptions().dtype(pdBboxes.dtype()).device(pdBboxes.device())
     );
-
-    // Python: bbox_scores = torch.zeros([self.bs, self.n_max_boxes, na], dtype=pd_scores.dtype, device=pd_scores.device)
     auto bboxScores = torch::zeros(
         {_bs, _nMaxBoxes, na},
         torch::TensorOptions().dtype(pdScores.dtype()).device(pdScores.device())
     );
 
-    // Python: ind = torch.zeros([2, self.bs, self.n_max_boxes], dtype=torch.long)
-    auto ind = torch::zeros({2, _bs, _nMaxBoxes}, torch::kLong);
+    // Process each batch separately to reduce memory footprint
+    for (int64_t b = 0; b < _bs; ++b) {
+        auto batchMask = maskGtBool[b];  // [n_max_boxes, na]
+        auto validGtMask = batchMask.any(1);  // [n_max_boxes]
 
-    // Python: ind[0] = torch.arange(end=self.bs).view(-1, 1).expand(-1, self.n_max_boxes)
-    ind[0] = torch::arange(_bs).view({-1, 1}).expand({-1, _nMaxBoxes});
+        if (!validGtMask.any().item<bool>()) {
+            continue;  // Skip this batch if no valid GTs
+        }
 
-    // Python: ind[1] = gt_labels.squeeze(-1)
-    ind[1] = gtLabels.squeeze(-1);
+        // Get valid GT indices
+        auto validGtIndices = torch::nonzero(validGtMask).squeeze(1);
+        auto nValid = validGtIndices.size(0);
 
-    // Python: bbox_scores[mask_gt] = pd_scores[ind[0], :, ind[1]][mask_gt]
-    auto pdScoresGathered = pdScores.index({ind[0], torch::indexing::Slice(), ind[1]});
-    bboxScores.masked_scatter_(maskGtBool, pdScoresGathered.masked_select(maskGtBool));
+        // Extract valid GTs for this batch
+        auto validGtLabels = gtLabels[b].index({validGtIndices}).squeeze(-1);  // [n_valid]
+        auto validGtBboxes = gtBboxes[b].index({validGtIndices});  // [n_valid, bbox_dim]
 
-    // Python: pd_boxes = pd_bboxes.unsqueeze(1).expand(-1, self.n_max_boxes, -1, -1)[mask_gt]
-    // Python: gt_boxes = gt_bboxes.unsqueeze(2).expand(-1, -1, na, -1)[mask_gt]
-    auto pdBoxesExpanded = pdBboxes.unsqueeze(1).expand({-1, _nMaxBoxes, -1, -1});
-    auto gtBoxesExpanded = gtBboxes.unsqueeze(2).expand({-1, -1, na, -1});
+        // Gather classification scores for valid GTs
+        // pd_scores[b]: [na, num_classes], validGtLabels: [n_valid]
+        auto pdScoresBatch = pdScores[b];  // [na, num_classes]
+        auto labelIndices = validGtLabels.to(torch::kLong);
 
-    auto pdBoxesMasked = pdBoxesExpanded.masked_select(
-        maskGtBool.unsqueeze(-1).expand_as(pdBoxesExpanded)
-    ).view({-1, 4});
+        // Index into scores: [na, num_classes] -> [na, n_valid]
+        auto scoresForGts = pdScoresBatch.index({
+            torch::indexing::Slice(),
+            labelIndices
+        });  // [na, n_valid]
 
-    auto gtBoxesMasked = gtBoxesExpanded.masked_select(
-        maskGtBool.unsqueeze(-1).expand_as(gtBoxesExpanded)
-    ).view({-1, 4});
+        // Transpose to [n_valid, na] to match output format
+        bboxScores[b].index_put_({validGtIndices}, scoresForGts.t());
 
-    // Python: overlaps[mask_gt] = self.iou_calculation(gt_boxes, pd_boxes)
-    auto iouVals = computeIou(gtBoxesMasked, pdBoxesMasked);
-    overlaps.masked_scatter_(maskGtBool, iouVals);
+        // Compute IoU only for valid GTs
+        // Get bbox dimension (4 for regular bbox, 5 for OBB)
+        auto bboxDim = gtBboxes.size(-1);
+        auto pdBboxesBatch = pdBboxes[b];  // [na, bbox_dim]
 
-    // Python: align_metric = bbox_scores.pow(self.alpha) * overlaps.pow(self.beta)
-    auto alignMetric = bboxScores.pow(_alpha) * overlaps.pow(_beta);
+        // OPTIMIZATION: Broadcasting with expand (lazy, no memory allocation)
+        // Compute IoU between each valid GT and all predictions
+        auto pdExpanded = pdBboxesBatch.unsqueeze(0).expand({nValid, -1, -1});  // [n_valid, na, bbox_dim]
+        auto gtExpanded = validGtBboxes.unsqueeze(1).expand({-1, na, -1});      // [n_valid, na, bbox_dim]
+
+        // OPTIMIZATION: Use contiguous().view() for explicit control
+        // expand creates non-contiguous views, so we need contiguous() before reshape
+        auto iou = computeIou(
+            gtExpanded.contiguous().view({-1, bboxDim}),
+            pdExpanded.contiguous().view({-1, bboxDim})
+        ).view({nValid, na});
+
+        // Store IoU values
+        overlaps[b].index_put_({validGtIndices}, iou);
+    }
+
+    // OPTIMIZATION: Compute alignment metric with fully in-place operations
+    auto alignMetric = bboxScores.pow(_alpha);
+    alignMetric.mul_(overlaps.pow(_beta));
 
     return std::make_tuple(alignMetric, overlaps);
 }
@@ -262,10 +292,20 @@ torch::Tensor TaskAlignedAssigner::selectTopkCandidates(
     bool largest,
     const torch::Tensor& topkMask
 ) {
-    // Python: topk_metrics, topk_idxs = torch.topk(metrics, self.topk, dim=-1, largest=largest)
+    // Python implementation:
+    // topk_metrics, topk_idxs = torch.topk(metrics, self.topk, dim=-1, largest=largest)
+    // if topk_mask is None:
+    //     topk_mask = (topk_metrics.max(-1, keepdim=True)[0] > self.eps).expand_as(topk_idxs)
+    // topk_idxs.masked_fill_(~topk_mask, 0)
+    // count_tensor = torch.zeros(metrics.shape, dtype=torch.int8, device=topk_idxs.device)
+    // ones = torch.ones_like(topk_idxs[:, :, :1], dtype=torch.int8, device=topk_idxs.device)
+    // for k in range(self.topk):
+    //     count_tensor.scatter_add_(-1, topk_idxs[:, :, k : k + 1], ones)
+    // count_tensor.masked_fill_(count_tensor > 1, 0)
+    // return count_tensor.to(metrics.dtype)
+
     auto [topkMetrics, topkIdxs] = torch::topk(metrics, _topk, /*dim=*/-1, largest);
 
-    // Python: if topk_mask is None: topk_mask = (topk_metrics.max(-1, keepdim=True)[0] > self.eps).expand_as(topk_idxs)
     torch::Tensor mask;
     if (topkMask.defined()) {
         mask = topkMask;
@@ -274,27 +314,24 @@ torch::Tensor TaskAlignedAssigner::selectTopkCandidates(
         mask = (maxValues > _eps).expand_as(topkIdxs);
     }
 
-    // Python: topk_idxs.masked_fill_(~topk_mask, 0)
+    // Inplace mask_fill to avoid copy
     topkIdxs.masked_fill_(~mask, 0);
 
-    // Python: count_tensor = torch.zeros(metrics.shape, dtype=torch.int8, device=topk_idxs.device)
+    // Pre-allocate count tensor
     auto countTensor = torch::zeros(
         metrics.sizes(),
         torch::TensorOptions().dtype(torch::kInt8).device(topkIdxs.device())
     );
 
-    // Python: ones = torch.ones_like(topk_idxs[:, :, :1], dtype=torch.int8, device=topk_idxs.device)
-    auto ones = torch::ones_like(topkIdxs.slice(2, 0, 1), torch::kInt8);
-
-    // Python: for k in range(self.topk): count_tensor.scatter_add_(-1, topk_idxs[:, :, k : k + 1], ones)
+    // Python uses a loop: for k in range(self.topk):
+    //     count_tensor.scatter_add_(-1, topk_idxs[:, :, k : k + 1], ones)
+    auto ones = torch::ones_like(topkIdxs.slice(/*dim=*/2, /*start=*/0, /*end=*/1), torch::kInt8);
     for (int64_t k = 0; k < _topk; ++k) {
-        countTensor.scatter_add_(-1, topkIdxs.slice(2, k, k + 1), ones);
+        countTensor.scatter_add_(-1, topkIdxs.slice(/*dim=*/2, /*start=*/k, /*end=*/k + 1), ones);
     }
 
-    // Python: count_tensor.masked_fill_(count_tensor > 1, 0)
+    // Inplace masked_fill to avoid temporary
     countTensor.masked_fill_(countTensor > 1, 0);
-
-    // Python: return count_tensor.to(metrics.dtype)
     return countTensor.to(metrics.dtype());
 }
 
@@ -319,6 +356,7 @@ TaskAlignedAssigner::getTargets(
     // Python: target_bboxes = gt_bboxes.view(-1, gt_bboxes.shape[-1])[target_gt_idx]
     auto targetBboxes = gtBboxes.view({-1, gtBboxes.size(-1)}).index({targetGtIdxOffset});
 
+    // OPTIMIZATION: Inplace clamp to avoid copy
     // Python: target_labels.clamp_(0)
     targetLabels.clamp_(0);
 
@@ -331,11 +369,12 @@ TaskAlignedAssigner::getTargets(
     // Python: target_scores.scatter_(2, target_labels.unsqueeze(-1), 1)
     targetScores.scatter_(2, targetLabels.unsqueeze(-1), 1);
 
+    // OPTIMIZATION: Inplace masking to avoid temporary tensor
     // Python: fg_scores_mask = fg_mask[:, :, None].repeat(1, 1, self.num_classes)
     auto fgScoresMask = fgMask.unsqueeze(-1).expand({-1, -1, _numClasses});
 
     // Python: target_scores = torch.where(fg_scores_mask > 0, target_scores, 0)
-    targetScores = torch::where(fgScoresMask > 0, targetScores, 0);
+    targetScores.masked_fill_(fgScoresMask <= 0, 0);
 
     return std::make_tuple(targetLabels, targetBboxes, targetScores);
 }

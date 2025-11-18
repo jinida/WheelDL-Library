@@ -145,8 +145,8 @@ namespace WheelDL {
                         throw std::runtime_error("DetectImpl::forward - makeAnchors returned empty stride tensor");
                     }
 
-                    anchors = anchorTensor.transpose(0, 1);
-                    strides = strideTensor.transpose(0, 1);
+                    anchors = anchorTensor;  // Keep as [total_anchors, 2]
+                    strides = strideTensor.transpose(0, 1);  // [1, total_anchors]
                     this->shape = torch::tensor({ shape[0], shape[1], shape[2], shape[3] });
                     _lastInputShapes = currentShapes;
                 }

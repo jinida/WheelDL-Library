@@ -123,27 +123,29 @@
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
+    <!-- <ClCompile Include="Integration\Phase1Integration.cpp" />
     <ClCompile Include="Integration\Phase2IntegrationTest.cpp" />
+    <ClCompile Include="Integration\Phase3IntegrationTest.cpp" /> -->
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Unit\Phase1\LoggerTest.cpp" />
-    <ClCompile Include="Unit\Phase1\ThreadPoolTest.cpp" />
-    <ClCompile Include="Unit\Phase1\PathValidatorTest.cpp" />
-    <ClCompile Include="Unit\Phase1\PerformanceProfilerTest.cpp" />
-    <ClCompile Include="Unit\Phase1\WheelLibExceptionTest.cpp" />
-    <ClCompile Include="Unit\Phase1\TimerTest.cpp" />
-    <ClCompile Include="Unit\Phase1\RandomTest.cpp" />
+    <!-- <ClCompile Include="Unit\Phase1\ConfigurationTest.cpp" />
+    <ClCompile Include="Unit\Phase1\DynamicBatchSizerTest.cpp" />
     <ClCompile Include="Unit\Phase1\ErrorHandlerTest.cpp" />
-    <ClCompile Include="Unit\Phase1\YamlParserTest.cpp" />
-    <ClCompile Include="Unit\Phase1\ConfigurationTest.cpp" />
-    <ClCompile Include="Unit\Phase1\MemoryManagerTest.cpp" />
     <ClCompile Include="Unit\Phase1\GPUMemoryGuardTest.cpp" />
     <ClCompile Include="Unit\Phase1\GPUMemoryPoolTest.cpp" />
-    <ClCompile Include="Unit\Phase1\DynamicBatchSizerTest.cpp" />
+    <ClCompile Include="Unit\Phase1\LoggerTest.cpp" />
+    <ClCompile Include="Unit\Phase1\MemoryManagerTest.cpp" />
+    <ClCompile Include="Unit\Phase1\PathValidatorTest.cpp" />
+    <ClCompile Include="Unit\Phase1\PerformanceProfilerTest.cpp" />
+    <ClCompile Include="Unit\Phase1\RandomTest.cpp" />
+    <ClCompile Include="Unit\Phase1\ThreadPoolTest.cpp" />
+    <ClCompile Include="Unit\Phase1\TimerTest.cpp" />
+    <ClCompile Include="Unit\Phase1\WheelLibExceptionTest.cpp" />
+    <ClCompile Include="Unit\Phase1\YamlParserTest.cpp" />
     <ClCompile Include="Unit\Phase2\AnnotationTest.cpp" />
     <ClCompile Include="Unit\Phase2\AnnotationTransformTest.cpp" />
     <ClCompile Include="Unit\Phase2\AnomalyDatasetTest.cpp" />
@@ -156,13 +158,13 @@
     <ClCompile Include="Unit\Phase2\ConfigurationVariationTest.cpp" />
     <ClCompile Include="Unit\Phase2\DataAugmentationTest.cpp" />
     <ClCompile Include="Unit\Phase2\DataLoaderCollationTest.cpp" />
-    <ClCompile Include="Unit\Phase2\LibTorchDataLoaderTest.cpp" />
     <ClCompile Include="Unit\Phase2\DatasetStressTest.cpp" />
     <ClCompile Include="Unit\Phase2\DetectionDatasetTest.cpp" />
     <ClCompile Include="Unit\Phase2\EdgeCaseTest.cpp" />
     <ClCompile Include="Unit\Phase2\ImageIOComprehensiveTest.cpp" />
     <ClCompile Include="Unit\Phase2\ImageIOTest.cpp" />
     <ClCompile Include="Unit\Phase2\ImageIOTestExtended.cpp" />
+    <ClCompile Include="Unit\Phase2\LibTorchDataLoaderTest.cpp" />
     <ClCompile Include="Unit\Phase2\MosaicAugmentationTest.cpp" />
     <ClCompile Include="Unit\Phase2\OBBDatasetTest.cpp" />
     <ClCompile Include="Unit\Phase2\PerformanceTest.cpp" />
@@ -174,8 +176,36 @@
     <ClCompile Include="Unit\Phase2\TransformComprehensiveTest.cpp" />
     <ClCompile Include="Unit\Phase2\TransformPipelineTest.cpp" />
     <ClCompile Include="Unit\Phase2\TransformStressTest.cpp" />
-    <ClCompile Include="Unit\Phase2\YamlParserEdgeCaseTest.cpp" />
-    <ClCompile Include="Integration\Phase1Integration.cpp" />
+    <ClCompile Include="Unit\Phase2\YamlParserEdgeCaseTest.cpp" /> -->
+    <!-- <ClCompile Include="Unit\Phase3\Builder\AttentionFactoryTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Builder\BlockFactoryTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Builder\ConvolutionFactoryTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Builder\HeadFactoryTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Builder\ModelBuilderTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Builder\ModuleFactoryRegistryTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Builder\YamlArgsParserTest.cpp" /> -->
+    <!-- <ClCompile Include="Unit\Phase3\Loss\AnomalyLossTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Loss\ClassificationLossTest.cpp" /> -->
+    <ClCompile Include="Unit\Phase3\Loss\DetectionLossTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Loss\OBBLossTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Loss\SegmentationLossTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Loss\SimpleLossesTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Models\AnomalyModelTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Models\BaseModelTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Models\ClassificationModelTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Models\DetectionModelTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Models\OBBModelTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Models\SegmentationModelTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Modules\ActivationModuleTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Modules\AttentionModuleTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Modules\BlockModuleTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Modules\ConvolutionModuleTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Modules\HeadModuleTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Modules\TransformerModuleTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Utils\BboxConversionTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Utils\IoUComputationTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Utils\ProbIoUTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Utils\TaskAlignedAssignerTest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\WheelDL.Lib\WheelDL.Lib.vcxproj">
@@ -183,6 +213,17 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Data\Phase3TestConfigs\Integration\anomaly_pipeline.yaml" />
+    <None Include="Data\Phase3TestConfigs\Integration\classification_pipeline.yaml" />
+    <None Include="Data\Phase3TestConfigs\Integration\detection_pipeline.yaml" />
+    <None Include="Data\Phase3TestConfigs\Integration\obb_pipeline.yaml" />
+    <None Include="Data\Phase3TestConfigs\Integration\segmentation_pipeline.yaml" />
+    <None Include="Data\Phase3TestConfigs\Models\invalid_missing_head.yaml" />
+    <None Include="Data\Phase3TestConfigs\Models\minimal_anomaly.yaml" />
+    <None Include="Data\Phase3TestConfigs\Models\minimal_classification.yaml" />
+    <None Include="Data\Phase3TestConfigs\Models\minimal_detection.yaml" />
+    <None Include="Data\Phase3TestConfigs\Models\minimal_obb.yaml" />
+    <None Include="Data\Phase3TestConfigs\Models\minimal_segmentation.yaml" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -1,5 +1,5 @@
 # Markdown files are now allowed
-# *md
+*.md
 *.log
 *.png
 *.txt
@@ -17,6 +17,8 @@
 *.pump
 *.ps1
 *.yaml
+*.pt
+*.ilk
 
 .claude
 .vs
@@ -27,3 +29,4 @@ python_src
 3rdparty
 packages
 LibTorch_apitest
+test_result.txt

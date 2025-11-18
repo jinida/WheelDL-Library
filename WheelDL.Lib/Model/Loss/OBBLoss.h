@@ -66,7 +66,7 @@ namespace WheelDL {
                 /**
                  * @brief Destructor
                  */
-                ~OBBLoss() = default;
+                ~OBBLoss();
 
                 /**
                  * @brief Compute OBB loss with concatenated predictions (inference format)
@@ -173,8 +173,28 @@ namespace WheelDL {
                 int64_t _numClasses;   ///< Number of classes
                 int64_t _regMax;       ///< DFL regression max
                 int64_t _numOutputs;   ///< Outputs per anchor (5 + numClasses for OBB)
-                torch::Tensor _stride; ///< Stride for each layer
+                torch::Tensor _stride; ///< Stride for each layer (cloned for safety)
                 torch::Tensor _proj;   ///< Projection tensor for DFL decoding [regMax]
+
+                // OPTIMIZATION: Pre-cached projection tensors for different dtypes
+                torch::Tensor _projFloat32;  ///< Projection tensor in float32
+                torch::Tensor _projFloat16;  ///< Projection tensor in float16
+                torch::Tensor _projBFloat16; ///< Projection tensor in bfloat16 (for Ampere+ GPUs)
+
+                // OPTIMIZATION: CPU cached values to avoid GPU-CPU transfers
+                std::vector<float> _strideValuesCPU;  ///< Stride values cached on CPU
+
+                // OPTIMIZATION: Anchor cache to avoid regeneration
+                struct AnchorCache {
+                    torch::Tensor anchorPoints;
+                    torch::Tensor strideTensor;
+                    int64_t imgSize;
+                    torch::ScalarType dtype;
+                    torch::Device device;
+
+                    AnchorCache() : imgSize(-1), dtype(torch::kFloat32), device(torch::kCPU) {}
+                };
+                mutable AnchorCache _anchorCache;  ///< Cached anchor points and stride tensor
 
                 // Loss weights
                 float _boxGain;  ///< Box loss weight

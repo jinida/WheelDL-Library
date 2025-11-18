@@ -433,7 +433,7 @@ namespace WheelDL {
                 for (int64_t i = 0; i < n; ++i) {
                     seq->push_back(Bottleneck(_c, _c, shortcut, g, std::vector<int64_t>{1, 3}, 1.0));
                 }
-                _m = register_module("m", seq);
+                _m = seq;
             }
 
             // ============================================================================
@@ -525,7 +525,7 @@ namespace WheelDL {
                 for (int64_t i = 0; i < n; ++i) {
                     seq->push_back(RepBottleneck(_c, _c, shortcut, g, std::vector<int64_t>{3, 3}, 1.0));
                 }
-                _m = register_module("m", seq);
+                _m = seq;
             }
 
             // ============================================================================
@@ -742,7 +742,7 @@ namespace WheelDL {
                 for (int64_t i = 0; i < n; ++i) {
                     seq->push_back(Bottleneck(_c, _c, shortcut, g, std::vector<int64_t>{k, k}, 1.0));
                 }
-                _m = register_module("m", seq);
+                _m = seq;
             }
 
             // ============================================================================
@@ -822,15 +822,16 @@ namespace WheelDL {
             C3k2Impl::C3k2Impl(int64_t c1, int64_t c2, int64_t n, bool c3k,
                 double e, int64_t g, bool shortcut)
                 : C2fImpl(c1, c2, n, shortcut, g, e) {
-                _m = register_module("m", torch::nn::ModuleList());
+                auto m = torch::nn::ModuleList();
                 for (int64_t i = 0; i < n; ++i) {
                     if (c3k) {
-                        _m->push_back(C3k(_c, _c, 2, shortcut, g));
+                        m->push_back(C3k(_c, _c, 2, shortcut, g));
                     }
                     else {
-                        _m->push_back(Bottleneck(_c, _c, shortcut, g, std::vector<int64_t>{3, 3}, 1.0));
+                        m->push_back(Bottleneck(_c, _c, shortcut, g, std::vector<int64_t>{3, 3}, 1.0));
                     }
                 }
+                _m = m;
             }
 
             // ============================================================================
@@ -873,7 +874,7 @@ namespace WheelDL {
                 : C3Impl(c1, c2, n, shortcut, g, e) {
                 torch::nn::Sequential m;
                 m->push_back(TransformerBlock(_c, _c, 4, n));
-                _m = register_module("m", m);
+                _m = m;
             }
 
             // ============================================================================
@@ -971,10 +972,11 @@ namespace WheelDL {
             C2fPSAImpl::C2fPSAImpl(int64_t c1, int64_t c2, int64_t n, double e)
                 : C2fImpl(c1, c2, n, false, 1, e)
             {
-                _m = register_module("m", torch::nn::ModuleList());
+                auto m = torch::nn::ModuleList();
                 for (int64_t i = 0; i < n; ++i) {
-                    _m->push_back(PSABlock(_c, 0.5));
+                    m->push_back(PSABlock(_c, 0.5));
                 }
+				_m = m;
             }
 
             // ============================================================================

@@ -20,8 +20,39 @@
     <Filter Include="Source Files\Unit\Phase2">
       <UniqueIdentifier>{7BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Unit\Phase3">
+      <UniqueIdentifier>{6BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Unit\Phase3\Builder">
+      <UniqueIdentifier>{6BC9CEB8-8B4A-11D0-8D11-00A0C91BC943}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Unit\Phase3\Loss">
+      <UniqueIdentifier>{6BC9CEB8-8B4A-11D0-8D11-00A0C91BC944}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Unit\Phase3\Models">
+      <UniqueIdentifier>{6BC9CEB8-8B4A-11D0-8D11-00A0C91BC945}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Unit\Phase3\Modules">
+      <UniqueIdentifier>{6BC9CEB8-8B4A-11D0-8D11-00A0C91BC946}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Unit\Phase3\Utils">
+      <UniqueIdentifier>{6BC9CEB8-8B4A-11D0-8D11-00A0C91BC947}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Integration">
       <UniqueIdentifier>{9FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <!-- Data Files Filters -->
+    <Filter Include="Data Files">
+      <UniqueIdentifier>{D1DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Data Files\Phase3TestConfigs">
+      <UniqueIdentifier>{D1DA6AB6-F800-4c08-8B7A-83BB121AAD02}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Data Files\Phase3TestConfigs\Integration">
+      <UniqueIdentifier>{D1DA6AB6-F800-4c08-8B7A-83BB121AAD03}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Data Files\Phase3TestConfigs\Models">
+      <UniqueIdentifier>{D1DA6AB6-F800-4c08-8B7A-83BB121AAD04}</UniqueIdentifier>
     </Filter>
     <!-- Resource Files -->
     <Filter Include="Resource Files">
@@ -40,38 +71,24 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <!-- Integration Tests -->
+    <ClCompile Include="Integration\Phase1Integration.cpp">
+      <Filter>Source Files\Integration</Filter>
+    </ClCompile>
+    <ClCompile Include="Integration\Phase2IntegrationTest.cpp">
+      <Filter>Source Files\Integration</Filter>
+    </ClCompile>
+    <ClCompile Include="Integration\Phase3IntegrationTest.cpp">
+      <Filter>Source Files\Integration</Filter>
+    </ClCompile>
     <!-- Unit Tests - Phase 1 -->
-    <ClCompile Include="Unit\Phase1\LoggerTest.cpp">
-      <Filter>Source Files\Unit\Phase1</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Phase1\ThreadPoolTest.cpp">
-      <Filter>Source Files\Unit\Phase1</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Phase1\PathValidatorTest.cpp">
-      <Filter>Source Files\Unit\Phase1</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Phase1\PerformanceProfilerTest.cpp">
-      <Filter>Source Files\Unit\Phase1</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Phase1\WheelLibExceptionTest.cpp">
-      <Filter>Source Files\Unit\Phase1</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Phase1\TimerTest.cpp">
-      <Filter>Source Files\Unit\Phase1</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Phase1\RandomTest.cpp">
-      <Filter>Source Files\Unit\Phase1</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Phase1\ErrorHandlerTest.cpp">
-      <Filter>Source Files\Unit\Phase1</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Phase1\YamlParserTest.cpp">
-      <Filter>Source Files\Unit\Phase1</Filter>
-    </ClCompile>
     <ClCompile Include="Unit\Phase1\ConfigurationTest.cpp">
       <Filter>Source Files\Unit\Phase1</Filter>
     </ClCompile>
-    <ClCompile Include="Unit\Phase1\MemoryManagerTest.cpp">
+    <ClCompile Include="Unit\Phase1\DynamicBatchSizerTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\ErrorHandlerTest.cpp">
       <Filter>Source Files\Unit\Phase1</Filter>
     </ClCompile>
     <ClCompile Include="Unit\Phase1\GPUMemoryGuardTest.cpp">
@@ -80,7 +97,31 @@
     <ClCompile Include="Unit\Phase1\GPUMemoryPoolTest.cpp">
       <Filter>Source Files\Unit\Phase1</Filter>
     </ClCompile>
-    <ClCompile Include="Unit\Phase1\DynamicBatchSizerTest.cpp">
+    <ClCompile Include="Unit\Phase1\LoggerTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\MemoryManagerTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\PathValidatorTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\PerformanceProfilerTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\RandomTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\ThreadPoolTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\TimerTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\WheelLibExceptionTest.cpp">
+      <Filter>Source Files\Unit\Phase1</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase1\YamlParserTest.cpp">
       <Filter>Source Files\Unit\Phase1</Filter>
     </ClCompile>
     <!-- Unit Tests - Phase 2 -->
@@ -117,6 +158,9 @@
     <ClCompile Include="Unit\Phase2\DataAugmentationTest.cpp">
       <Filter>Source Files\Unit\Phase2</Filter>
     </ClCompile>
+    <ClCompile Include="Unit\Phase2\DataLoaderCollationTest.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
     <ClCompile Include="Unit\Phase2\DatasetStressTest.cpp">
       <Filter>Source Files\Unit\Phase2</Filter>
     </ClCompile>
@@ -133,6 +177,9 @@
       <Filter>Source Files\Unit\Phase2</Filter>
     </ClCompile>
     <ClCompile Include="Unit\Phase2\ImageIOTestExtended.cpp">
+      <Filter>Source Files\Unit\Phase2</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase2\LibTorchDataLoaderTest.cpp">
       <Filter>Source Files\Unit\Phase2</Filter>
     </ClCompile>
     <ClCompile Include="Unit\Phase2\MosaicAugmentationTest.cpp">
@@ -171,24 +218,139 @@
     <ClCompile Include="Unit\Phase2\YamlParserEdgeCaseTest.cpp">
       <Filter>Source Files\Unit\Phase2</Filter>
     </ClCompile>
-    <!-- Integration Tests -->
-    <ClCompile Include="Integration\Phase1Integration.cpp">
-      <Filter>Source Files\Integration</Filter>
+    <!-- Unit Tests - Phase 3 - Builder -->
+    <ClCompile Include="Unit\Phase3\Builder\AttentionFactoryTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Builder</Filter>
     </ClCompile>
-    <ClCompile Include="Integration\Phase2IntegrationTest.cpp">
-      <Filter>Source Files\Integration</Filter>
+    <ClCompile Include="Unit\Phase3\Builder\BlockFactoryTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Builder</Filter>
     </ClCompile>
-    <ClCompile Include="Unit\Phase2\DataLoaderCollationTest.cpp">
-      <Filter>Source Files\Unit\Phase2</Filter>
+    <ClCompile Include="Unit\Phase3\Builder\ConvolutionFactoryTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Builder</Filter>
     </ClCompile>
-    <ClCompile Include="Unit\Phase2\LibTorchDataLoaderTest.cpp">
-      <Filter>Source Files\Unit\Phase2</Filter>
+    <ClCompile Include="Unit\Phase3\Builder\HeadFactoryTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Builder</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Builder\ModelBuilderTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Builder</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Builder\ModuleFactoryRegistryTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Builder</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Builder\YamlArgsParserTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Builder</Filter>
+    </ClCompile>
+    <!-- Unit Tests - Phase 3 - Loss -->
+    <ClCompile Include="Unit\Phase3\Loss\AnomalyLossTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Loss</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Loss\ClassificationLossTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Loss</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Loss\DetectionLossTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Loss</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Loss\OBBLossTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Loss</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Loss\SegmentationLossTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Loss</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Loss\SimpleLossesTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Loss</Filter>
+    </ClCompile>
+    <!-- Unit Tests - Phase 3 - Models -->
+    <ClCompile Include="Unit\Phase3\Models\AnomalyModelTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Models\BaseModelTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Models\ClassificationModelTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Models\DetectionModelTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Models\OBBModelTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Models\SegmentationModelTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Models</Filter>
+    </ClCompile>
+    <!-- Unit Tests - Phase 3 - Modules -->
+    <ClCompile Include="Unit\Phase3\Modules\ActivationModuleTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Modules\AttentionModuleTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Modules\BlockModuleTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Modules\ConvolutionModuleTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Modules\HeadModuleTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Modules\TransformerModuleTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Modules</Filter>
+    </ClCompile>
+    <!-- Unit Tests - Phase 3 - Utils -->
+    <ClCompile Include="Unit\Phase3\Utils\BboxConversionTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Utils\IoUComputationTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Utils\ProbIoUTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase3\Utils\TaskAlignedAssignerTest.cpp">
+      <Filter>Source Files\Unit\Phase3\Utils</Filter>
     </ClCompile>
   </ItemGroup>
   <!-- Resource Files -->
   <ItemGroup>
     <None Include="packages.config">
       <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <!-- Data Files - Phase3TestConfigs -->
+  <ItemGroup>
+    <None Include="Data\Phase3TestConfigs\Integration\anomaly_pipeline.yaml">
+      <Filter>Data Files\Phase3TestConfigs\Integration</Filter>
+    </None>
+    <None Include="Data\Phase3TestConfigs\Integration\classification_pipeline.yaml">
+      <Filter>Data Files\Phase3TestConfigs\Integration</Filter>
+    </None>
+    <None Include="Data\Phase3TestConfigs\Integration\detection_pipeline.yaml">
+      <Filter>Data Files\Phase3TestConfigs\Integration</Filter>
+    </None>
+    <None Include="Data\Phase3TestConfigs\Integration\obb_pipeline.yaml">
+      <Filter>Data Files\Phase3TestConfigs\Integration</Filter>
+    </None>
+    <None Include="Data\Phase3TestConfigs\Integration\segmentation_pipeline.yaml">
+      <Filter>Data Files\Phase3TestConfigs\Integration</Filter>
+    </None>
+    <None Include="Data\Phase3TestConfigs\Models\invalid_missing_head.yaml">
+      <Filter>Data Files\Phase3TestConfigs\Models</Filter>
+    </None>
+    <None Include="Data\Phase3TestConfigs\Models\minimal_anomaly.yaml">
+      <Filter>Data Files\Phase3TestConfigs\Models</Filter>
+    </None>
+    <None Include="Data\Phase3TestConfigs\Models\minimal_classification.yaml">
+      <Filter>Data Files\Phase3TestConfigs\Models</Filter>
+    </None>
+    <None Include="Data\Phase3TestConfigs\Models\minimal_detection.yaml">
+      <Filter>Data Files\Phase3TestConfigs\Models</Filter>
+    </None>
+    <None Include="Data\Phase3TestConfigs\Models\minimal_obb.yaml">
+      <Filter>Data Files\Phase3TestConfigs\Models</Filter>
+    </None>
+    <None Include="Data\Phase3TestConfigs\Models\minimal_segmentation.yaml">
+      <Filter>Data Files\Phase3TestConfigs\Models</Filter>
     </None>
   </ItemGroup>
 </Project>

@@ -33,7 +33,8 @@ namespace WheelDL {
 			// ============================================================================
 
 			SpatialAttentionImpl::SpatialAttentionImpl(int64_t kernelSize) {
-				if (kernelSize != 3 && kernelSize != 7) {
+				if (kernelSize != 3 && kernelSize != 7) 
+				{
 					throw std::invalid_argument("kernel size must be 3 or 7");
 				}
 
@@ -124,17 +125,20 @@ namespace WheelDL {
 				qkv = qkv.view({ B, _numHeads, _keyDim * 2 + _headDim, N });
 
 				auto splits = qkv.split({ _keyDim, _keyDim, _headDim }, /*dim=*/2);
-				auto& q = splits[0];
-				auto& k = splits[1];
-				auto& v = splits[2];
+				// Transpose from [B, numHeads, dim, N] to [B, numHeads, N, dim] for attention computation
+				auto q = splits[0].transpose(-2, -1);  // [B, numHeads, N, keyDim]
+				auto k = splits[1].transpose(-2, -1);  // [B, numHeads, N, keyDim]
+				auto v = splits[2].transpose(-2, -1);  // [B, numHeads, N, headDim]
 
 				// Standard attention: (Q @ K.T) * scale
-				auto attn = torch::matmul(q, k.transpose(-2, -1)) * _scale;
+				auto attn = torch::matmul(q, k.transpose(-2, -1)) * _scale;  // [B, numHeads, N, N]
 				attn = attn.softmax(-1);
 
 				// Apply attention to values: (attn @ V)
-				x = torch::matmul(attn, v).view({ B, C, H, W });
-				x = x + _pe->forward(v.reshape({ B, C, H, W }));
+				x = torch::matmul(attn, v);  // [B, numHeads, N, headDim]
+				// Transpose back to [B, numHeads, headDim, N] then reshape to [B, C, H, W]
+				x = x.transpose(-2, -1).contiguous().view({ B, C, H, W });
+				x = x + _pe->forward(v.transpose(-2, -1).contiguous().reshape({ B, C, H, W }));
 				x = _proj->forward(x);
 
 				return x;
@@ -157,8 +161,8 @@ namespace WheelDL {
 			torch::Tensor PSABlockImpl::forward(torch::Tensor x) {
 				if (_add) {
 					x = x + _attn->forward(x);
-					x = _ffn_cv1->forward(x);
-					x = x + _ffn_cv2->forward(x);
+					auto ffn_out = _ffn_cv1->forward(x);
+					x = x + _ffn_cv2->forward(ffn_out);
 				}
 				else {
 					x = _attn->forward(x);
@@ -215,8 +219,8 @@ namespace WheelDL {
 				auto& b = splits[1];
 
 				b = b + _attn->forward(b);
-				b = _ffn_cv1->forward(b);
-				b = b + _ffn_cv2->forward(b);
+				auto ffn_out = _ffn_cv1->forward(b);
+				b = b + _ffn_cv2->forward(ffn_out);
 
 				return _cv2->forward(torch::cat({ a, b }, 1));
 			}

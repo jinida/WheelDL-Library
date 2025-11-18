@@ -8,26 +8,61 @@ namespace WheelDL {
         namespace Utils {
 
             torch::Tensor xywh2xyxy(const torch::Tensor& boxes) {
-                // boxes: [N, 4] as [cx, cy, w, h]
-                auto xy = boxes.slice(1, 0, 2);  // [N, 2] center
-                auto wh = boxes.slice(1, 2, 4);  // [N, 2] width/height
+                int64_t dim = 0;
+                if (boxes.dim() == 2)
+                {
+                    dim = 1;
+                }
+                else if (boxes.dim() == 3)
+                {
+                    dim = 2;
+                }
+				else
+                {
+                    throw std::invalid_argument(
+                        "xywh2xyxy: boxes must be [N, 4] or [N, M, 4] tensor, got " +
+                        std::to_string(boxes.dim()) + "D tensor"
+					);
+                }
 
-                auto half_wh = wh / 2.0f;
-                auto xy1 = xy - half_wh;  // top-left
-                auto xy2 = xy + half_wh;  // bottom-right
+                // OPTIMIZATION: Pre-allocate output and write directly to avoid cat overhead
+                auto xy = boxes.slice(dim, 0, 2);  // [N, 2] center
+                auto wh = boxes.slice(dim, 2, 4);  // [N, 2] width/height
+                auto half_wh = wh * 0.5f;
 
-                return torch::cat({ xy1, xy2 }, 1);
+                // Allocate output once and fill in-place
+                auto output = torch::empty_like(boxes);
+                output.slice(dim, 0, 2).copy_(xy - half_wh);  // xy1 (top-left)
+                output.slice(dim, 2, 4).copy_(xy + half_wh);  // xy2 (bottom-right)
+
+                return output;
             }
 
             torch::Tensor xyxy2xywh(const torch::Tensor& boxes) {
-                // boxes: [N, 4] as [x1, y1, x2, y2]
-                auto xy1 = boxes.slice(1, 0, 2);
-                auto xy2 = boxes.slice(1, 2, 4);
+                int64_t dim = 0;
+                if (boxes.dim() == 2)
+                {
+                    dim = 1;
+                }
+                else if (boxes.dim() == 3)
+                {
+                    dim = 2;
+                }
+                else
+                {
+                    throw std::invalid_argument(
+						"xyxy2xywh: boxes must be [N, 4] or [N, M, 4] tensor, got " +
+                        std::to_string(boxes.dim()) + "D tensor"
+                    );
+                }
+                // OPTIMIZATION: Reduce memory allocations
+                auto xy1 = boxes.slice(dim, 0, 2);
+                auto xy2 = boxes.slice(dim, 2, 4);
 
-                auto xy = (xy1 + xy2) / 2.0f;  // center
-                auto wh = xy2 - xy1;            // width/height
+                auto xy = (xy1 + xy2).mul_(0.5f);  // center - inplace multiply
+                auto wh = xy2 - xy1;                // width/height
 
-                return torch::cat({ xy, wh }, 1);
+                return torch::cat({ xy, wh }, dim);
             }
 
             torch::Tensor bboxIoU(
@@ -49,42 +84,46 @@ namespace WheelDL {
                 }
                 if (box2.dim() != 2 || box2.size(1) != 4) {
                     throw std::invalid_argument(
-                        "bboxIoU: box2 must be [M, 4] tensor, got shape " +
+                        "bboxIoU: box2 must be [N, 4] tensor, got shape " +
                         std::to_string(box2.dim()) + "D with size " +
                         std::to_string(box2.size(1)) + " in dim 1"
                     );
                 }
+                if (box1.size(0) != box2.size(0)) {
+                    throw std::invalid_argument(
+                        "bboxIoU: box1 and box2 must have same number of boxes, got " +
+                        std::to_string(box1.size(0)) + " and " + std::to_string(box2.size(0))
+                    );
+                }
 
                 // Convert to xyxy format if needed
-                // Fixed: Use value semantics instead of const reference to avoid dangling reference
-                // when xywh2xyxy returns a temporary object
                 torch::Tensor b1 = xywh ? xywh2xyxy(box1) : box1;
                 torch::Tensor b2 = xywh ? xywh2xyxy(box2) : box2;
 
-                // Get coordinates [N, 4] and [M, 4]
-                auto b1_x1 = b1.select(1, 0).unsqueeze(1);  // [N, 1]
-                auto b1_y1 = b1.select(1, 1).unsqueeze(1);
-                auto b1_x2 = b1.select(1, 2).unsqueeze(1);
-                auto b1_y2 = b1.select(1, 3).unsqueeze(1);
+                // Extract coordinates - element-wise operations
+                auto b1_x1 = b1.select(1, 0);  // [N]
+                auto b1_y1 = b1.select(1, 1);
+                auto b1_x2 = b1.select(1, 2);
+                auto b1_y2 = b1.select(1, 3);
 
-                auto b2_x1 = b2.select(1, 0).unsqueeze(0);  // [1, M]
-                auto b2_y1 = b2.select(1, 1).unsqueeze(0);
-                auto b2_x2 = b2.select(1, 2).unsqueeze(0);
-                auto b2_y2 = b2.select(1, 3).unsqueeze(0);
+                auto b2_x1 = b2.select(1, 0);  // [N]
+                auto b2_y1 = b2.select(1, 1);
+                auto b2_x2 = b2.select(1, 2);
+                auto b2_y2 = b2.select(1, 3);
 
-                // Intersection area [N, M]
+                // Intersection area [N]
                 auto inter_x1 = torch::max(b1_x1, b2_x1);
                 auto inter_y1 = torch::max(b1_y1, b2_y1);
                 auto inter_x2 = torch::min(b1_x2, b2_x2);
                 auto inter_y2 = torch::min(b1_y2, b2_y2);
 
-                auto inter_w = torch::clamp(inter_x2 - inter_x1, 0.0f);
-                auto inter_h = torch::clamp(inter_y2 - inter_y1, 0.0f);
-                auto inter_area = inter_w * inter_h;
+                auto inter_w = (inter_x2 - inter_x1).clamp_min_(0.0f);
+                auto inter_h = (inter_y2 - inter_y1).clamp_min_(0.0f);
+                auto inter_area = inter_w.mul_(inter_h);
 
                 // Union area
-                auto b1_area = (b1_x2 - b1_x1) * (b1_y2 - b1_y1);  // [N, 1]
-                auto b2_area = (b2_x2 - b2_x1) * (b2_y2 - b2_y1);  // [1, M]
+                auto b1_area = (b1_x2 - b1_x1) * (b1_y2 - b1_y1);  // [N]
+                auto b2_area = (b2_x2 - b2_x1) * (b2_y2 - b2_y1);  // [N]
                 auto union_area = b1_area + b2_area - inter_area + eps;
 
                 // IoU
@@ -96,16 +135,17 @@ namespace WheelDL {
                     auto ch = torch::max(b1_y2, b2_y2) - torch::min(b1_y1, b2_y1);
 
                     if (CIoU || DIoU) {
-                        // Diagonal of smallest enclosing box
-                        auto c2 = cw.pow(2) + ch.pow(2) + eps;
+                        auto c2 = (cw * cw).add_(ch * ch).add_(eps);
 
                         // Center distance
-                        auto b1_cx = (b1_x1 + b1_x2) / 2.0f;
-                        auto b1_cy = (b1_y1 + b1_y2) / 2.0f;
-                        auto b2_cx = (b2_x1 + b2_x2) / 2.0f;
-                        auto b2_cy = (b2_y1 + b2_y2) / 2.0f;
+                        auto b1_cx = (b1_x1 + b1_x2).mul_(0.5f);
+                        auto b1_cy = (b1_y1 + b1_y2).mul_(0.5f);
+                        auto b2_cx = (b2_x1 + b2_x2).mul_(0.5f);
+                        auto b2_cy = (b2_y1 + b2_y2).mul_(0.5f);
 
-                        auto rho2 = (b1_cx - b2_cx).pow(2) + (b1_cy - b2_cy).pow(2);
+                        auto dx = b1_cx - b2_cx;
+                        auto dy = b1_cy - b2_cy;
+                        auto rho2 = (dx * dx).add_(dy * dy);
 
                         if (CIoU) {
                             // Aspect ratio consistency
@@ -114,7 +154,6 @@ namespace WheelDL {
                             auto b2_w = b2_x2 - b2_x1;
                             auto b2_h = b2_y2 - b2_y1;
 
-                            // Clamp heights to avoid numerical instability in atan
                             auto b1_h_safe = torch::clamp_min(b1_h, HEIGHT_MIN_THRESHOLD);
                             auto b2_h_safe = torch::clamp_min(b2_h, HEIGHT_MIN_THRESHOLD);
 
@@ -122,7 +161,6 @@ namespace WheelDL {
                                 torch::pow(torch::atan(b2_w / b2_h_safe) -
                                     torch::atan(b1_w / b1_h_safe), 2);
 
-                            // Clamp alpha denominator to prevent division by very small numbers
                             auto alphaDenom = torch::clamp_min(1.0f - iou + v, eps);
                             auto alpha = v / alphaDenom;
 
@@ -155,9 +193,9 @@ namespace WheelDL {
              * Python reference: src/utils/func.py::probiou
              *
              * @param obb1 [N, 5] tensor containing N oriented boxes [cx, cy, w, h, angle]
-             * @param obb2 [M, 5] tensor containing M oriented boxes [cx, cy, w, h, angle]
+             * @param obb2 [N, 5] tensor containing N oriented boxes [cx, cy, w, h, angle]
              * @param eps Small constant for numerical stability (default: 1e-7)
-             * @return [N, M] tensor of probabilistic IoU values in range [0, 1]
+             * @return [N] tensor of probabilistic IoU values in range [0, 1]
              */
             torch::Tensor probiou(
                 const torch::Tensor& obb1,
@@ -174,81 +212,99 @@ namespace WheelDL {
                 }
                 if (obb2.dim() != 2 || obb2.size(1) != 5) {
                     throw std::invalid_argument(
-                        "probiou: obb2 must be [M, 5] tensor, got shape " +
+                        "probiou: obb2 must be [N, 5] tensor, got shape " +
                         std::to_string(obb2.dim()) + "D with size " +
                         std::to_string(obb2.size(1)) + " in dim 1"
                     );
                 }
+                if (obb1.size(0) != obb2.size(0)) {
+                    throw std::invalid_argument(
+                        "probiou: obb1 and obb2 must have same number of boxes, got " +
+                        std::to_string(obb1.size(0)) + " and " + std::to_string(obb2.size(0))
+                    );
+                }
 
-                // Python: x1, y1 = obb1[..., :2].split(1, dim=-1)
-                // Python: x2, y2 = obb2[..., :2].split(1, dim=-1)
-                auto x1 = obb1.select(1, 0).unsqueeze(1);  // [N, 1]
-                auto y1 = obb1.select(1, 1).unsqueeze(1);
-                auto x2 = obb2.select(1, 0).unsqueeze(0);  // [1, M]
-                auto y2 = obb2.select(1, 1).unsqueeze(0);
-
-                // Python: def _get_covariance_matrix(boxes):
-                //     gbbs = torch.cat((boxes[:, 2:4].pow(2) / 12, boxes[:, 4:]), dim=-1)
-                //     a, b, c = gbbs.split(1, dim=-1)
-                //     cos = c.cos()
-                //     sin = c.sin()
-                //     cos2 = cos.pow(2)
-                //     sin2 = sin.pow(2)
-                //     return a * cos2 + b * sin2, a * sin2 + b * cos2, (a - b) * cos * sin
+                // Extract coordinates - element-wise operations
+                auto x1 = obb1.select(1, 0);  // [N]
+                auto y1 = obb1.select(1, 1);  // [N]
+                auto x2 = obb2.select(1, 0);  // [N]
+                auto y2 = obb2.select(1, 1);  // [N]
 
                 // Get covariance matrix for obb1
                 auto w1 = obb1.select(1, 2);
                 auto h1 = obb1.select(1, 3);
                 auto angle1 = obb1.select(1, 4);
-                auto a1_base = w1.pow(2) / 12.0f;
-                auto b1_base = h1.pow(2) / 12.0f;
+
+                auto a1_base = (w1 * w1) / 12.0f;
+                auto b1_base = (h1 * h1) / 12.0f;
+
                 auto cos1 = torch::cos(angle1);
                 auto sin1 = torch::sin(angle1);
-                auto cos1_sq = cos1.pow(2);
-                auto sin1_sq = sin1.pow(2);
-                auto a1 = (a1_base * cos1_sq + b1_base * sin1_sq).unsqueeze(1);  // [N, 1]
-                auto b1 = (a1_base * sin1_sq + b1_base * cos1_sq).unsqueeze(1);
-                auto c1 = ((a1_base - b1_base) * cos1 * sin1).unsqueeze(1);
+                auto cos1_sq = cos1 * cos1;
+                auto sin1_sq = 1.0f - cos1_sq;
+
+                auto a1 = a1_base * cos1_sq + b1_base * sin1_sq;  // [N]
+                auto b1 = a1_base * sin1_sq + b1_base * cos1_sq;
+                auto c1 = (a1_base - b1_base) * cos1 * sin1;
 
                 // Get covariance matrix for obb2
                 auto w2 = obb2.select(1, 2);
                 auto h2 = obb2.select(1, 3);
                 auto angle2 = obb2.select(1, 4);
-                auto a2_base = w2.pow(2) / 12.0f;
-                auto b2_base = h2.pow(2) / 12.0f;
+
+                auto a2_base = (w2 * w2) / 12.0f;
+                auto b2_base = (h2 * h2) / 12.0f;
+
                 auto cos2 = torch::cos(angle2);
                 auto sin2 = torch::sin(angle2);
-                auto cos2_sq = cos2.pow(2);
-                auto sin2_sq = sin2.pow(2);
-                auto a2 = (a2_base * cos2_sq + b2_base * sin2_sq).unsqueeze(0);  // [1, M]
-                auto b2 = (a2_base * sin2_sq + b2_base * cos2_sq).unsqueeze(0);
-                auto c2 = ((a2_base - b2_base) * cos2 * sin2).unsqueeze(0);
+                auto cos2_sq = cos2 * cos2;
+                auto sin2_sq = 1.0f - cos2_sq;
 
-                // Python: t1 = ((a1 + a2) * (y1 - y2).pow(2) + (b1 + b2) * (x1 - x2).pow(2)) / ((a1 + a2) * (b1 + b2) - (c1 + c2).pow(2) + eps) * 0.25
-                // Fixed: Clamp denominator to prevent numerical instability with very small values
+                auto a2 = a2_base * cos2_sq + b2_base * sin2_sq;  // [N]
+                auto b2 = a2_base * sin2_sq + b2_base * cos2_sq;
+                auto c2 = (a2_base - b2_base) * cos2 * sin2;
+
+                // Compute distances and denominator
                 const float DENOM_MIN = eps * 10.0f;
-                auto denomRaw = (a1 + a2) * (b1 + b2) - (c1 + c2).pow(2) + eps;
-                auto denom = torch::clamp_min(denomRaw, DENOM_MIN);
-                auto t1 = (((a1 + a2) * (y1 - y2).pow(2) + (b1 + b2) * (x1 - x2).pow(2)) / denom) * 0.25f;
 
-                // Python: t2 = (((c1 + c2) * (x2 - x1) * (y1 - y2)) / ((a1 + a2) * (b1 + b2) - (c1 + c2).pow(2) + eps)) * 0.5
-                auto t2 = (((c1 + c2) * (x2 - x1) * (y1 - y2)) / denom) * 0.5f;
+                auto a_sum = a1 + a2;
+                auto b_sum = b1 + b2;
+                auto c_sum = c1 + c2;
+                auto c_sum_sq = c_sum * c_sum;
 
-                // Python: t3 = (((a1 + a2) * (b1 + b2) - (c1 + c2).pow(2)) / (4 * ((a1 * b1 - c1.pow(2)).clamp_(0) * (a2 * b2 - c2.pow(2)).clamp_(0)).sqrt() + eps) + eps).log() * 0.5
-                auto det1 = (a1 * b1 - c1.pow(2)).clamp_min(0.0f);
-                auto det2 = (a2 * b2 - c2.pow(2)).clamp_min(0.0f);
-                auto t3 = (denom / (4.0f * (det1 * det2).sqrt() + eps) + eps).log() * 0.5f;
+                auto denom = (a_sum * b_sum - c_sum_sq + eps).clamp_min(DENOM_MIN);
 
-                // Python: bd = (t1 + t2 + t3).clamp(eps, 100.0)
+                // Compute deltas and terms
+                auto dx = x2 - x1;
+                auto dy = y1 - y2;
+                auto dx_sq = dx * dx;
+                auto dy_sq = dy * dy;
+
+                // OPTIMIZATION: Reuse 1/denom to reduce divisions
+                auto inv_denom = 1.0f / denom;
+
+                // t1: distance term - fused operations
+                auto t1 = (a_sum * dy_sq + b_sum * dx_sq) * inv_denom * 0.25f;
+
+                // t2: cross term - fused operations
+                auto t2 = (c_sum * dx * dy) * inv_denom * 0.5f;
+
+                // t3: determinant term - optimized expression
+                auto c1_sq = c1 * c1;
+                auto c2_sq = c2 * c2;
+                auto det1 = (a1 * b1 - c1_sq).clamp_min(0.0f);
+                auto det2 = (a2 * b2 - c2_sq).clamp_min(0.0f);
+                auto det_sqrt = (det1 * det2).sqrt() * 4.0f + eps;
+                auto t3 = ((denom / det_sqrt) + eps).log() * 0.5f;
+
+                // bd = (t1 + t2 + t3).clamp(eps, 100.0)
                 auto bd = (t1 + t2 + t3).clamp(eps, 100.0f);
 
-                // Python: hd = (1.0 - (-bd).exp() + eps).sqrt()
+                // hd = (1.0 - (-bd).exp() + eps).sqrt()
                 auto hd = (1.0f - (-bd).exp() + eps).sqrt();
 
-                // Python: iou = 1 - hd
-                auto iou = 1.0f - hd;
-
-                return iou;
+                // iou = 1 - hd
+                return 1.0f - hd;
             }
 
             torch::Tensor dist2bbox(
@@ -256,11 +312,21 @@ namespace WheelDL {
                 const torch::Tensor& anchorPoints,
                 bool xywh
             ) {
+				int64_t dim = distance.dim();
+                if (dim != 2 && dim != 3)
+                {
+                    throw std::invalid_argument(
+                        "dist2bbox: distance must be [N, 4] or [N, M, 4] tensor, got " +
+                        std::to_string(distance.dim()) + "D tensor"
+                    );
+                }
+                
+				dim = dim - 1; // last dimension
                 // distance: [N, 4] as [left, top, right, bottom]
                 // anchorPoints: [N, 2] as [x, y]
 
-                auto lt = distance.slice(1, 0, 2);  // left, top
-                auto rb = distance.slice(1, 2, 4);  // right, bottom
+                auto lt = distance.slice(dim, 0, 2);  // left, top
+                auto rb = distance.slice(dim, 2, 4);  // right, bottom
 
                 auto x1y1 = anchorPoints - lt;
                 auto x2y2 = anchorPoints + rb;
@@ -268,10 +334,10 @@ namespace WheelDL {
                 if (xywh) {
                     auto c_xy = (x1y1 + x2y2) / 2.0f;
                     auto wh = x2y2 - x1y1;
-                    return torch::cat({ c_xy, wh }, 1);
+                    return torch::cat({ c_xy, wh }, dim);
                 }
 
-                return torch::cat({ x1y1, x2y2 }, 1);
+                return torch::cat({ x1y1, x2y2 }, dim);
             }
 
             torch::Tensor bbox2dist(
@@ -279,21 +345,22 @@ namespace WheelDL {
                 const torch::Tensor& bboxes,
                 int64_t regMax
             ) {
-                // anchorPoints: [N, 2]
-                // bboxes: [N, 4] in xyxy format
-
-                // Python implementation:
-                // def bbox2dist(anchor_points, bbox, reg_max):
-                //     x1y1, x2y2 = bbox.chunk(2, -1)
-                //     return torch.cat((anchor_points - x1y1, x2y2 - anchor_points), -1).clamp_(0, reg_max - 0.01)
-
-                auto x1y1 = bboxes.slice(1, 0, 2);
-                auto x2y2 = bboxes.slice(1, 2, 4);
+				int64_t dim = bboxes.dim();
+                if (dim != 2 && dim != 3) {
+                    throw std::invalid_argument(
+						"bbox2dist: bboxes must be [N, 4] or [N, M, 4] tensor, got " +
+                        std::to_string(bboxes.dim()) + "D with size " +
+                        std::to_string(bboxes.size(1)) + " in dim 1"
+                    );
+				}
+				dim = dim - 1; // last dimension
+                auto x1y1 = bboxes.slice(dim, 0, 2);
+                auto x2y2 = bboxes.slice(dim, 2, 4);
 
                 auto lt = anchorPoints - x1y1;  // left, top distances
                 auto rb = x2y2 - anchorPoints;  // right, bottom distances
 
-                auto dist = torch::cat({ lt, rb }, 1);
+                auto dist = torch::cat({ lt, rb }, dim);
 
                 // Clamp to [0, regMax - 0.01] (matches Python exactly)
                 return dist.clamp(0.0f, static_cast<float>(regMax) - 0.01f);
@@ -304,33 +371,52 @@ namespace WheelDL {
                 const torch::Tensor& angle,
                 const torch::Tensor& anchorPoints
             ) {
-                auto lt = distance.slice(1, 0, 2);  // [N, 2]
-                auto rb = distance.slice(1, 2, 4);  // [N, 2]
+                int64_t dim = distance.dim();
+                if (dim != 2 && dim != 3)
+                {
+                    throw std::invalid_argument(
+                        "dist2rbox: distance must be [N, 4] or [batch, N, 4] tensor, got " +
+                        std::to_string(distance.dim()) + "D tensor"
+                    );
+                }
+
+                dim = dim - 1; // last dimension (same as dist2bbox)
+
+                auto lt = distance.slice(dim, 0, 2);  // [N, 2] or [batch, N, 2]
+                auto rb = distance.slice(dim, 2, 4);  // [N, 2] or [batch, N, 2]
 
                 auto cos_angle = torch::cos(angle);
                 auto sin_angle = torch::sin(angle);
 
-                auto offset = (rb - lt) / 2.0f;  // [N, 2]
-                auto xf = offset.select(1, 0).unsqueeze(1);  // [N, 1]
-                auto yf = offset.select(1, 1).unsqueeze(1);  // [N, 1]
+                auto offset = (rb - lt) / 2.0f;  // [N, 2] or [batch, N, 2]
+                auto xf = offset.select(dim, 0).unsqueeze(-1);  // [N, 1] or [batch, N, 1]
+                auto yf = offset.select(dim, 1).unsqueeze(-1);  // [N, 1] or [batch, N, 1]
 
-                auto x = xf * cos_angle - yf * sin_angle;  // [N, 1]
-                auto y = xf * sin_angle + yf * cos_angle;  // [N, 1]
+                auto x = xf * cos_angle - yf * sin_angle;  // [N, 1] or [batch, N, 1]
+                auto y = xf * sin_angle + yf * cos_angle;  // [N, 1] or [batch, N, 1]
 
-                auto xy = torch::cat({ x, y }, 1) + anchorPoints;  // [N, 2]
-                auto wh = lt + rb;  // [N, 2]
+                auto xy = torch::cat({ x, y }, dim) + anchorPoints;  // [N, 2] or [batch, N, 2]
+                auto wh = lt + rb;  // [N, 2] or [batch, N, 2]
 
-                return torch::cat({ xy, wh }, 1);  // [N, 4] - NOTE: No angle in output!
+                return torch::cat({ xy, wh }, dim);  // [N, 4] or [batch, N, 4] - NOTE: No angle in output!
             }
 
             torch::Tensor xywhr2xyxyxyxy(const torch::Tensor& rboxes) {
-                // rboxes: [N, 5] as [cx, cy, w, h, angle]
+				int64_t dim = rboxes.dim();
+				if (dim != 2 && dim != 3)
+                {
+                    throw std::invalid_argument(
+						"xywhr2xyxyxyxy: rboxes must be [N, 5] or [batch, N, 5] tensor, got " +
+                        std::to_string(rboxes.dim()) + "D tensor"
+                    );
+				}
+                int64_t lastDim = dim - 1; // last dimension
 
-                auto cx = rboxes.select(1, 0);
-                auto cy = rboxes.select(1, 1);
-                auto w = rboxes.select(1, 2);
-                auto h = rboxes.select(1, 3);
-                auto angle = rboxes.select(1, 4);
+                auto cx = rboxes.select(lastDim, 0);
+                auto cy = rboxes.select(lastDim, 1);
+                auto w = rboxes.select(lastDim, 2);
+                auto h = rboxes.select(lastDim, 3);
+                auto angle = rboxes.select(lastDim, 4);
 
                 auto cos_a = torch::cos(angle);
                 auto sin_a = torch::sin(angle);
@@ -357,11 +443,11 @@ namespace WheelDL {
 
                 // Stack as [N, 4, 2]
                 auto corners = torch::stack({
-                    torch::stack({x1, y1}, 1),
-                    torch::stack({x2, y2}, 1),
-                    torch::stack({x3, y3}, 1),
-                    torch::stack({x4, y4}, 1)
-                    }, 1);
+                    torch::stack({x1, y1}, lastDim),
+                    torch::stack({x2, y2}, lastDim),
+                    torch::stack({x3, y3}, lastDim),
+                    torch::stack({x4, y4}, lastDim)
+                    }, lastDim);
 
                 return corners;
             }
@@ -370,21 +456,8 @@ namespace WheelDL {
                 const std::vector<torch::Tensor>& feats,
                 const torch::Tensor& strides,
                 float gridCellOffset
-            ) {
-                // Python implementation:
-                // def make_anchors(feats, strides, grid_cell_offset=0.5):
-                //     anchor_points, stride_tensor = [], []
-                //     assert feats is not None
-                //     dtype, device = feats[0].dtype, feats[0].device
-                //     for i, stride in enumerate(strides):
-                //         h, w = feats[i].shape[2:]
-                //         sx = torch.arange(end=w, device=device, dtype=dtype) + grid_cell_offset
-                //         sy = torch.arange(end=h, device=device, dtype=dtype) + grid_cell_offset
-                //         sy, sx = torch.meshgrid(sy, sx, indexing="ij")
-                //         anchor_points.append(torch.stack((sx, sy), -1).view(-1, 2))
-                //         stride_tensor.append(torch.full((h * w, 1), stride, dtype=dtype, device=device))
-                //     return torch.cat(anchor_points), torch::cat(stride_tensor)
-
+            ) 
+            {
                 if (feats.empty()) {
                     throw std::invalid_argument("makeAnchors: feats cannot be empty");
                 }

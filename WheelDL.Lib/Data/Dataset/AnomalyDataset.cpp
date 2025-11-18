@@ -23,6 +23,7 @@ namespace WheelDL
             {
                 loadAnnotations();
                 _transforms = buildTransforms();
+                
             }
 
             void AnomalyDataset::loadAnnotations()
@@ -116,27 +117,53 @@ namespace WheelDL
 
             std::shared_ptr<Transforms::Transform> AnomalyDataset::buildTransforms()
             {
-                // Use base class helper to build standard transforms
-                // includeColorAugmentation = false for anomaly detection (preserves color information)
-                return buildStandardTransforms(_train, false);
+                if (_train)
+                {
+                    auto aeTransform = std::make_unique<Transforms::Compose>();
+                    aeTransform->addTransform(std::make_unique<Transforms::LetterBox>(_config.getImageSize(), _config.getImageSize()));
+                    aeTransform->addTransform(std::make_unique<Transforms::ColorJitter>(0.2f, 0.2f, 0.2f, 0.0f));
+                    aeTransform->addTransform(std::make_unique<Transforms::ToTensor>());
+                    aeTransform->addTransform(std::make_unique<Transforms::Normalize>(Transforms::Normalize::imageNet()));
+                    _aeTransforms = std::move(aeTransform);
+                }
+
+				auto transform = std::make_shared<Transforms::Compose>();
+                transform->addTransform(std::make_unique<Transforms::LetterBox>(_config.getImageSize(), _config.getImageSize()));
+                if (_train)
+                {
+					transform->addTransform(std::make_unique<Transforms::RandomHorizontalFlip>(_config.getFlipLR()));
+                }
+                transform->addTransform(std::make_unique<Transforms::ToTensor>());
+                transform->addTransform(std::make_unique<Transforms::Normalize>(Transforms::Normalize::imageNet()));
+				return transform;
             }
 
             torch::Tensor AnomalyDataset::getTargetTensor(size_t index, const Annotation& annotations)
             {
                 // Get anomaly label from annotation
-                const auto& classes = annotations.getClasses();
-
-                if (classes.empty())
+                if (_config.IsEfficientAD() && _train)
                 {
-                    // No label available (training with normal images only)
-                    // Return as 1D tensor with single element (required for collation)
-                    return torch::tensor({1}, torch::kLong);  // 1 indicates unknown/unlabeled
+                    auto [image, annotations] = loadSample(index);
+					_aeTransforms->apply(image, annotations);
+
+                    return imageToTensor(image);
                 }
+                else
+                {
+                    const auto& classes = annotations.getClasses();
 
-                int label = classes[0];  // 0 = normal, 1 = anomaly
+                    if (classes.empty())
+                    {
+                        // No label available (training with normal images only)
+                        // Return as 1D tensor with single element (required for collation)
+                        return torch::tensor({1}, torch::kLong);  // 1 indicates unknown/unlabeled
+                    }
 
-                // Return as 1D tensor with single element (required for collation)
-                return torch::tensor({label}, torch::kLong);
+                    int label = classes[0];  // 0 = normal, 1 = anomaly
+
+                    // Return as 1D tensor with single element (required for collation)
+                    return torch::tensor({label}, torch::kLong);
+                }
             }
 
         } // namespace Dataset

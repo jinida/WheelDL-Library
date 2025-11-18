@@ -32,11 +32,15 @@ namespace WheelDL {
                     // Weight from target scores
                     auto weight = targetScores.sum(-1).index({ fgMask }).unsqueeze(-1);
 
-                    // Compute Probiou for oriented boxes
+                    // Compute Probiou for oriented boxes (element-wise)
+                    auto predBboxesFg = predBboxes.index({ fgMask });
+                    auto targetBboxesFg = targetBboxes.index({ fgMask });
+
+                    // Compute element-wise IoU
                     auto iou = Utils::probiou(
-                        predBboxes.index({ fgMask }),
-                        targetBboxes.index({ fgMask })
-                    );
+                        predBboxesFg,
+                        targetBboxesFg
+                    );  // [N]
 
                     // IoU loss
                     auto lossIoU = ((1.0f - iou) * weight).sum() / targetScoresSum;
@@ -82,7 +86,7 @@ namespace WheelDL {
                 int64_t talTopk
             )
                 : _numClasses(numClasses)
-                , _stride(stride.clone())
+                , _stride(stride.clone())  // FIXED: Clone to ensure internal state independence
                 , _boxGain(boxGain)
                 , _clsGain(clsGain)
                 , _dflGain(dflGain)
@@ -99,17 +103,45 @@ namespace WheelDL {
                     talTopk, numClasses, 0.5f, 6.0f
                 );
 
-                // Initialize projection tensor for DFL decoding
-                _proj = torch::arange(_regMax, torch::TensorOptions().dtype(torch::kFloat));
+                // OPTIMIZATION: Pre-cache projection tensors for different dtypes
+                _proj = torch::arange(_regMax, torch::TensorOptions().dtype(torch::kFloat).device(_device));
+                _projFloat32 = _proj.to(torch::kFloat32);
+                _projFloat16 = _proj.to(torch::kFloat16);
 
-                // Fixed: Pre-compute totalStrideFactor once to avoid GPU→CPU copy on every forward
+                // BFloat16 support for Ampere+ GPUs (A100, RTX 3090, etc.)
+                if (torch::cuda::is_available() && torch::cuda::cudnn_is_available()) {
+                    try {
+                        // Test BFloat16 support with a small tensor operation
+                        auto testTensor = torch::ones({1}, torch::TensorOptions().device(_device).dtype(torch::kBFloat16));
+                        _projBFloat16 = _proj.to(torch::kBFloat16);
+                    } catch (const c10::Error& e) {
+                        // BFloat16 not supported on this device, fallback to Float16
+                        // Log the error for debugging purposes
+                        std::cerr << "[OBBLoss] BFloat16 not supported: " << e.what() << "\n";
+                        std::cerr << "[OBBLoss] Falling back to Float16 for BFloat16 operations\n";
+                        _projBFloat16 = _projFloat16;
+                    } catch (const std::exception& e) {
+                        // Unexpected error
+                        std::cerr << "[OBBLoss] Unexpected error during BFloat16 setup: " << e.what() << "\n";
+                        _projBFloat16 = _projFloat16;
+                    }
+                } else {
+                    _projBFloat16 = _projFloat16;  // Fallback to Float16
+                }
+
+                // OPTIMIZATION: Cache stride values on CPU once during initialization
+                // Use cloned stride to ensure we have our own copy
                 auto strideCpu = _stride.cpu();
                 auto strideAccessor = strideCpu.accessor<float, 1>();
+                _strideValuesCPU.reserve(strideCpu.size(0));
                 for (int64_t i = 0; i < strideCpu.size(0); ++i) {
-                    auto s = strideAccessor[i];
+                    float s = strideAccessor[i];
+                    _strideValuesCPU.push_back(s);
                     _totalStrideFactor += 1.0f / (s * s);
                 }
             }
+
+			OBBLoss::~OBBLoss() = default;
 
             void OBBLoss::to(const torch::Device& device)
             {
@@ -128,33 +160,41 @@ namespace WheelDL {
                         torch::TensorOptions().device(_device));
                 }
 
-                // Get image indices and count per image
-                // Python: _, counts = i.unique(return_counts=True)
-                auto i = targets.select(1, 0);
-                auto uniqueResult = torch::_unique2(i, /*sorted=*/false, /*return_inverse=*/false, /*return_counts=*/true);
-                auto counts = std::get<2>(uniqueResult).to(torch::kInt32);
+                // OPTIMIZATION: Vectorized batch processing
+                auto i = targets.select(1, 0);  // batch indices
+
+                // Get unique batch indices and counts efficiently
+                auto uniqueResult = torch::_unique2(i, /*sorted=*/true, /*return_inverse=*/true, /*return_counts=*/true);
+                auto uniqueIndices = std::get<0>(uniqueResult);
+                auto inverseIndices = std::get<1>(uniqueResult);
+                auto counts = std::get<2>(uniqueResult);
 
                 auto maxCount = counts.max().item<int64_t>();
                 auto out = torch::zeros({ batchSize, maxCount, 6 },
                     torch::TensorOptions().device(_device));
 
-                // Fill targets for each image
-                for (int64_t j = 0; j < batchSize; ++j) {
-                    auto matches = (i == j);
-                    auto n = matches.sum().item<int64_t>();
+                // OPTIMIZATION: Process all batches with minimal loops
+                if (targets.size(0) > 0 && batchSize > 0) {
+                    for (int64_t idx = 0; idx < uniqueIndices.size(0); ++idx) {
+                        auto batchIdx = uniqueIndices[idx].item<int64_t>();
+                        if (batchIdx < batchSize) {
+                            auto mask = (i == batchIdx);
+                            auto n = counts[idx].item<int64_t>();
 
-                    if (n > 0) {
-                        auto bboxes = targets.index({ matches }).slice(1, 2, 7);  // [n, 5] - xywh + angle
+                            if (n > 0) {
+                                auto bboxes = targets.index({ mask }).slice(1, 2, 7);  // [n, 5] - xywh + angle
 
-                        // Scale bbox coordinates (not angle)
-                        auto bboxesXywh = bboxes.slice(1, 0, 4);  // [n, 4]
-                        bboxesXywh = bboxesXywh * scaleTensor.unsqueeze(0);
+                                // Scale bbox coordinates (not angle) - vectorized operation
+                                auto bboxesXywh = bboxes.slice(1, 0, 4);  // [n, 4]
+                                bboxesXywh = bboxesXywh * scaleTensor.unsqueeze(0);
 
-                        auto angle = bboxes.slice(1, 4, 5);  // [n, 1]
-                        auto scaledBboxes = torch::cat({ bboxesXywh, angle }, /*dim=*/1);  // [n, 5]
+                                auto angle = bboxes.slice(1, 4, 5);  // [n, 1]
+                                auto scaledBboxes = torch::cat({ bboxesXywh, angle }, /*dim=*/1);  // [n, 5]
 
-                        auto classLabels = targets.index({ matches }).slice(1, 1, 2);  // [n, 1]
-                        out[j].slice(0, 0, n) = torch::cat({ classLabels, scaledBboxes }, /*dim=*/1);
+                                auto classLabels = targets.index({ mask }).slice(1, 1, 2);  // [n, 1]
+                                out[batchIdx].slice(0, 0, n) = torch::cat({ classLabels, scaledBboxes }, /*dim=*/1);
+                            }
+                        }
                     }
                 }
 
@@ -168,6 +208,7 @@ namespace WheelDL {
             ) {
                 torch::Tensor predDistDecoded;
                 if (_useDfl) {
+                    // OPTIMIZATION: Fused DFL decoding with cached projection tensor
                     auto b = predDist.size(0);
                     auto a = predDist.size(1);
                     auto c = predDist.size(2);
@@ -176,8 +217,18 @@ namespace WheelDL {
                     auto predDistReshaped = predDist.view({ b, a, 4, c / 4 });
                     auto predDistSoftmax = torch::softmax(predDistReshaped, /*dim=*/3);
 
-                    // Matrix multiply with projection
-                    predDistDecoded = torch::matmul(predDistSoftmax, _proj.to(predDist.dtype()));
+                    // OPTIMIZATION: Use pre-cached projection tensor based on dtype
+                    torch::Tensor proj;
+                    if (predDist.dtype() == torch::kFloat16) {
+                        proj = _projFloat16;
+                    } else if (predDist.dtype() == torch::kBFloat16) {
+                        proj = _projBFloat16;
+                    } else {
+                        proj = _projFloat32;
+                    }
+
+                    // Matrix multiply with cached projection (no dtype conversion needed)
+                    predDistDecoded = torch::matmul(predDistSoftmax, proj);
                 }
                 else {
                     predDistDecoded = predDist;
@@ -191,28 +242,43 @@ namespace WheelDL {
             std::unordered_map<std::string, torch::Tensor> OBBLoss::compute(
                 const std::vector<torch::Tensor>& predictions,
                 const Data::Dataset::DataExample& target) {
-                // Multi-scale version for training
+                // OPTIMIZATION: Pre-allocate concatenated tensor to avoid intermediate vectors
                 // predictions: vector of [batch, 145, H, W] for each scale
                 // where 145 = 4*regMax + numClasses + 1 (for angle)
                 // Convert to concatenated format [batch, 145, total_anchors]
 
-                std::vector<torch::Tensor> flattenedPreds;
-                flattenedPreds.reserve(predictions.size());
-
-                for (const auto& pred : predictions) {
-                    // pred shape: [batch, 145, H, W]
-                    auto batch_size = pred.size(0);
-                    auto channels = pred.size(1);
-                    auto height = pred.size(2);
-                    auto width = pred.size(3);
-
-                    // Flatten spatial dimensions: [batch, 145, H*W]
-                    auto flattened = pred.view({batch_size, channels, height * width});
-                    flattenedPreds.push_back(flattened);
+                if (predictions.empty()) {
+                    throw std::invalid_argument("OBBLoss::compute: predictions cannot be empty");
                 }
 
-                // Concatenate all scales: [batch, 145, total_anchors]
-                auto concatenated = torch::cat(flattenedPreds, /*dim=*/2);
+                auto batchSize = predictions[0].size(0);
+                auto channels = predictions[0].size(1);
+
+                // 1. Calculate total number of anchors across all scales
+                int64_t totalAnchors = 0;
+                for (const auto& pred : predictions) {
+                    totalAnchors += pred.size(2) * pred.size(3);
+                }
+
+                // 2. Pre-allocate output tensor (single allocation)
+                auto concatenated = torch::empty(
+                    {batchSize, channels, totalAnchors},
+                    predictions[0].options()
+                );
+
+                // 3. Copy each scale directly into pre-allocated tensor (no intermediate storage)
+                int64_t offset = 0;
+                for (const auto& pred : predictions) {
+                    auto height = pred.size(2);
+                    auto width = pred.size(3);
+                    auto numAnchors = height * width;
+
+                    // Direct copy into the concatenated tensor
+                    concatenated.slice(2, offset, offset + numAnchors).copy_(
+                        pred.reshape({batchSize, channels, numAnchors})
+                    );
+                    offset += numAnchors;
+                }
 
                 // Call single tensor version
                 return compute(concatenated, target);
@@ -226,57 +292,72 @@ namespace WheelDL {
                     .dtype(torch::kFloat32)
                     .device(_device));
 
+                // OPTIMIZATION: Use slice instead of split to avoid creating temporary vector
                 // Split predictions: [batch, reg_max*4 + num_classes + 1, num_anchors]
                 // Last channel is angle
                 auto predAngle = prediction.slice(1, _regMax * 4 + _numClasses, _regMax * 4 + _numClasses + 1);
                 predAngle = predAngle.permute({ 0, 2, 1 }).contiguous();
 
-                // Split predictions: cleaner code without lambda (C++17)
-                auto parts = prediction.slice(1, 0, _regMax * 4 + _numClasses).split({ _regMax * 4, _numClasses }, /*dim=*/1);
-                auto predDistri = parts[0].permute({ 0, 2, 1 }).contiguous();
-                auto predScores = parts[1].permute({ 0, 2, 1 }).contiguous();
+                // Get distribution and scores using slices
+                auto predDistri = prediction.slice(1, 0, _regMax * 4).permute({ 0, 2, 1 }).contiguous();
+                auto predScores = prediction.slice(1, _regMax * 4, _regMax * 4 + _numClasses).permute({ 0, 2, 1 }).contiguous();
 
                 auto dtype = predScores.dtype();
                 auto batchSize = predScores.size(0);
                 auto numAnchors = predScores.size(1);
 
-                // Calculate image size from number of anchors
-                // For strides [8, 16, 32] and square image:
-                // num_anchors = (H/8)*(W/8) + (H/16)*(W/16) + (H/32)*(W/32)
-                // For square: num_anchors = H^2 * (1/64 + 1/256 + 1/1024)
-                // Solve for image size
-                // Fixed: Use pre-computed totalStrideFactor (calculated in constructor)
-                // This avoids GPU→CPU copy on every forward pass
                 auto imgSizeFloat = std::sqrt(static_cast<float>(numAnchors) / _totalStrideFactor);
                 auto imgSizeInt = static_cast<int64_t>(std::round(imgSizeFloat));
-
-                // Python: imgsz = torch.tensor(feats[0].shape[2:], device=self.device, dtype=dtype) * self.stride[0]
-                // This gives [height, width] in pixels
                 auto imgSize = torch::tensor({ static_cast<float>(imgSizeInt), static_cast<float>(imgSizeInt) },
                     torch::TensorOptions().dtype(dtype).device(_device));
 
-                // Calculate feature shapes without allocating tensors (memory efficient)
-                // Use CPU copy only for stride values (small one-time cost)
-                auto strideCpu = _stride.cpu();
-                auto strideAccessor = strideCpu.accessor<float, 1>();
+                // OPTIMIZATION: Use cached CPU stride values to avoid GPU->CPU transfer
                 std::vector<std::pair<int64_t, int64_t>> featShapes;
-                featShapes.reserve(strideCpu.size(0));
-                for (int64_t i = 0; i < strideCpu.size(0); ++i) {
-                    auto strideVal = static_cast<int64_t>(strideAccessor[i]);
+                featShapes.reserve(_strideValuesCPU.size());
+                for (size_t i = 0; i < _strideValuesCPU.size(); ++i)
+                {
+                    auto strideVal = static_cast<int64_t>(_strideValuesCPU[i]);
                     auto featH = imgSizeInt / strideVal;
                     auto featW = imgSizeInt / strideVal;
                     featShapes.emplace_back(featH, featW);
                 }
 
-                // Generate anchors using efficient shape-based method
-                auto [anchorPoints, strideTensor] = Utils::makeAnchors(featShapes, _stride, dtype.toScalarType(), _device, 0.5f);
+                // OPTIMIZATION: Use cached anchors if available
+                torch::Tensor anchorPoints, strideTensor;
+                auto dtypeScalar = dtype.toScalarType();
+
+                if (_anchorCache.imgSize == imgSizeInt &&
+                    _anchorCache.dtype == dtypeScalar &&
+                    _anchorCache.device == _device &&
+                    _anchorCache.anchorPoints.defined()) {
+                    // Use cached anchors
+                    anchorPoints = _anchorCache.anchorPoints;
+                    strideTensor = _anchorCache.strideTensor;
+                } else {
+                    // Generate new anchors and cache them
+                    std::tie(anchorPoints, strideTensor) = Utils::makeAnchors(
+                        featShapes, _stride, dtypeScalar, _device, 0.5f
+                    );
+
+                    // Update cache
+                    _anchorCache.anchorPoints = anchorPoints;
+                    _anchorCache.strideTensor = strideTensor;
+                    _anchorCache.imgSize = imgSizeInt;
+                    _anchorCache.dtype = dtypeScalar;
+                    _anchorCache.device = _device;
+                }
 
                 // Prepare targets: torch.cat((batch_idx, classes, obb), 1) where obb is [x, y, w, h, angle]
                 auto batchIdx = target.batchIndices.view({ -1, 1 });
                 auto classes = target.classes.view({ -1, 1 });
                 auto obb = target.targets;  // [num_gt, 5] - xywh + angle
 
-                auto targets = torch::cat({ batchIdx, classes, obb }, /*dim=*/1);
+                // OPTIMIZATION: Ensure all tensors are on correct device before concatenation
+                auto targets = torch::cat({
+                    batchIdx.to(_device),
+                    classes.to(_device),
+                    obb.to(_device)
+                }, /*dim=*/1);
 
                 // Filter small bboxes: targets[(rw >= 2) & (rh >= 2)]
                 // Python: rw, rh = targets[:, 4] * imgsz[0].item(), targets[:, 5] * imgsz[1].item()
@@ -291,10 +372,8 @@ namespace WheelDL {
                 targets = targets.index({ validMask });
 
                 // Python: scale_tensor=imgsz[[1, 0, 1, 0]]
-                // Ensure scaleTensor is on the same device as targets
-                auto scaleTensor = torch::stack({ imgSize[1], imgSize[0], imgSize[1], imgSize[0] })
-                    .to(_device);
-                targets = preprocess(targets.to(_device), batchSize, scaleTensor);
+                auto scaleTensor = torch::stack({ imgSize[1], imgSize[0], imgSize[1], imgSize[0] });
+                targets = preprocess(targets, batchSize, scaleTensor);
 
                 // Split targets: gt_labels, gt_bboxes = targets.split((1, 5), 2)
                 auto targetParts = targets.split({ 1, 5 }, /*dim=*/2);
@@ -307,9 +386,9 @@ namespace WheelDL {
                 // Decode predicted boxes
                 auto predBboxes = decodeBbox(anchorPoints, predDistri, predAngle);
 
-                // Clone and scale for assigner
+                // OPTIMIZATION: Clone and scale inplace for assigner
                 auto bboxesForAssigner = predBboxes.clone().detach();
-                bboxesForAssigner.slice(2, 0, 4) *= strideTensor;  // Only scale xywh, not angle
+                bboxesForAssigner.slice(2, 0, 4).mul_(strideTensor);  // Inplace scale xywh only, not angle
 
                 // Task-aligned assignment
                 auto [targetLabels, targetBboxes, targetScores, fgMask, targetGtIdx] = _assigner->forward(
@@ -328,16 +407,13 @@ namespace WheelDL {
                     targetScoresSum = targetScoresSumRaw;
                 }
 
-                // Classification loss
-                Data::Dataset::DataExample tempTarget;
-                tempTarget.targets = targetScores.to(dtype);
-                auto bceLossMap = _bce->compute(predScores, tempTarget);
+                auto bceLossMap = _bce->compute(predScores, targetScores.to(dtype));
                 loss[1] = bceLossMap.at("total").sum() / targetScoresSum;
 
                 // Box and DFL loss (only for foreground)
                 if (fgMask.sum().item<int64_t>() > 0) {
-                    // target_bboxes[..., :4] /= stride_tensor
-                    targetBboxes.slice(2, 0, 4) /= strideTensor;
+                    // OPTIMIZATION: Inplace division for xywh only (not angle)
+                    targetBboxes.slice(2, 0, 4).div_(strideTensor);
 
                     auto [boxLoss, dflLoss] = _bboxLoss->forward(
                         predDistri,
@@ -359,13 +435,13 @@ namespace WheelDL {
                     loss[0] += (predAngle * 0.0f).sum();
                 }
 
-                // Apply loss weights
-                loss[0] *= _boxGain;
-                loss[1] *= _clsGain;
-                loss[2] *= _dflGain;
+                // OPTIMIZATION: Apply loss weights inplace
+                loss[0].mul_(_boxGain);
+                loss[1].mul_(_clsGain);
+                loss[2].mul_(_dflGain);
 
-                // Multiply by batch_size
-                loss *= static_cast<float>(batchSize);
+                // OPTIMIZATION: Multiply by batch_size inplace
+                loss.mul_(static_cast<float>(batchSize));
 
                 // Return loss components as map
                 return {

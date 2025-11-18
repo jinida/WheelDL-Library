@@ -337,6 +337,9 @@ public:
         if (_regMax <= 0) {
             throw std::invalid_argument("regMax must be positive");
         }
+        // OPTIMIZATION: Pre-allocate tensors for better performance
+        _leftIndices = torch::empty({1}, torch::kLong);
+        _rightIndices = torch::empty({1}, torch::kLong);
     }
 
     /**
@@ -389,7 +392,10 @@ public:
     [[nodiscard]] int64_t getRegMax() const { return _regMax; }
 
 private:
-    int64_t _regMax;  ///< Maximum regression range
+    int64_t _regMax;
+    // OPTIMIZATION: Pre-allocated tensors for reuse
+    mutable torch::Tensor _leftIndices;
+    mutable torch::Tensor _rightIndices;  ///< Maximum regression range
 };
 
 } // namespace Loss

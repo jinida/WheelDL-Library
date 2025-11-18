@@ -205,26 +205,36 @@ namespace WheelDL {
                 }
 
                 auto size = distDimSize / 2;
-                auto lt = distance.narrow(dim, 0, size);  // left-top
-                auto rb = distance.narrow(dim, size, size);  // right-bottom
+                auto lt = distance.narrow(dim, 0, size);  // left-top [B, 2, N]
+                auto rb = distance.narrow(dim, size, size);  // right-bottom [B, 2, N]
 
-                // Ensure anchors has correct dimensions
-                auto anchorExpanded = anchors.unsqueeze(0);
+                // Ensure anchors has correct dimensions: [N, 2] -> [1, N, 2] or keep [B, N, 2]
+                auto anchorExpanded = anchors;
                 if (anchors.dim() == 2) {
-                    anchorExpanded = anchors;
+                    anchorExpanded = anchors.unsqueeze(0);  // [N, 2] -> [1, N, 2]
                 }
+                // If already 3D [B, N, 2], use as-is
 
-                // Split anchors into x and y - validate anchor dimension is even
-                auto anchorDimSize = anchorExpanded.size(-1);
-                if (anchorDimSize <= 0 || anchorDimSize % 2 != 0) {
-                    throw std::invalid_argument("anchor dimension must be positive and even, got: " +
+                // Validate anchor dimension is 2 (x, y)
+                auto anchorDimSize = anchorExpanded.size(-1);  // Last dimension should be 2
+                if (anchorDimSize != 2) {
+                    throw std::invalid_argument("anchor last dimension must be 2 (x, y), got: " +
                                                std::to_string(anchorDimSize));
                 }
-                auto anchorSize = anchorDimSize / 2;
-                auto x1y1 = anchorExpanded.narrow(-1, 0, anchorSize) - lt;
-                auto x2y2 = anchorExpanded.narrow(-1, anchorSize, anchorSize) + rb;
 
-                auto bbox = torch::cat({ x1y1, x2y2 }, dim);
+                // Permute lt/rb from [B, 2, N] to [B, N, 2] to match anchor format
+                lt = lt.permute({0, 2, 1});  // [B, 2, N] -> [B, N, 2]
+                rb = rb.permute({0, 2, 1});  // [B, 2, N] -> [B, N, 2]
+
+                // Now compute bbox: anchors [B, N, 2] +/- lt/rb [B, N, 2]
+                auto x1y1 = anchorExpanded - lt;  // [B, N, 2]
+                auto x2y2 = anchorExpanded + rb;  // [B, N, 2]
+
+                // Permute back to [B, 2, N] for concatenation
+                x1y1 = x1y1.permute({0, 2, 1});  // [B, N, 2] -> [B, 2, N]
+                x2y2 = x2y2.permute({0, 2, 1});  // [B, N, 2] -> [B, 2, N]
+
+                auto bbox = torch::cat({ x1y1, x2y2 }, dim);  // [B, 4, N]
 
                 if (xywh) {
                     // Convert to center x, center y, width, height

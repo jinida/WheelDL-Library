@@ -11,7 +11,10 @@ inline constexpr float PI = 3.14159265358979323846f;
 inline constexpr float HEIGHT_MIN_THRESHOLD = 1e-5f;
 
 /**
- * @brief Compute Intersection over Union (IoU) for bounding boxes
+ * @brief Compute element-wise Intersection over Union (IoU) for bounding boxes
+ *
+ * This function computes IoU between corresponding boxes (box1[i] with box2[i]).
+ * This is the standard behavior matching Python implementation.
  *
  * Supports multiple IoU variants:
  * - Standard IoU: Intersection / Union
@@ -20,14 +23,14 @@ inline constexpr float HEIGHT_MIN_THRESHOLD = 1e-5f;
  * - CIoU (Complete IoU): Adds aspect ratio consistency
  *
  * @param box1 First set of boxes [N, 4] in format specified by xywh
- * @param box2 Second set of boxes [M, 4] in format specified by xywh
+ * @param box2 Second set of boxes [N, 4] in format specified by xywh (must match box1 size)
  * @param xywh If true, boxes are [x_center, y_center, width, height]
  *             If false, boxes are [x1, y1, x2, y2]
  * @param GIoU If true, compute Generalized IoU
  * @param DIoU If true, compute Distance IoU
  * @param CIoU If true, compute Complete IoU
  * @param eps Small value for numerical stability
- * @return IoU matrix [N, M]
+ * @return IoU vector [N] - element-wise IoU values
  */
 [[nodiscard]] torch::Tensor bboxIoU(
     const torch::Tensor& box1,
@@ -36,11 +39,14 @@ inline constexpr float HEIGHT_MIN_THRESHOLD = 1e-5f;
     bool GIoU = false,
     bool DIoU = false,
     bool CIoU = false,
-    float eps = 1e-6f  // Improved numerical stability for float32
+    float eps = 1e-6f
 );
 
 /**
- * @brief Compute Probiou (Probabilistic IoU) for oriented bounding boxes
+ * @brief Compute element-wise Probiou (Probabilistic IoU) for oriented bounding boxes
+ *
+ * This function computes Probiou between corresponding OBBs (obb1[i] with obb2[i]).
+ * This is the standard behavior matching Python implementation.
  *
  * Computes IoU for rotated boxes using Gaussian-based approximation.
  * Much faster than exact polygon intersection methods.
@@ -48,14 +54,14 @@ inline constexpr float HEIGHT_MIN_THRESHOLD = 1e-5f;
  * Reference: "Gaussian Bounding Boxes for Oriented Object Detection"
  *
  * @param obb1 First set of OBBs [N, 5] where 5 = [cx, cy, w, h, angle]
- * @param obb2 Second set of OBBs [M, 5]
+ * @param obb2 Second set of OBBs [N, 5] (must match obb1 size)
  * @param eps Small value for numerical stability
- * @return Probiou matrix [N, M]
+ * @return Probiou vector [N] - element-wise Probiou values
  */
 [[nodiscard]] torch::Tensor probiou(
     const torch::Tensor& obb1,
     const torch::Tensor& obb2,
-    float eps = 1e-6f  // Improved numerical stability for float32
+    float eps = 1e-6f
 );
 
 /**
@@ -109,14 +115,18 @@ inline constexpr float HEIGHT_MIN_THRESHOLD = 1e-5f;
 /**
  * @brief Convert distance and angle to rotated bounding boxes (xywh only)
  *
- * Note: This function returns [N, 4] as [cx, cy, w, h] WITHOUT angle.
+ * Note: This function returns [N, 4] or [batch, N, 4] as [cx, cy, w, h] WITHOUT angle.
  * The caller must concatenate the angle separately if a full [N, 5] output is needed.
  * This design provides flexibility in handling angle transformations independently.
  *
- * @param distance Distance predictions [N, 4] as [left, top, right, bottom]
- * @param angle Rotation angle [N, 1] (used for center calculation but not returned)
+ * Supports both 2D and 3D tensors:
+ * - 2D: distance [N, 4], angle [N, 1], anchorPoints [N, 2] -> output [N, 4]
+ * - 3D: distance [batch, N, 4], angle [batch, N, 1], anchorPoints [N, 2] -> output [batch, N, 4]
+ *
+ * @param distance Distance predictions [N, 4] or [batch, N, 4] as [left, top, right, bottom]
+ * @param angle Rotation angle [N, 1] or [batch, N, 1] (used for center calculation but not returned)
  * @param anchorPoints Anchor points [N, 2] as [x, y]
- * @return Rotated boxes [N, 4] as [cx, cy, w, h] (angle NOT included)
+ * @return Rotated boxes [N, 4] or [batch, N, 4] as [cx, cy, w, h] (angle NOT included)
  */
 [[nodiscard]] torch::Tensor dist2rbox(
     const torch::Tensor& distance,

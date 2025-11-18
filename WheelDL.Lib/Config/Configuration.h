@@ -402,6 +402,11 @@ namespace WheelDL {
 			 */
 			bool useDDP() const;
 
+			bool IsEfficientAD() const { return _isEfficientAD; }
+			bool IsPatchCore() const { return _isPatchCore; }
+			void setIsEfficientAD(bool val) { _isEfficientAD = val; }
+			void setIsPatchCore(bool val) { _isPatchCore = val; }
+
 		private:
 			// Task type (inferred from model)
 			TaskType _taskType;
@@ -475,6 +480,9 @@ namespace WheelDL {
 			// ========== Classification Specific ==========
 			float _dropout;
 
+			// ====== Anomaly Specific ======
+			bool _isEfficientAD = false;
+			bool _isPatchCore = false;
 			/**
 			 * @brief Load model configuration
 			 * @param modelConfig YAML node

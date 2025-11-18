@@ -43,6 +43,27 @@ namespace WheelDL
                 torch::Tensor classes;
                 torch::Tensor targets;    // Target tensor (labels, boxes, etc.)
                 torch::Tensor batchIndices;
+
+                DataExample& toDevice(const torch::Device& device)
+                {
+                    if (data.defined())
+                    {
+                        data = data.to(device);
+                    }
+                    if (classes.defined())
+                    {
+                        classes = classes.to(device);
+                    }
+                    if (targets.defined())
+                    {
+                        targets = targets.to(device);
+                    }
+                    if (batchIndices.defined())
+                    {
+                        batchIndices = batchIndices.to(device);
+                    }
+                    return *this;
+				}
             };
 
             /**
