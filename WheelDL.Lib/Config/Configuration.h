@@ -200,6 +200,12 @@ namespace WheelDL {
 			 * @return float Weight decay
 			 */
 			float getWeightDecay() const { return _weightDecay; }
+			
+			/**
+			 * @brief Get AMSGrad setting for Adam/AdamW
+			 * @return bool AMSGrad setting (true/false)
+			 */
+			bool getAmsgrad() const { return _amsgrad; }
 
 			/**
 			 * @brief Get warmup epochs
@@ -443,7 +449,8 @@ namespace WheelDL {
 			float _warmupEpochs;
 			float _warmupMomentum;
 			float _warmupBiasLR;
-
+			bool _amsgrad;
+			
 			// ========== Loss Gains ==========
 			float _boxGain;
 			float _clsGain;

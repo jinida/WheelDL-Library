@@ -32,6 +32,7 @@ Configuration::Configuration()
 	, _lrf(0.01f)
 	, _momentum(0.937f)
 	, _weightDecay(0.0005f)
+	, _amsgrad(false)
 	, _warmupEpochs(3.0f)
 	, _warmupMomentum(0.8f)
 	, _warmupBiasLR(0.1f)
@@ -189,7 +190,8 @@ void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
 	_warmupEpochs = YamlParser::getFloat(hyperParamConfig, "warmup_epochs", 3.0f);
 	_warmupMomentum = YamlParser::getFloat(hyperParamConfig, "warmup_momentum", 0.8f);
 	_warmupBiasLR = YamlParser::getFloat(hyperParamConfig, "warmup_bias_lr", 0.1f);
-
+	_amsgrad = YamlParser::getBool(hyperParamConfig, "amsgrad", false);
+	
 	// Loss gains
 	_boxGain = YamlParser::getFloat(hyperParamConfig, "box", 7.5f);
 	_clsGain = YamlParser::getFloat(hyperParamConfig, "cls", 0.5f);
