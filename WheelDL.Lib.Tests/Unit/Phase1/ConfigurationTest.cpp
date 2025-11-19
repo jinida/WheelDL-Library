@@ -18,7 +18,7 @@ namespace {
 		while (sourceDir.filename() != "WheelDL.Lib.Tests" && sourceDir.has_parent_path()) {
 			sourceDir = sourceDir.parent_path();
 		}
-		return sourceDir / "Phase1TestConfigs" / "Data";
+		return sourceDir / "Data" / "Phase1TestConfigs";
 	}
 }
 

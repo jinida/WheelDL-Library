@@ -61,6 +61,8 @@ TEST_F(ChannelAttentionModuleTest, Forward_OutputShapeSameAsInput_Success) {
 TEST_F(ChannelAttentionModuleTest, Forward_GAPAndFCLayers_CorrectBehavior) {
     ChannelAttention ca(128);
     torch::Tensor input = torch::randn({1, 128, 16, 16});
+	ca->to(torch::kCUDA);
+	input = input.to(torch::kCUDA);
 
     auto output = ca->forward(input);
     EXPECT_EQ(output.size(0), 1);
@@ -72,7 +74,8 @@ TEST_F(ChannelAttentionModuleTest, Forward_GAPAndFCLayers_CorrectBehavior) {
 TEST_F(ChannelAttentionModuleTest, Forward_AttentionWeightsRange_Between0And1) {
     ChannelAttention ca(64);
     torch::Tensor input = torch::randn({1, 64, 32, 32});
-
+	ca->to(torch::kCUDA);
+	input = input.to(torch::kCUDA);
     auto output = ca->forward(input);
     auto attention_weights = output / (input + 1e-6);
 

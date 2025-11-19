@@ -304,11 +304,14 @@ torch::Tensor TaskAlignedAssigner::selectTopkCandidates(
     // count_tensor.masked_fill_(count_tensor > 1, 0)
     // return count_tensor.to(metrics.dtype)
 
-    auto [topkMetrics, topkIdxs] = torch::topk(metrics, _topk, /*dim=*/-1, largest);
+    // Handle edge case: when metrics.size(-1) < topk, clamp k to avoid out of range error
+    int64_t k = std::min(_topk, metrics.size(-1));
+    auto [topkMetrics, topkIdxs] = torch::topk(metrics, k, /*dim=*/-1, largest);
 
     torch::Tensor mask;
     if (topkMask.defined()) {
-        mask = topkMask;
+        // Slice topkMask to match the actual k used (in case k < _topk)
+        mask = topkMask.slice(/*dim=*/2, /*start=*/0, /*end=*/k);
     } else {
         auto [maxValues, maxIndices] = topkMetrics.max(/*dim=*/-1, /*keepdim=*/true);
         mask = (maxValues > _eps).expand_as(topkIdxs);
@@ -326,8 +329,8 @@ torch::Tensor TaskAlignedAssigner::selectTopkCandidates(
     // Python uses a loop: for k in range(self.topk):
     //     count_tensor.scatter_add_(-1, topk_idxs[:, :, k : k + 1], ones)
     auto ones = torch::ones_like(topkIdxs.slice(/*dim=*/2, /*start=*/0, /*end=*/1), torch::kInt8);
-    for (int64_t k = 0; k < _topk; ++k) {
-        countTensor.scatter_add_(-1, topkIdxs.slice(/*dim=*/2, /*start=*/k, /*end=*/k + 1), ones);
+    for (int64_t i = 0; i < k; ++i) {
+        countTensor.scatter_add_(-1, topkIdxs.slice(/*dim=*/2, /*start=*/i, /*end=*/i + 1), ones);
     }
 
     // Inplace masked_fill to avoid temporary
