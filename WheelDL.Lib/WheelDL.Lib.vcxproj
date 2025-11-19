@@ -229,6 +229,13 @@
     <ClInclude Include="Model\Builder\Factory\UtilityFactory.h" />
     <ClInclude Include="Model\Utils\IoU.h" />
     <ClInclude Include="Model\Utils\TaskAlignedAssigner.h" />
+    <!-- Optimizer Headers -->
+    <ClInclude Include="Optimizer\OptimizerFactory.h" />
+    <ClInclude Include="Optimizer\Scheduler\LRScheduler.h" />
+    <ClInclude Include="Optimizer\Scheduler\CosineAnnealingLR.h" />
+    <ClInclude Include="Optimizer\Scheduler\LinearLR.h" />
+    <ClInclude Include="Optimizer\EMA\ModelEMA.h" />
+    <ClInclude Include="Optimizer\EarlyStopping\EarlyStopping.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Data\Transforms\ColorTransforms.cpp" />
@@ -291,6 +298,13 @@
     <ClCompile Include="Model\Builder\Factory\ModuleFactoryRegistry.cpp" />
     <ClCompile Include="Model\Utils\IoU.cpp" />
     <ClCompile Include="Model\Utils\TaskAlignedAssigner.cpp" />
+    <!-- Optimizer Implementation -->
+    <ClCompile Include="Optimizer\OptimizerFactory.cpp" />
+    <ClCompile Include="Optimizer\Scheduler\LRScheduler.cpp" />
+    <ClCompile Include="Optimizer\Scheduler\CosineAnnealingLR.cpp" />
+    <ClCompile Include="Optimizer\Scheduler\LinearLR.cpp" />
+    <ClCompile Include="Optimizer\EMA\ModelEMA.cpp" />
+    <ClCompile Include="Optimizer\EarlyStopping\EarlyStopping.cpp" />
     <ClCompile Include="..\3rdparty\yaml-cpp-src\src\binary.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>

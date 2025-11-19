@@ -76,6 +76,19 @@
     <Filter Include="header\Model\Utils">
       <UniqueIdentifier>{37C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
     </Filter>
+    <!-- Optimizer Layer Filters -->
+    <Filter Include="header\Optimizer">
+      <UniqueIdentifier>{51C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Optimizer\Scheduler">
+      <UniqueIdentifier>{52C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Optimizer\EMA">
+      <UniqueIdentifier>{53C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Optimizer\EarlyStopping">
+      <UniqueIdentifier>{54C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
     <!-- Source Files Filters -->
     <Filter Include="source">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
@@ -150,6 +163,19 @@
     </Filter>
     <Filter Include="source\Model\Utils">
       <UniqueIdentifier>{47C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <!-- Optimizer Layer Source Filters -->
+    <Filter Include="source\Optimizer">
+      <UniqueIdentifier>{61C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Optimizer\Scheduler">
+      <UniqueIdentifier>{62C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Optimizer\EMA">
+      <UniqueIdentifier>{63C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Optimizer\EarlyStopping">
+      <UniqueIdentifier>{64C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
     </Filter>
     <!-- 3rd Party Filters -->
     <Filter Include="3rdparty">
@@ -377,6 +403,25 @@
     </ClInclude>
     <ClInclude Include="Model\Utils\TaskAlignedAssigner.h">
       <Filter>header\Model\Utils</Filter>
+    </ClInclude>
+    <!-- Optimizer Headers -->
+    <ClInclude Include="Optimizer\OptimizerFactory.h">
+      <Filter>header\Optimizer</Filter>
+    </ClInclude>
+    <ClInclude Include="Optimizer\Scheduler\LRScheduler.h">
+      <Filter>header\Optimizer\Scheduler</Filter>
+    </ClInclude>
+    <ClInclude Include="Optimizer\Scheduler\CosineAnnealingLR.h">
+      <Filter>header\Optimizer\Scheduler</Filter>
+    </ClInclude>
+    <ClInclude Include="Optimizer\Scheduler\LinearLR.h">
+      <Filter>header\Optimizer\Scheduler</Filter>
+    </ClInclude>
+    <ClInclude Include="Optimizer\EMA\ModelEMA.h">
+      <Filter>header\Optimizer\EMA</Filter>
+    </ClInclude>
+    <ClInclude Include="Optimizer\EarlyStopping\EarlyStopping.h">
+      <Filter>header\Optimizer\EarlyStopping</Filter>
     </ClInclude>
     <ClInclude Include="Interfaces.h">
       <Filter>header\Model\Modules</Filter>
@@ -655,6 +700,25 @@
     </ClCompile>
     <ClCompile Include="Model\Utils\TaskAlignedAssigner.cpp">
       <Filter>source\Model\Utils</Filter>
+    </ClCompile>
+    <!-- Optimizer Sources -->
+    <ClCompile Include="Optimizer\OptimizerFactory.cpp">
+      <Filter>source\Optimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="Optimizer\Scheduler\LRScheduler.cpp">
+      <Filter>source\Optimizer\Scheduler</Filter>
+    </ClCompile>
+    <ClCompile Include="Optimizer\Scheduler\CosineAnnealingLR.cpp">
+      <Filter>source\Optimizer\Scheduler</Filter>
+    </ClCompile>
+    <ClCompile Include="Optimizer\Scheduler\LinearLR.cpp">
+      <Filter>source\Optimizer\Scheduler</Filter>
+    </ClCompile>
+    <ClCompile Include="Optimizer\EMA\ModelEMA.cpp">
+      <Filter>source\Optimizer\EMA</Filter>
+    </ClCompile>
+    <ClCompile Include="Optimizer\EarlyStopping\EarlyStopping.cpp">
+      <Filter>source\Optimizer\EarlyStopping</Filter>
     </ClCompile>
     <ClCompile Include="Model\Modules\Model.cpp">
       <Filter>source\Model\Modules</Filter>

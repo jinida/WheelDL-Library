@@ -206,6 +206,11 @@
     <ClCompile Include="Unit\Phase3\Utils\IoUComputationTest.cpp" />
     <ClCompile Include="Unit\Phase3\Utils\ProbIoUTest.cpp" />
     <ClCompile Include="Unit\Phase3\Utils\TaskAlignedAssignerTest.cpp" />
+    <ClCompile Include="Unit\Phase4\OptimizerFactoryTest.cpp" />
+    <ClCompile Include="Unit\Phase4\Scheduler\LinearLRTest.cpp" />
+    <ClCompile Include="Unit\Phase4\Scheduler\CosineAnnealingLRTest.cpp" />
+    <ClCompile Include="Unit\Phase4\EMA\ModelEMATest.cpp" />
+    <ClCompile Include="Unit\Phase4\EarlyStopping\EarlyStoppingTest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\WheelDL.Lib\WheelDL.Lib.vcxproj">

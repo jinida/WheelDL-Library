@@ -38,6 +38,18 @@
     <Filter Include="Source Files\Unit\Phase3\Utils">
       <UniqueIdentifier>{6BC9CEB8-8B4A-11D0-8D11-00A0C91BC947}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Unit\Phase4">
+      <UniqueIdentifier>{5BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Unit\Phase4\Scheduler">
+      <UniqueIdentifier>{5BC9CEB8-8B4A-11D0-8D11-00A0C91BC943}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Unit\Phase4\EMA">
+      <UniqueIdentifier>{5BC9CEB8-8B4A-11D0-8D11-00A0C91BC944}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Unit\Phase4\EarlyStopping">
+      <UniqueIdentifier>{5BC9CEB8-8B4A-11D0-8D11-00A0C91BC945}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Integration">
       <UniqueIdentifier>{9FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
     </Filter>
@@ -53,6 +65,9 @@
     </Filter>
     <Filter Include="Data Files\Phase3TestConfigs\Models">
       <UniqueIdentifier>{D1DA6AB6-F800-4c08-8B7A-83BB121AAD04}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Data Files\Phase4TestConfig">
+      <UniqueIdentifier>{D1DA6AB6-F800-4c08-8B7A-83BB121AAD05}</UniqueIdentifier>
     </Filter>
     <!-- Resource Files -->
     <Filter Include="Resource Files">
@@ -310,6 +325,25 @@
     <ClCompile Include="Unit\Phase3\Utils\TaskAlignedAssignerTest.cpp">
       <Filter>Source Files\Unit\Phase3\Utils</Filter>
     </ClCompile>
+    <!-- Unit Tests - Phase 4 -->
+    <ClCompile Include="Unit\Phase4\OptimizerFactoryTest.cpp">
+      <Filter>Source Files\Unit\Phase4</Filter>
+    </ClCompile>
+    <!-- Unit Tests - Phase 4 - Scheduler -->
+    <ClCompile Include="Unit\Phase4\Scheduler\LinearLRTest.cpp">
+      <Filter>Source Files\Unit\Phase4\Scheduler</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Phase4\Scheduler\CosineAnnealingLRTest.cpp">
+      <Filter>Source Files\Unit\Phase4\Scheduler</Filter>
+    </ClCompile>
+    <!-- Unit Tests - Phase 4 - EMA -->
+    <ClCompile Include="Unit\Phase4\EMA\ModelEMATest.cpp">
+      <Filter>Source Files\Unit\Phase4\EMA</Filter>
+    </ClCompile>
+    <!-- Unit Tests - Phase 4 - EarlyStopping -->
+    <ClCompile Include="Unit\Phase4\EarlyStopping\EarlyStoppingTest.cpp">
+      <Filter>Source Files\Unit\Phase4\EarlyStopping</Filter>
+    </ClCompile>
   </ItemGroup>
   <!-- Resource Files -->
   <ItemGroup>
@@ -351,6 +385,25 @@
     </None>
     <None Include="Data\Phase3TestConfigs\Models\minimal_segmentation.yaml">
       <Filter>Data Files\Phase3TestConfigs\Models</Filter>
+    </None>
+    <!-- Data Files - Phase4TestConfig -->
+    <None Include="Data\Phase4TestConfig\default_model.yaml">
+      <Filter>Data Files\Phase4TestConfig</Filter>
+    </None>
+    <None Include="Data\Phase4TestConfig\linear_lr_config.yaml">
+      <Filter>Data Files\Phase4TestConfig</Filter>
+    </None>
+    <None Include="Data\Phase4TestConfig\cosine_lr_config.yaml">
+      <Filter>Data Files\Phase4TestConfig</Filter>
+    </None>
+    <None Include="Data\Phase4TestConfig\sgd_config.yaml">
+      <Filter>Data Files\Phase4TestConfig</Filter>
+    </None>
+    <None Include="Data\Phase4TestConfig\adam_config.yaml">
+      <Filter>Data Files\Phase4TestConfig</Filter>
+    </None>
+    <None Include="Data\Phase4TestConfig\adamw_config.yaml">
+      <Filter>Data Files\Phase4TestConfig</Filter>
     </None>
   </ItemGroup>
 </Project>
