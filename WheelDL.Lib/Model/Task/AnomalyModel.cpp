@@ -141,17 +141,17 @@ namespace WheelDL {
             );
         }
 
-        std::unordered_map<std::string, torch::Tensor> AnomalyModel::forward(const Data::Dataset::DataExample& data)
+        std::unordered_map<std::string, torch::Tensor> AnomalyModel::forward(const Data::Dataset::DataExample& batch)
         {
-            if (_lossType != Loss::AnomalyLoss::LossType::EfficientAD && !this->is_training())
+            if (_lossType != Loss::AnomalyLoss::LossType::EfficientAD)
             {
-                return loss(data);
+                return loss(batch);
 			}
             else
             {
                 Data::Dataset::DataExample currentData;
-                currentData.data = torch::cat({ data.data, data.targets }, 1);
-			    currentData.classes = data.classes;
+                currentData.data = torch::cat({ batch.data, batch.targets }, 1);
+			    currentData.classes = batch.classes;
                 return loss(currentData);
             }
         }

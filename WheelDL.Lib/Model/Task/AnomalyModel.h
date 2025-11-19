@@ -90,7 +90,7 @@ namespace WheelDL {
             {
                 // Check if the model implements IFeaturePreparable
                 auto preparable = std::dynamic_pointer_cast<Modules::IFeaturePreparable>(_anomalyModel);
-                if (preparable) 
+                if (preparable)
                 {
                     switch (_lossType)
                     {
@@ -100,6 +100,12 @@ namespace WheelDL {
                         efficientAD->setQuantiles(loader);
                         break;
                     }
+                    case Loss::AnomalyLoss::LossType::PatchCore:
+                    {
+                        auto patchCore = _anomalyModel->as<Modules::PatchCore>();
+						patchCore->subsampleMemoryBank();
+                        break;
+					}
                     default:
                         // No feature preparation needed for other loss types
                         break;
