@@ -61,7 +61,7 @@ inline constexpr float HEIGHT_MIN_THRESHOLD = 1e-5f;
 [[nodiscard]] torch::Tensor probiou(
     const torch::Tensor& obb1,
     const torch::Tensor& obb2,
-    float eps = 1e-6f
+    double eps = 1e-10f
 );
 
 /**

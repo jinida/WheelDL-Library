@@ -200,7 +200,7 @@ namespace WheelDL {
             torch::Tensor probiou(
                 const torch::Tensor& obb1,
                 const torch::Tensor& obb2,
-                float eps
+                double eps
             ) {
                 // Validate input dimensions
                 if (obb1.dim() != 2 || obb1.size(1) != 5) {
@@ -224,87 +224,101 @@ namespace WheelDL {
                     );
                 }
 
-                // Extract coordinates - element-wise operations
-                auto x1 = obb1.select(1, 0);  // [N]
-                auto y1 = obb1.select(1, 1);  // [N]
-                auto x2 = obb2.select(1, 0);  // [N]
-                auto y2 = obb2.select(1, 1);  // [N]
+                auto precObb1 = obb1.to(torch::kFloat64);
+                auto precObb2 = obb2.to(torch::kFloat64);
 
-                // Get covariance matrix for obb1
-                auto w1 = obb1.select(1, 2);
-                auto h1 = obb1.select(1, 3);
-                auto angle1 = obb1.select(1, 4);
+                const double minWH = 1e-7;
+                const double quarter = 0.25;
+                const double half = 0.5;
+                const double twelve = 12.0;
+                const double four = 4.0;
 
-                auto a1_base = (w1 * w1) / 12.0f;
-                auto b1_base = (h1 * h1) / 12.0f;
+                // Extract all at once
+                auto x1 = precObb1.select(1, 0);
+                auto y1 = precObb1.select(1, 1);
+                auto w1 = precObb1.select(1, 2).clamp_min_(minWH);  // in-place
+                auto h1 = precObb1.select(1, 3).clamp_min_(minWH);  // in-place
+                auto angle1 = precObb1.select(1, 4);
+
+                auto x2 = precObb2.select(1, 0);
+                auto y2 = precObb2.select(1, 1);
+                auto w2 = precObb2.select(1, 2).clamp_min_(minWH);  // in-place
+                auto h2 = precObb2.select(1, 3).clamp_min_(minWH);  // in-place
+                auto angle2 = precObb2.select(1, 4);
 
                 auto cos1 = torch::cos(angle1);
-                auto sin1 = torch::sin(angle1);
-                auto cos1_sq = cos1 * cos1;
-                auto sin1_sq = 1.0f - cos1_sq;
-
-                auto a1 = a1_base * cos1_sq + b1_base * sin1_sq;  // [N]
-                auto b1 = a1_base * sin1_sq + b1_base * cos1_sq;
-                auto c1 = (a1_base - b1_base) * cos1 * sin1;
-
-                // Get covariance matrix for obb2
-                auto w2 = obb2.select(1, 2);
-                auto h2 = obb2.select(1, 3);
-                auto angle2 = obb2.select(1, 4);
-
-                auto a2_base = (w2 * w2) / 12.0f;
-                auto b2_base = (h2 * h2) / 12.0f;
-
                 auto cos2 = torch::cos(angle2);
+
+                auto cos1Sq = cos1 * cos1;
+                auto sin1Sq = 1.0 - cos1Sq;
+                auto cos2Sq = cos2 * cos2;
+                auto sin2Sq = 1.0 - cos2Sq;
+
+                auto sin1 = torch::sin(angle1);
                 auto sin2 = torch::sin(angle2);
-                auto cos2_sq = cos2 * cos2;
-                auto sin2_sq = 1.0f - cos2_sq;
 
-                auto a2 = a2_base * cos2_sq + b2_base * sin2_sq;  // [N]
-                auto b2 = a2_base * sin2_sq + b2_base * cos2_sq;
-                auto c2 = (a2_base - b2_base) * cos2 * sin2;
+                auto w1SqDiv12 = w1 * w1 / twelve;
+                auto h1SqDiv12 = h1 * h1 / twelve;
+                auto w2SqDiv12 = w2 * w2 / twelve;
+                auto h2SqDiv12 = h2 * h2 / twelve;
 
-                // Compute distances and denominator
-                const float DENOM_MIN = eps * 10.0f;
+                auto a1 = w1SqDiv12 * cos1Sq + h1SqDiv12 * sin1Sq;
+                auto b1 = w1SqDiv12 * sin1Sq + h1SqDiv12 * cos1Sq;
+                auto sinCos1 = sin1 * cos1;
+                auto c1 = (w1SqDiv12 - h1SqDiv12) * sinCos1;
 
-                auto a_sum = a1 + a2;
-                auto b_sum = b1 + b2;
-                auto c_sum = c1 + c2;
-                auto c_sum_sq = c_sum * c_sum;
+                auto a2 = w2SqDiv12 * cos2Sq + h2SqDiv12 * sin2Sq;
+                auto b2 = w2SqDiv12 * sin2Sq + h2SqDiv12 * cos2Sq;
+                auto sinCos2 = sin2 * cos2;
+                auto c2 = (w2SqDiv12 - h2SqDiv12) * sinCos2;
 
-                auto denom = (a_sum * b_sum - c_sum_sq + eps).clamp_min(DENOM_MIN);
+                auto maxAB = torch::maximum(
+                    torch::maximum(a1, b1),
+                    torch::maximum(a2, b2)
+                );
+                auto scale = maxAB.clamp_min_(eps);  // in-place
 
-                // Compute deltas and terms
+                a1 = a1 / scale;
+                b1 = b1 / scale;
+                c1 = c1 / scale;
+                a2 = a2 / scale;
+                b2 = b2 / scale;
+                c2 = c2 / scale;
+
+                auto aSum = a1 + a2;
+                auto bSum = b1 + b2;
+                auto cSum = c1 + c2;
+                auto cSumSq = cSum * cSum;
+
+                auto denom = (aSum * bSum - cSumSq).clamp_min_(eps);
+                auto invDenom = 1.0 / denom;
+
                 auto dx = x2 - x1;
                 auto dy = y1 - y2;
-                auto dx_sq = dx * dx;
-                auto dy_sq = dy * dy;
 
-                // OPTIMIZATION: Reuse 1/denom to reduce divisions
-                auto inv_denom = 1.0f / denom;
+                auto invSqrtScale = 1.0 / scale.sqrt();
+                dx *= invSqrtScale;
+                dy *= invSqrtScale;
 
-                // t1: distance term - fused operations
-                auto t1 = (a_sum * dy_sq + b_sum * dx_sq) * inv_denom * 0.25f;
+                auto dxSq = dx * dx;
+                auto dySq = dy * dy;
 
-                // t2: cross term - fused operations
-                auto t2 = (c_sum * dx * dy) * inv_denom * 0.5f;
+                auto t1 = (bSum * dxSq + aSum * dySq) * (invDenom * quarter);
+                auto t2 = cSum * dx * dy * (invDenom * half);
 
-                // t3: determinant term - optimized expression
-                auto c1_sq = c1 * c1;
-                auto c2_sq = c2 * c2;
-                auto det1 = (a1 * b1 - c1_sq).clamp_min(0.0f);
-                auto det2 = (a2 * b2 - c2_sq).clamp_min(0.0f);
-                auto det_sqrt = (det1 * det2).sqrt() * 4.0f + eps;
-                auto t3 = ((denom / det_sqrt) + eps).log() * 0.5f;
+                auto c1Sq = c1 * c1;
+                auto c2Sq = c2 * c2;
+                auto det1 = (a1 * b1 - c1Sq).clamp_min_(eps);  // in-place
+                auto det2 = (a2 * b2 - c2Sq).clamp_min_(eps);  // in-place
 
-                // bd = (t1 + t2 + t3).clamp(eps, 100.0)
-                auto bd = (t1 + t2 + t3).clamp(eps, 100.0f);
+                auto detProdSqrt = (det1 * det2).sqrt();
+                auto t3 = half * (denom / (four * detProdSqrt + eps)).clamp_min_(eps).log();
 
-                // hd = (1.0 - (-bd).exp() + eps).sqrt()
-                auto hd = (1.0f - (-bd).exp() + eps).sqrt();
+                auto bd = (t1 + t2 + t3).clamp_(0.0, 100.0);  // in-place
 
-                // iou = 1 - hd
-                return 1.0f - hd;
+                auto probIou = 1.0 - (1.0 - (-bd).exp_()).clamp_min_(0.0).sqrt();
+
+                return probIou.to(obb1.dtype());
             }
 
             torch::Tensor dist2bbox(
