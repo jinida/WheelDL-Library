@@ -123,16 +123,16 @@
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
-    <!-- <ClCompile Include="Integration\Phase1Integration.cpp" />
+    <ClCompile Include="Integration\Phase1Integration.cpp" />
     <ClCompile Include="Integration\Phase2IntegrationTest.cpp" />
-    <ClCompile Include="Integration\Phase3IntegrationTest.cpp" /> -->
+    <ClCompile Include="Integration\Phase3IntegrationTest.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <!-- <ClCompile Include="Unit\Phase1\ConfigurationTest.cpp" />
+    <ClCompile Include="Unit\Phase1\ConfigurationTest.cpp" />
     <ClCompile Include="Unit\Phase1\DynamicBatchSizerTest.cpp" />
     <ClCompile Include="Unit\Phase1\ErrorHandlerTest.cpp" />
     <ClCompile Include="Unit\Phase1\GPUMemoryGuardTest.cpp" />
@@ -176,16 +176,16 @@
     <ClCompile Include="Unit\Phase2\TransformComprehensiveTest.cpp" />
     <ClCompile Include="Unit\Phase2\TransformPipelineTest.cpp" />
     <ClCompile Include="Unit\Phase2\TransformStressTest.cpp" />
-    <ClCompile Include="Unit\Phase2\YamlParserEdgeCaseTest.cpp" /> -->
-    <!-- <ClCompile Include="Unit\Phase3\Builder\AttentionFactoryTest.cpp" />
+    <ClCompile Include="Unit\Phase2\YamlParserEdgeCaseTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Builder\AttentionFactoryTest.cpp" />
     <ClCompile Include="Unit\Phase3\Builder\BlockFactoryTest.cpp" />
     <ClCompile Include="Unit\Phase3\Builder\ConvolutionFactoryTest.cpp" />
     <ClCompile Include="Unit\Phase3\Builder\HeadFactoryTest.cpp" />
     <ClCompile Include="Unit\Phase3\Builder\ModelBuilderTest.cpp" />
     <ClCompile Include="Unit\Phase3\Builder\ModuleFactoryRegistryTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Builder\YamlArgsParserTest.cpp" /> -->
-    <!-- <ClCompile Include="Unit\Phase3\Loss\AnomalyLossTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Loss\ClassificationLossTest.cpp" /> -->
+    <ClCompile Include="Unit\Phase3\Builder\YamlArgsParserTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Loss\AnomalyLossTest.cpp" />
+    <ClCompile Include="Unit\Phase3\Loss\ClassificationLossTest.cpp" />
     <ClCompile Include="Unit\Phase3\Loss\DetectionLossTest.cpp" />
     <ClCompile Include="Unit\Phase3\Loss\OBBLossTest.cpp" />
     <ClCompile Include="Unit\Phase3\Loss\SegmentationLossTest.cpp" />
