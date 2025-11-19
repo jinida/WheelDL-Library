@@ -319,5 +319,25 @@ namespace WheelDL {
 			// Multiply-accumulate operations count as 2 FLOPs
 			return flops * 2.0;
 		}
+
+		void BaseModel::to(torch::Device device, torch::Dtype dtype) {
+			// Move module (parameters and buffers) to device
+			torch::nn::Module::to(device, dtype);
+
+			// Also move loss function if it exists
+			if (_criterion) {
+				_criterion->to(device);
+			}
+			_model->to(device, dtype);
+		}
+
+		void BaseModel::to(torch::Device device) {
+			torch::nn::Module::to(device);
+			if (_criterion) {
+				_criterion->to(device);
+			}
+			_model->to(device);
+		}
+
 	} // namespace Model
 } // namespace WheelDL

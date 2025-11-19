@@ -140,6 +140,18 @@ namespace WheelDL {
                 _device = device;
                 _stride = _stride.to(device);
                 _proj = _proj.to(device);
+                // Recreate cached dtype versions on the new device
+                _projFloat32 = _proj.to(torch::kFloat32);
+                _projFloat16 = _proj.to(torch::kFloat16);
+                if (torch::cuda::is_available() && torch::cuda::cudnn_is_available()) {
+                    try {
+                        _projBFloat16 = _proj.to(torch::kBFloat16);
+                    } catch (...) {
+                        _projBFloat16 = _projFloat16;
+                    }
+                } else {
+                    _projBFloat16 = _projFloat16;
+                }
             }
 
             torch::Tensor DetectionLoss::preprocess(

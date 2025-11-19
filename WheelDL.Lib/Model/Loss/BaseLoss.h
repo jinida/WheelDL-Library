@@ -102,6 +102,18 @@ public:
      */
     [[nodiscard]] virtual std::string name() const = 0;
 
+    /**
+     * @brief Move loss to specified device
+     *
+     * Default implementation does nothing (for losses without device-specific state).
+     * Override in derived classes that maintain device-specific tensors.
+     *
+     * @param device Target device
+     */
+    virtual void to(const torch::Device& device) {
+        // Default implementation: no-op for losses without internal state
+    }
+
 protected:
     /**
      * @brief Validate loss tensor for NaN/Inf values

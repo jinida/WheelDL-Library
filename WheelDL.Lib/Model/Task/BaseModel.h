@@ -134,6 +134,17 @@ namespace WheelDL {
 			void setTaskType(WheelDL::TaskType type) { _taskType = type; }
 			void setConfig(std::shared_ptr<Config::Configuration> config) { _config = config; }
 
+			/**
+			 * @brief Override to() to also move loss function to target device
+			 *
+			 * @param device Target device (CPU/CUDA)
+			 * @param dtype Optional target dtype
+			 */
+			void to(torch::Device device, torch::Dtype dtype);
+
+			// Overload for just device (most common case)
+			void to(torch::Device device);
+
 		protected:
 			/**
 			 * @brief Initialize loss criterion (must be implemented by derived classes)

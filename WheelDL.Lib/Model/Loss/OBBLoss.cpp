@@ -148,6 +148,18 @@ namespace WheelDL {
                 _device = device;
                 _stride = _stride.to(device);
                 _proj = _proj.to(device);
+                // Recreate cached dtype versions on the new device
+                _projFloat32 = _proj.to(torch::kFloat32);
+                _projFloat16 = _proj.to(torch::kFloat16);
+                if (torch::cuda::is_available() && torch::cuda::cudnn_is_available()) {
+                    try {
+                        _projBFloat16 = _proj.to(torch::kBFloat16);
+                    } catch (...) {
+                        _projBFloat16 = _projFloat16;
+                    }
+                } else {
+                    _projBFloat16 = _projFloat16;
+                }
             }
 
             torch::Tensor OBBLoss::preprocess(
@@ -243,7 +255,7 @@ namespace WheelDL {
                 const std::vector<torch::Tensor>& predictions,
                 const Data::Dataset::DataExample& target) {
                 // OPTIMIZATION: Pre-allocate concatenated tensor to avoid intermediate vectors
-                // predictions: vector of [batch, 145, H, W] for each scale
+                // predictions: vector of [batch, 145, H, W] for each scale + angle [batch, ne, total_anchors]
                 // where 145 = 4*regMax + numClasses + 1 (for angle)
                 // Convert to concatenated format [batch, 145, total_anchors]
 
@@ -251,36 +263,53 @@ namespace WheelDL {
                     throw std::invalid_argument("OBBLoss::compute: predictions cannot be empty");
                 }
 
+                // Check if last element is angle tensor (3D instead of 4D)
+                // OBBImpl::forward() appends angle as last element in training mode
+                bool hasAngleTensor = (predictions.back().dim() == 3);
+                size_t numScales = hasAngleTensor ? predictions.size() - 1 : predictions.size();
+
+                if (numScales == 0) {
+                    throw std::invalid_argument("OBBLoss::compute: no detection predictions found");
+                }
+
                 auto batchSize = predictions[0].size(0);
-                auto channels = predictions[0].size(1);
+                auto channels = predictions[0].size(1);  // regMax*4 + numClasses (no angle)
 
                 // 1. Calculate total number of anchors across all scales
                 int64_t totalAnchors = 0;
-                for (const auto& pred : predictions) {
-                    totalAnchors += pred.size(2) * pred.size(3);
+                for (size_t i = 0; i < numScales; ++i) {
+                    totalAnchors += predictions[i].size(2) * predictions[i].size(3);
                 }
 
-                // 2. Pre-allocate output tensor (single allocation)
+                // 2. Pre-allocate output tensor with extra channel for angle if needed
+                int64_t outputChannels = hasAngleTensor ? channels + 1 : channels;
                 auto concatenated = torch::empty(
-                    {batchSize, channels, totalAnchors},
+                    {batchSize, outputChannels, totalAnchors},
                     predictions[0].options()
                 );
 
-                // 3. Copy each scale directly into pre-allocated tensor (no intermediate storage)
+                // 3. Copy each scale's detection outputs into concatenated tensor
                 int64_t offset = 0;
-                for (const auto& pred : predictions) {
+                for (size_t i = 0; i < numScales; ++i) {
+                    const auto& pred = predictions[i];
                     auto height = pred.size(2);
                     auto width = pred.size(3);
                     auto numAnchors = height * width;
 
-                    // Direct copy into the concatenated tensor
-                    concatenated.slice(2, offset, offset + numAnchors).copy_(
+                    // Copy detection outputs (regMax*4 + numClasses channels, no angle)
+                    concatenated.slice(1, 0, channels).slice(2, offset, offset + numAnchors).copy_(
                         pred.reshape({batchSize, channels, numAnchors})
                     );
                     offset += numAnchors;
                 }
 
-                // Call single tensor version
+                // 4. Append angle tensor as the last channel if it exists
+                if (hasAngleTensor) {
+                    const auto& angleTensor = predictions.back();  // [batch, 1, total_anchors]
+                    concatenated.slice(1, channels, channels + 1).copy_(angleTensor);
+                }
+
+                // Call single tensor version with full prediction including angle
                 return compute(concatenated, target);
             }
 
