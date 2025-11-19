@@ -156,19 +156,14 @@ namespace WheelDL {
 
             for (const auto& pred : predictions) {
                 // For OBB, predictions shape is [batch, channels, height, width]
-                // where channels = 4*regMax + numClasses + 1 (angle)
+                // where channels = 4*regMax + numClasses (no angle in detection output)
                 if (pred.dim() == 4) {
                     auto outputSize = pred.size(2);  // height of feature map
                     float stride = static_cast<float>(imageSize) / static_cast<float>(outputSize);
                     strideValues.push_back(stride);
                 }
-                // For concatenated format [batch, channels, num_anchors]
-                else if (pred.dim() == 3) {
-                    // For standard YOLO-OBB with 3 scales
-                    // Default stride values for P3, P4, P5
-                    strideValues = {8.0f, 16.0f, 32.0f};
-                    break;
-                }
+                // Skip 3D tensors (angle predictions) - they don't represent feature map scales
+                // OBBImpl::forward() appends angle as [batch, 1, total_anchors] in training mode
             }
 
             // If we couldn't determine stride, use default values
