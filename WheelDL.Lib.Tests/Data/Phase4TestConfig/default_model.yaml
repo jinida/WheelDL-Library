@@ -1,0 +1,16 @@
+# Minimal classification model for fast unit tests
+num_classes: 10
+default_act: ReLU
+
+scale:
+  width_multiple: 0.25
+  depth_multiple: 0.33
+  max_channels: 256
+
+backbone:
+  - [-1, 1, Conv, [64, 3, 2]]    # 160x160
+  - [-1, 1, Conv, [128, 3, 2]]   # 80x80
+  - [-1, 1, Conv, [256, 3, 2]]   # 40x40
+
+head:
+  - [[3], 1, Classify, [num_classes]]  # 4: Classification head

@@ -1,0 +1,23 @@
+# Test configuration for AdamW optimizer
+epochs: 50
+patience: 20
+batch_size: 8
+image_size: 224
+cache: False
+device: cpu
+workers: 0
+optimizer: AdamW
+seed: 42
+deterministic: True
+cos_lr: False
+amp: False
+
+# Hyperparameters for AdamW
+lr0: 0.001
+lrf: 0.1
+momentum: 0.9  # beta1
+weight_decay: 0.01
+warmup_epochs: 2.0
+warmup_momentum: 0.8
+warmup_bias_lr: 0.001
+amsgrad: True

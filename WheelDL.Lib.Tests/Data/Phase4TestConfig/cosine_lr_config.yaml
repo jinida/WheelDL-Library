@@ -1,0 +1,23 @@
+# Test configuration for Cosine Annealing LR scheduler
+epochs: 100
+patience: 50
+batch_size: 8
+image_size: 224
+cache: False
+device: cpu
+workers: 0
+optimizer: SGD
+seed: 42
+deterministic: True
+cos_lr: True
+amp: False
+
+# Hyperparameters
+lr0: 0.1
+lrf: 0.01
+momentum: 0.9
+weight_decay: 0.0005
+warmup_epochs: 5.0
+warmup_momentum: 0.8
+warmup_bias_lr: 0.1
+amsgrad: False

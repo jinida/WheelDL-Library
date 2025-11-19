@@ -1,0 +1,23 @@
+# Test configuration for Linear LR scheduler
+epochs: 100
+patience: 50
+batch_size: 8
+image_size: 224
+cache: False
+device: cpu
+workers: 0
+optimizer: Adam
+seed: 42
+deterministic: True
+cos_lr: False  # Linear LR (not cosine)
+amp: False
+
+# Hyperparameters
+lr0: 0.01
+lrf: 0.001
+momentum: 0.9
+weight_decay: 0.0
+warmup_epochs: 10.0
+warmup_momentum: 0.8
+warmup_bias_lr: 0.01
+amsgrad: False
