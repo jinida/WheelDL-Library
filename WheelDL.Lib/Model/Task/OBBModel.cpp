@@ -12,8 +12,7 @@ namespace WheelDL {
         using namespace Builder;
         using namespace Config;
 
-        OBBModel::OBBModel(std::shared_ptr<Configuration> config,
-            const std::string& modelYamlPath)
+        OBBModel::OBBModel(std::shared_ptr<Configuration> config)
             : _boxGain(0.0f), _clsGain(0.0f), _dflGain(0.0f)
         {
             _taskType = TaskType::OBB;
@@ -25,6 +24,7 @@ namespace WheelDL {
                 );
             }
 
+            auto modelYamlPath = config->getModelPath();
             if (modelYamlPath.empty()) {
                 throw WheelDL::Utils::ConfigurationException(
                     WheelDL::Utils::ErrorCode::INVALID_CONFIG,

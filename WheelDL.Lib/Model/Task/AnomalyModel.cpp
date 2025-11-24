@@ -14,8 +14,7 @@ namespace WheelDL {
         using namespace Builder;
         using namespace Config;
 
-        AnomalyModel::AnomalyModel(std::shared_ptr<Configuration> config,
-            const std::string& modelYamlPath)
+        AnomalyModel::AnomalyModel(std::shared_ptr<Configuration> config)
             : _lossType(AnomalyLoss::LossType::EfficientAD)
         {
             _taskType = TaskType::ANOMALY;
@@ -27,6 +26,7 @@ namespace WheelDL {
                 );
             }
 
+			auto modelYamlPath = config->getModelPath();
             if (modelYamlPath.empty()) {
                 throw WheelDL::Utils::ConfigurationException(
                     WheelDL::Utils::ErrorCode::INVALID_CONFIG,
@@ -67,6 +67,7 @@ namespace WheelDL {
 
                 determineLossType();
 
+                _config->setImageSize(256);
                 _criterion = initCriterion();
                 _isInitialized = true;
             }
@@ -114,11 +115,15 @@ namespace WheelDL {
                     std::string modelType = headBlock->getModelType();
                     if (modelType == "EfficientAD") {
                         _lossType = AnomalyLoss::LossType::EfficientAD;
+						_config->setIsEfficientAD(true);
                         return;
                     }
                     else if (modelType == "PatchCore") 
                     {
                         _lossType = AnomalyLoss::LossType::PatchCore;
+						_config->setIsPatchCore(true);
+                        _config->setEpochs(0);
+                        _config->setWarmupEpochs(0);
                         return;
                     }
                     else if (modelType == "SimpleNet") {

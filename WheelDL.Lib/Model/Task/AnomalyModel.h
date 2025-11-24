@@ -4,6 +4,7 @@
 #include "../Loss/AnomalyLoss.h"
 #include "../Modules/Model.h"
 #include "../../Config/Configuration.h"
+#include "../../Utils/Logger/Logger.h"
 #include <torch/torch.h>
 #include <memory>
 
@@ -17,8 +18,7 @@ namespace WheelDL {
              * @param config Configuration object containing training settings
              * @param modelYamlPath Path to model YAML file (e.g., test_efficientad_model.yaml)
              */
-            explicit AnomalyModel(std::shared_ptr<Config::Configuration> config,
-                const std::string& modelYamlPath);
+            explicit AnomalyModel(std::shared_ptr<Config::Configuration> config);
 
             /**
              * @brief Destructor
@@ -54,7 +54,7 @@ namespace WheelDL {
             void prepareTraining(DataLoader& loader)
             {
                 auto preparable = std::dynamic_pointer_cast<Modules::IFeaturePreparable>(_anomalyModel);
-                if (preparable) 
+                if (preparable)
                 {
                     switch (_lossType)
                     {
@@ -67,7 +67,11 @@ namespace WheelDL {
                         case Loss::AnomalyLoss::LossType::PatchCore:
                         {
                             auto patchCore = _anomalyModel->as<Modules::PatchCore>();
+                            auto logger = Utils::Logger::getInstance();
+                            logger->info("AnomalyModel", "Building memory bank for PatchCore...");
                             patchCore->buildMemoryBank(loader);
+                            logger->info("AnomalyModel", "Memory bank size after building: " +
+                                std::to_string(patchCore->getMemoryBankSize()));
                             break;
                         }
                         default:
@@ -102,8 +106,6 @@ namespace WheelDL {
                     }
                     case Loss::AnomalyLoss::LossType::PatchCore:
                     {
-                        auto patchCore = _anomalyModel->as<Modules::PatchCore>();
-						patchCore->subsampleMemoryBank();
                         break;
 					}
                     default:

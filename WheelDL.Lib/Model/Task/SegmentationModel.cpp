@@ -12,8 +12,7 @@ namespace WheelDL {
         using namespace Builder;
         using namespace Config;
 
-        SegmentationModel::SegmentationModel(std::shared_ptr<Configuration> config,
-            const std::string& modelYamlPath)
+        SegmentationModel::SegmentationModel(std::shared_ptr<Configuration> config)
             : _diceWeight(0.5f)
         {
             _taskType = TaskType::SEGMENTATION;
@@ -24,7 +23,7 @@ namespace WheelDL {
                     "Configuration is null"
                 );
             }
-
+            auto modelYamlPath = config->getModelPath();
             if (modelYamlPath.empty()) {
                 throw WheelDL::Utils::ConfigurationException(
                     WheelDL::Utils::ErrorCode::INVALID_CONFIG,

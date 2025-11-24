@@ -38,8 +38,7 @@ public:
      * @param config Configuration object containing all settings
      * @param modelYamlPath Path to model YAML file
      */
-    explicit SegmentationModel(std::shared_ptr<Config::Configuration> config,
-                              const std::string& modelYamlPath);
+    explicit SegmentationModel(std::shared_ptr<Config::Configuration> config);
 
     /**
      * @brief Destructor

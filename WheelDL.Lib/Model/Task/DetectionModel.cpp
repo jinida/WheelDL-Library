@@ -12,8 +12,7 @@ namespace WheelDL {
         using namespace Builder;
         using namespace Config;
 
-        DetectionModel::DetectionModel(std::shared_ptr<Configuration> config,
-            const std::string& modelYamlPath)
+        DetectionModel::DetectionModel(std::shared_ptr<Configuration> config)
             : _boxGain(0.0f), _clsGain(0.0f), _dflGain(0.0f)
         {
             _taskType = TaskType::DETECTION;
@@ -24,7 +23,7 @@ namespace WheelDL {
                     "Configuration is null"
                 );
             }
-
+            auto modelYamlPath = config->getModelPath();
             if (modelYamlPath.empty()) {
                 throw WheelDL::Utils::ConfigurationException(
                     WheelDL::Utils::ErrorCode::INVALID_CONFIG,

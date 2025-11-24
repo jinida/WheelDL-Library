@@ -99,7 +99,10 @@ namespace WheelDL {
 			WheelDL::TaskType getTaskType() const { return _taskType; }
 
 			/**
-			 * @brief Set model from builder
+			 * @brief Set model from builder (initial setup only)
+			 *
+			 * Registers all submodules with PyTorch's module system.
+			 * Should only be called once during initialization.
 			 *
 			 * @param model Sequential model from ModelBuilder
 			 */
@@ -109,6 +112,22 @@ namespace WheelDL {
 				for (size_t i = 0; i < _model->size(); ++i) {
 					register_module(std::to_string(i), _model->ptr(i));
 				}
+			}
+
+			/**
+			 * @brief Swap model sequential (for temporary replacement)
+			 *
+			 * Temporarily replaces the internal Sequential without re-registering modules.
+			 * Used for EMA model swapping during validation/checkpoint.
+			 *
+			 * @param newSeq New Sequential to swap in
+			 * @return torch::nn::Sequential Old Sequential (for restoration)
+			 */
+			torch::nn::Sequential swapModelSequential(torch::nn::Sequential newSeq)
+			{
+				auto oldSeq = _model;
+				_model = newSeq;
+				return oldSeq;
 			}
 
 			/**
@@ -128,6 +147,15 @@ namespace WheelDL {
 			 */
 			void setSaveIndices(const std::vector<int64_t>& indices) {
 				_saveIndices = indices;
+			}
+
+			/**
+			 * @brief Set model stride
+			 *
+			 * @param stride Stride tensor
+			 */
+			void setStride(const torch::Tensor& stride) {
+				_stride = stride;
 			}
 
 			// Setters

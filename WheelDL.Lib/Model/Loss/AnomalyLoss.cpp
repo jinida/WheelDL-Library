@@ -104,7 +104,7 @@ namespace WheelDL {
             std::unordered_map<std::string, torch::Tensor> AnomalyLoss::computePatchCore(
                 const std::vector<torch::Tensor>& predictions)
             {
-                return { };
+				return { {"total", torch::zeros({}, torch::kFloat32)} };
             }
 
             std::unordered_map<std::string, torch::Tensor> AnomalyLoss::computeSimpleNet(

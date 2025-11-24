@@ -33,7 +33,7 @@ namespace WheelDL {
                     );
                 }
 
-                if (_totalEpochs <= 0) {
+                if (_totalEpochs < 0) {
                     throw Utils::ConfigurationException(
                         Utils::ErrorCode::INVALID_CONFIG,
                         "Total epochs must be positive"

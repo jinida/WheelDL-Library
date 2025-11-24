@@ -39,8 +39,7 @@ public:
      * @param config Configuration object containing all settings
      * @param modelYamlPath Path to model YAML file
      */
-    explicit DetectionModel(std::shared_ptr<Config::Configuration> config,
-                          const std::string& modelYamlPath);
+    explicit DetectionModel(std::shared_ptr<Config::Configuration> config);
 
     /**
      * @brief Destructor

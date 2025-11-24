@@ -40,8 +40,7 @@ public:
      * @param config Configuration object containing all settings
      * @param modelYamlPath Path to model YAML file
      */
-    explicit ClassificationModel(std::shared_ptr<Config::Configuration> config,
-                                const std::string& modelYamlPath);
+    explicit ClassificationModel(std::shared_ptr<Config::Configuration> config);
 
     /**
      * @brief Destructor

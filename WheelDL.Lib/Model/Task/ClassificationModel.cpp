@@ -12,8 +12,7 @@ namespace WheelDL {
 		using namespace Builder;
 		using namespace Config;
 
-		ClassificationModel::ClassificationModel(std::shared_ptr<Configuration> config,
-			const std::string& modelYamlPath)
+		ClassificationModel::ClassificationModel(std::shared_ptr<Configuration> config)
 			: _lossType(ClassificationLoss::LossType::CROSS_ENTROPY)
 		{
 			_taskType = TaskType::CLASSIFICATION;
@@ -24,7 +23,7 @@ namespace WheelDL {
 					"Configuration is null"
 				);
 			}
-
+			auto modelYamlPath = config->getModelPath();
 			if (modelYamlPath.empty()) {
 				throw WheelDL::Utils::ConfigurationException(
 					WheelDL::Utils::ErrorCode::INVALID_CONFIG,
