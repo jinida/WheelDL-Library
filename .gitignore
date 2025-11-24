@@ -7,6 +7,7 @@
 *.exe
 *.tlog
 *.lib
+!WheelDL.Lib/
 *.exp
 *.pdb
 *.pch
@@ -18,13 +19,16 @@
 *.ps1
 *.yaml
 *.pt
+*.pth
 *.ilk
+*.enc
 
 .claude
 .vs
 .vscode
 __pycache__
 docs
+dataset
 python_src
 3rdparty
 packages
