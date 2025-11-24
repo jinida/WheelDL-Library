@@ -33,6 +33,9 @@
     <Filter Include="header\Utils\Memory">
       <UniqueIdentifier>{6FC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
     </Filter>
+    <Filter Include="header\Utils\Workspace">
+      <UniqueIdentifier>{7FC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
+    </Filter>
     <Filter Include="header\Data">
       <UniqueIdentifier>{11C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
     </Filter>
@@ -89,6 +92,28 @@
     <Filter Include="header\Optimizer\EarlyStopping">
       <UniqueIdentifier>{54C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
     </Filter>
+    <!-- Core Layer Filters -->
+    <Filter Include="header\Core">
+      <UniqueIdentifier>{71C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Core\Callback">
+      <UniqueIdentifier>{72C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Core\Engine">
+      <UniqueIdentifier>{73C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Core\Utils">
+      <UniqueIdentifier>{74C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Core\Trainer">
+      <UniqueIdentifier>{75C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Core\Validator">
+      <UniqueIdentifier>{76C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Core\Predictor">
+      <UniqueIdentifier>{77C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
     <!-- Source Files Filters -->
     <Filter Include="source">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
@@ -120,6 +145,9 @@
     </Filter>
     <Filter Include="source\Utils\Memory">
       <UniqueIdentifier>{EFC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Utils\Workspace">
+      <UniqueIdentifier>{FFC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
     </Filter>
     <Filter Include="source\Data">
       <UniqueIdentifier>{21C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
@@ -176,6 +204,28 @@
     </Filter>
     <Filter Include="source\Optimizer\EarlyStopping">
       <UniqueIdentifier>{64C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <!-- Core Layer Source Filters -->
+    <Filter Include="source\Core">
+      <UniqueIdentifier>{81C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Core\Callback">
+      <UniqueIdentifier>{82C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Core\Engine">
+      <UniqueIdentifier>{83C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Core\Trainer">
+      <UniqueIdentifier>{84C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Core\Validator">
+      <UniqueIdentifier>{85C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Core\Predictor">
+      <UniqueIdentifier>{86C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Core\Utils">
+      <UniqueIdentifier>{87C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
     </Filter>
     <!-- 3rd Party Filters -->
     <Filter Include="3rdparty">
@@ -234,6 +284,9 @@
     <ClInclude Include="Config\YamlParser.h">
       <Filter>header\Config</Filter>
     </ClInclude>
+    <ClInclude Include="Config\JsonParser.h">
+      <Filter>header\Config</Filter>
+    </ClInclude>
     <ClInclude Include="Config\Configuration.h">
       <Filter>header\Config</Filter>
     </ClInclude>
@@ -249,6 +302,10 @@
     </ClInclude>
     <ClInclude Include="Utils\Memory\DynamicBatchSizer.h">
       <Filter>header\Utils\Memory</Filter>
+    </ClInclude>
+    <!-- Workspace Headers -->
+    <ClInclude Include="Utils\Workspace\Workspace.h">
+      <Filter>header\Utils\Workspace</Filter>
     </ClInclude>
     <ClInclude Include="framework.h">
       <Filter>header</Filter>
@@ -423,6 +480,45 @@
     <ClInclude Include="Optimizer\EarlyStopping\EarlyStopping.h">
       <Filter>header\Optimizer\EarlyStopping</Filter>
     </ClInclude>
+    <!-- Core Callback Headers -->
+    <ClInclude Include="Core\Callback\CallbackQueue.h">
+      <Filter>header\Core\Callback</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Callback\AsyncCallbackQueue.h">
+      <Filter>header\Core\Callback</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Callback\CallbackThrottler.h">
+      <Filter>header\Core\Callback</Filter>
+    </ClInclude>
+    <!-- Core Engine Headers -->
+    <ClInclude Include="Core\Engine\BaseTrainer.h">
+      <Filter>header\Core\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Engine\BaseValidator.h">
+      <Filter>header\Core\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Engine\BasePredictor.h">
+      <Filter>header\Core\Engine</Filter>
+    </ClInclude>
+    <!-- Core Trainer Headers -->
+    <ClInclude Include="Core\Trainer\AnomalyTrainer.h">
+      <Filter>header\Core\Trainer</Filter>
+    </ClInclude>
+    <!-- Core Validator Headers -->
+    <ClInclude Include="Core\Validator\AnomalyValidator.h">
+      <Filter>header\Core\Validator</Filter>
+    </ClInclude>
+    <!-- Core Predictor Headers -->
+    <ClInclude Include="Core\Predictor\AnomalyPredictor.h">
+      <Filter>header\Core\Predictor</Filter>
+    </ClInclude>
+    <!-- Core Utils Headers -->
+    <ClInclude Include="Core\Utils\Checkpoint.h">
+      <Filter>header\Core\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Utils\CheckpointMetadata.h">
+      <Filter>header\Core\Utils</Filter>
+    </ClInclude>
     <ClInclude Include="Interfaces.h">
       <Filter>header\Model\Modules</Filter>
     </ClInclude>
@@ -466,6 +562,9 @@
     <ClCompile Include="Config\YamlParser.cpp">
       <Filter>source\Config</Filter>
     </ClCompile>
+    <ClCompile Include="Config\JsonParser.cpp">
+      <Filter>source\Config</Filter>
+    </ClCompile>
     <ClCompile Include="Config\Configuration.cpp">
       <Filter>source\Config</Filter>
     </ClCompile>
@@ -481,6 +580,10 @@
     </ClCompile>
     <ClCompile Include="Utils\Memory\DynamicBatchSizer.cpp">
       <Filter>source\Utils\Memory</Filter>
+    </ClCompile>
+    <!-- Workspace Sources -->
+    <ClCompile Include="Utils\Workspace\Workspace.cpp">
+      <Filter>source\Utils\Workspace</Filter>
     </ClCompile>
     <ClCompile Include="dllmain.cpp">
       <Filter>source</Filter>
@@ -719,6 +822,45 @@
     </ClCompile>
     <ClCompile Include="Optimizer\EarlyStopping\EarlyStopping.cpp">
       <Filter>source\Optimizer\EarlyStopping</Filter>
+    </ClCompile>
+    <!-- Core Callback Sources -->
+    <ClCompile Include="Core\Callback\AsyncCallbackQueue.cpp">
+      <Filter>source\Core\Callback</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Callback\CallbackQueue.cpp">
+      <Filter>source\Core\Callback</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Callback\CallbackThrottler.cpp">
+      <Filter>source\Core\Callback</Filter>
+    </ClCompile>
+    <!-- Core Engine Sources -->
+    <ClCompile Include="Core\Engine\BasePredictor.cpp">
+      <Filter>source\Core\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Engine\BaseTrainer.cpp">
+      <Filter>source\Core\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Engine\BaseValidator.cpp">
+      <Filter>source\Core\Engine</Filter>
+    </ClCompile>
+    <!-- Core Trainer Implementation -->
+    <ClCompile Include="Core\Trainer\AnomalyTrainer.cpp">
+      <Filter>source\Core\Trainer</Filter>
+    </ClCompile>
+    <!-- Core Validator Implementation -->
+    <ClCompile Include="Core\Validator\AnomalyValidator.cpp">
+      <Filter>source\Core\Validator</Filter>
+    </ClCompile>
+    <!-- Core Predictor Implementation -->
+    <ClCompile Include="Core\Predictor\AnomalyPredictor.cpp">
+      <Filter>source\Core\Predictor</Filter>
+    </ClCompile>
+    <!-- Core Utils Sources -->
+    <ClCompile Include="Core\Utils\Checkpoint.cpp">
+      <Filter>source\Core\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Utils\CheckpointMetadata.cpp">
+      <Filter>source\Core\Utils</Filter>
     </ClCompile>
     <ClCompile Include="Model\Modules\Model.cpp">
       <Filter>source\Model\Modules</Filter>

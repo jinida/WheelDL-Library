@@ -178,7 +178,9 @@
     <ClInclude Include="Utils\Common\Timer.h" />
     <ClInclude Include="Utils\Common\Random.h" />
     <ClInclude Include="Utils\Error\ErrorHandler.h" />
+    <ClInclude Include="Utils\Workspace\Workspace.h" />
     <ClInclude Include="Config\YamlParser.h" />
+    <ClInclude Include="Config\JsonParser.h" />
     <ClInclude Include="Config\Configuration.h" />
     <ClInclude Include="Utils\Memory\MemoryManager.h" />
     <ClInclude Include="Utils\Memory\GPUMemoryGuard.h" />
@@ -236,6 +238,23 @@
     <ClInclude Include="Optimizer\Scheduler\LinearLR.h" />
     <ClInclude Include="Optimizer\EMA\ModelEMA.h" />
     <ClInclude Include="Optimizer\EarlyStopping\EarlyStopping.h" />
+    <!-- Core Callback Headers -->
+    <ClInclude Include="Core\Callback\CallbackQueue.h" />
+    <ClInclude Include="Core\Callback\AsyncCallbackQueue.h" />
+    <ClInclude Include="Core\Callback\CallbackThrottler.h" />
+    <!-- Core Engine Headers -->
+    <ClInclude Include="Core\Engine\BaseTrainer.h" />
+    <ClInclude Include="Core\Engine\BaseValidator.h" />
+    <ClInclude Include="Core\Engine\BasePredictor.h" />
+    <!-- Core Trainer Headers -->
+    <ClInclude Include="Core\Trainer\AnomalyTrainer.h" />
+    <!-- Core Validator Headers -->
+    <ClInclude Include="Core\Validator\AnomalyValidator.h" />
+    <!-- Core Predictor Headers -->
+    <ClInclude Include="Core\Predictor\AnomalyPredictor.h" />
+    <!-- Core Utils Headers -->
+    <ClInclude Include="Core\Utils\Checkpoint.h" />
+    <ClInclude Include="Core\Utils\CheckpointMetadata.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Data\Transforms\ColorTransforms.cpp" />
@@ -256,7 +275,9 @@
     <ClCompile Include="Utils\Common\Timer.cpp" />
     <ClCompile Include="Utils\Common\Random.cpp" />
     <ClCompile Include="Utils\Error\ErrorHandler.cpp" />
+    <ClCompile Include="Utils\Workspace\Workspace.cpp" />
     <ClCompile Include="Config\YamlParser.cpp" />
+    <ClCompile Include="Config\JsonParser.cpp" />
     <ClCompile Include="Config\Configuration.cpp" />
     <ClCompile Include="Utils\Memory\MemoryManager.cpp" />
     <ClCompile Include="Utils\Memory\GPUMemoryGuard.cpp" />
@@ -305,6 +326,23 @@
     <ClCompile Include="Optimizer\Scheduler\LinearLR.cpp" />
     <ClCompile Include="Optimizer\EMA\ModelEMA.cpp" />
     <ClCompile Include="Optimizer\EarlyStopping\EarlyStopping.cpp" />
+    <!-- Core Callback Implementation -->
+    <ClCompile Include="Core\Callback\AsyncCallbackQueue.cpp" />
+    <ClCompile Include="Core\Callback\CallbackQueue.cpp" />
+    <ClCompile Include="Core\Callback\CallbackThrottler.cpp" />
+    <!-- Core Engine Implementation -->
+    <ClCompile Include="Core\Engine\BasePredictor.cpp" />
+    <ClCompile Include="Core\Engine\BaseTrainer.cpp" />
+    <ClCompile Include="Core\Engine\BaseValidator.cpp" />
+    <!-- Core Trainer Implementation -->
+    <ClCompile Include="Core\Trainer\AnomalyTrainer.cpp" />
+    <!-- Core Validator Implementation -->
+    <ClCompile Include="Core\Validator\AnomalyValidator.cpp" />
+    <!-- Core Predictor Implementation -->
+    <ClCompile Include="Core\Predictor\AnomalyPredictor.cpp" />
+    <!-- Core Utils Implementation -->
+    <ClCompile Include="Core\Utils\Checkpoint.cpp" />
+    <ClCompile Include="Core\Utils\CheckpointMetadata.cpp" />
     <ClCompile Include="..\3rdparty\yaml-cpp-src\src\binary.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
