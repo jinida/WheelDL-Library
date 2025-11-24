@@ -39,20 +39,6 @@ namespace WheelDL {
 			static bool validate(const YAML::Node& node);
 
 			/**
-			 * @brief Infer task type from model configuration
-			 * @param modelConfig Model YAML node
-			 * @return TaskType Inferred task type
-			 *
-			 * Inference rules:
-			 * - If head contains "Detect": DETECTION
-			 * - If head contains "Segment": SEGMENTATION
-			 * - If head contains "OBB": OBB
-			 * - If head contains "Classify": CLASSIFICATION
-			 * - Otherwise: UNKNOWN
-			 */
-			static TaskType inferTaskTypeFrom(const YAML::Node& modelConfig);
-
-			/**
 			 * @brief Check if YAML file exists and is not too large
 			 * @param yamlPath Path to YAML file
 			 * @param maxSize Maximum file size in bytes (default: 10MB)

@@ -1,8 +1,12 @@
 #include "pch.h"
 #include "Configuration.h"
 #include "YamlParser.h"
+#include "JsonParser.h"
 #include "Utils/Error/WheelLibException.h"
+#include "Utils/Error/ErrorCodes.h"
 #include <yaml-cpp/yaml.h>
+#include <nlohmann/json.hpp>
+#include <fstream>
 
 namespace WheelDL {
 namespace Config {
@@ -10,10 +14,6 @@ namespace Config {
 Configuration::Configuration()
 	: _taskType(TaskType::UNKNOWN)
 	, _numClasses(0)
-	, _defaultActivation("ReLU")
-	, _widthMultiple(1.0f)
-	, _depthMultiple(1.0f)
-	, _maxChannels(1024)
 	, _epochs(100)
 	, _patience(100)
 	, _batchSize(16)
@@ -63,45 +63,23 @@ Configuration::Configuration()
 }
 
 Configuration::~Configuration() {
+
 }
 
-void Configuration::loadFromYaml(const std::string& modelPath,
-	const std::string& hyperParamPath,
-	const std::string& datasetPath) {
+void Configuration::load(const std::string& modelPath, const std::string& hyperParamPath, const std::string& datasetPath)
+{
 	using namespace Utils;
 
-	// Load model configuration
-	YAML::Node modelConfig = YamlParser::parseFrom(modelPath);
-	loadModelConfig(modelConfig);
+	_modelPath = modelPath;
 
-	// Infer task type from model
-	_taskType = YamlParser::inferTaskTypeFrom(modelConfig);
-
-	// Load hyperparameters
+	// Load hyperparameters from YAML
 	YAML::Node hyperParamConfig = YamlParser::parseFrom(hyperParamPath);
 	loadHyperParams(hyperParamConfig);
 
-	// Load dataset configuration (optional)
-	if (!datasetPath.empty()) {
-		YAML::Node datasetConfig = YamlParser::parseFrom(datasetPath);
-		loadDatasetConfig(datasetConfig);
-	}
-}
-
-void Configuration::loadModelConfig(const YAML::Node& modelConfig) {
-	// Load num_classes
-	_numClasses = YamlParser::getInt(modelConfig, "num_classes", 1000);
-
-	// Load default activation
-	_defaultActivation = YamlParser::getString(modelConfig, "default_act", "ReLU");
-
-	// Load scale parameters
-	if (modelConfig["scale"]) {
-		const YAML::Node& scale = modelConfig["scale"];
-		_widthMultiple = YamlParser::getFloat(scale, "width_multiple", 1.0f);
-		_depthMultiple = YamlParser::getFloat(scale, "depth_multiple", 1.0f);
-		_maxChannels = YamlParser::getInt(scale, "max_channels", 1024);
-	}
+	// Load dataset configuration from JSON
+	_datasetPath = datasetPath;
+	nlohmann::json datasetJson = JsonParser::parseFrom(datasetPath);
+	loadDatasetConfig(datasetJson);
 }
 
 void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
@@ -230,39 +208,42 @@ void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
 	// Users should call validate() explicitly after loading if needed
 }
 
-void Configuration::validateConfiguration() {
+void Configuration::validateConfiguration()
+{
+	using namespace Utils;
+
 	// Validate positive integers
 	if (_epochs <= 0) {
-		throw std::invalid_argument("epochs must be positive, got: " + std::to_string(_epochs));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "epochs must be positive, got: " + std::to_string(_epochs));
 	}
 	if (_batchSize <= 0) {
-		throw std::invalid_argument("batch_size must be positive, got: " + std::to_string(_batchSize));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "batch_size must be positive, got: " + std::to_string(_batchSize));
 	}
 	if (_imageSize <= 0) {
-		throw std::invalid_argument("image_size must be positive, got: " + std::to_string(_imageSize));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "image_size must be positive, got: " + std::to_string(_imageSize));
 	}
 	if (_workers < 0) {
-		throw std::invalid_argument("workers must be non-negative, got: " + std::to_string(_workers));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "workers must be non-negative, got: " + std::to_string(_workers));
 	}
 	if (_maxDet <= 0) {
-		throw std::invalid_argument("max_det must be positive, got: " + std::to_string(_maxDet));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "max_det must be positive, got: " + std::to_string(_maxDet));
 	}
 
 	// Validate non-negative integers
 	if (_patience < 0) {
-		throw std::invalid_argument("patience must be non-negative, got: " + std::to_string(_patience));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "patience must be non-negative, got: " + std::to_string(_patience));
 	}
 	if (_closeMosaic < 0) {
-		throw std::invalid_argument("close_mosaic must be non-negative, got: " + std::to_string(_closeMosaic));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "close_mosaic must be non-negative, got: " + std::to_string(_closeMosaic));
 	}
 	if (_blurKernelSize < 0) {
-		throw std::invalid_argument("blur_kernel_size must be non-negative, got: " + std::to_string(_blurKernelSize));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "blur_kernel_size must be non-negative, got: " + std::to_string(_blurKernelSize));
 	}
 
 	// Validate probabilities (0.0 - 1.0 range)
 	auto validateProbability = [](float value, const std::string& name) {
 		if (value < 0.0f || value > 1.0f) {
-			throw std::invalid_argument(name + " must be in range [0.0, 1.0], got: " + std::to_string(value));
+			throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, name + " must be in range [0.0, 1.0], got: " + std::to_string(value));
 		}
 	};
 
@@ -279,76 +260,130 @@ void Configuration::validateConfiguration() {
 	validateProbability(_blurProbability, "blur_probability");
 	validateProbability(_dropout, "dropout");
 	validateProbability(_iou, "iou");
-
-	// Validate model architecture parameters
-	if (_widthMultiple <= 0.0f) {
-		throw std::invalid_argument("width_multiple must be positive, got: " + std::to_string(_widthMultiple));
-	}
-	if (_widthMultiple > 10.0f) {
-		throw std::invalid_argument("width_multiple is too large (> 10.0), got: " + std::to_string(_widthMultiple));
-	}
-	if (_depthMultiple <= 0.0f) {
-		throw std::invalid_argument("depth_multiple must be positive, got: " + std::to_string(_depthMultiple));
-	}
-	if (_depthMultiple > 10.0f) {
-		throw std::invalid_argument("depth_multiple is too large (> 10.0), got: " + std::to_string(_depthMultiple));
-	}
-	if (_maxChannels <= 0) {
-		throw std::invalid_argument("max_channels must be positive, got: " + std::to_string(_maxChannels));
-	}
-	if (_maxChannels > 4096) {
-		throw std::invalid_argument("max_channels is too large (> 4096), got: " + std::to_string(_maxChannels));
-	}
-
+	
 	// Validate learning rate parameters
 	if (_lr0 < 0.0f) {
-		throw std::invalid_argument("lr0 (initial learning rate) must be non-negative, got: " + std::to_string(_lr0));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "lr0 (initial learning rate) must be non-negative, got: " + std::to_string(_lr0));
 	}
 	if (_lr0 > 1.0f) {
-		throw std::invalid_argument("lr0 (initial learning rate) is too large (> 1.0), got: " + std::to_string(_lr0));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "lr0 (initial learning rate) is too large (> 1.0), got: " + std::to_string(_lr0));
 	}
 	if (_lrf < 0.0f) {
-		throw std::invalid_argument("lrf (final learning rate factor) must be non-negative, got: " + std::to_string(_lrf));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "lrf (final learning rate factor) must be non-negative, got: " + std::to_string(_lrf));
 	}
 	if (_lrf > 1.0f) {
-		throw std::invalid_argument("lrf (final learning rate factor) is too large (> 1.0), got: " + std::to_string(_lrf));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "lrf (final learning rate factor) is too large (> 1.0), got: " + std::to_string(_lrf));
 	}
 
 	// Validate optimizer parameters
 	if (_momentum < 0.0f || _momentum > 1.0f) {
-		throw std::invalid_argument("momentum must be in range [0.0, 1.0], got: " + std::to_string(_momentum));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "momentum must be in range [0.0, 1.0], got: " + std::to_string(_momentum));
 	}
 	if (_weightDecay < 0.0f) {
-		throw std::invalid_argument("weight_decay must be non-negative, got: " + std::to_string(_weightDecay));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "weight_decay must be non-negative, got: " + std::to_string(_weightDecay));
 	}
 	if (_weightDecay > 1.0f) {
-		throw std::invalid_argument("weight_decay is too large (> 1.0), got: " + std::to_string(_weightDecay));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "weight_decay is too large (> 1.0), got: " + std::to_string(_weightDecay));
 	}
 
 	// Validate training schedule parameters
 	if (_warmupEpochs < 0) {
-		throw std::invalid_argument("warmup_epochs must be non-negative, got: " + std::to_string(_warmupEpochs));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "warmup_epochs must be non-negative, got: " + std::to_string(_warmupEpochs));
 	}
 	if (_warmupEpochs >= _epochs) {
-		throw std::invalid_argument("warmup_epochs (" + std::to_string(_warmupEpochs) +
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "warmup_epochs (" + std::to_string(_warmupEpochs) +
 			") must be less than total epochs (" + std::to_string(_epochs) + ")");
 	}
 }
 
-void Configuration::loadDatasetConfig(const YAML::Node& datasetConfig) {
-	// Dataset name
-	_datasetName = YamlParser::getString(datasetConfig, "name", "");
+void Configuration::loadDatasetConfig(const nlohmann::json& datasetJson)
+{
+	using namespace Utils;
 
-	// Paths
-	_imagePath = YamlParser::getString(datasetConfig, "image_path", "images/");
-	_labelPath = YamlParser::getString(datasetConfig, "label_path", "labels/");
+	// Validate JSON structure
+	if (!JsonParser::validate(datasetJson)) {
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "Invalid dataset JSON structure");
+	}
 
-	// Class names
-	_classNames = YamlParser::getClassNames(datasetConfig);
+	// Extract header object
+	if (datasetJson.contains("header") && datasetJson["header"].is_object())
+	{
+		const auto& header = datasetJson["header"];
 
-	// Update num_classes from dataset class_names only if not already set by model
-	if (!_classNames.empty() && _numClasses == 0) {
+		// Parse task type
+		std::string taskTypeValue = JsonParser::getString(header, "type", "");
+		if (!taskTypeValue.empty())
+		{
+			if (taskTypeValue == "object_detection")
+			{
+				_taskType = TaskType::DETECTION;
+			}
+			else if (taskTypeValue == "classification")
+			{
+				_taskType = TaskType::CLASSIFICATION;
+			}
+			else if (taskTypeValue == "obb")
+			{
+				_taskType = TaskType::OBB;
+			}
+			else if (taskTypeValue == "anomaly_detection")
+			{
+				_taskType = TaskType::ANOMALY;
+			}
+			else if (taskTypeValue == "segmentation")
+			{
+				_taskType = TaskType::SEGMENTATION;
+			}
+			else
+			{
+				_taskType = TaskType::UNKNOWN;
+			}
+		}
+
+		// Parse categories (class names)
+		if (header.contains("categories"))
+		{
+			const auto& categories = header["categories"];
+			_classNames.clear();
+
+			if (categories.is_object())
+			{
+				// Object format: { "0": "class0", "1": "class1", ... }
+				for (const auto& [key, value] : categories.items())
+				{
+					try
+					{
+						int classId = std::stoi(key);
+						std::string className = value.get<std::string>();
+						_classNames[classId] = className;
+					}
+					catch (const std::exception& e)
+					{
+						throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "Invalid class ID in dataset configuration: " + key);
+					}
+				}
+			}
+			else if (categories.is_array())
+			{
+				// Array format: ["class0", "class1", "class2", ...]
+				// Use array index as class ID
+				for (size_t i = 0; i < categories.size(); ++i)
+				{
+					std::string className = categories[i].get<std::string>();
+					_classNames[static_cast<int>(i)] = className;
+				}
+			}
+		}
+	}
+
+	// Update number of classes
+	if (!_classNames.empty())
+	{
 		_numClasses = static_cast<int>(_classNames.size());
+	}
+	else
+	{
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "No class names found in dataset configuration.");
 	}
 }
 
@@ -379,8 +414,9 @@ void Configuration::setClassNames(const std::map<int, std::string>& classNames) 
 }
 
 void Configuration::setNumClasses(int numClasses) {
+	using namespace Utils;
 	if (numClasses < 0) {
-		throw std::invalid_argument("numClasses must be non-negative, got: " + std::to_string(numClasses));
+		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "numClasses must be non-negative, got: " + std::to_string(numClasses));
 	}
 	_numClasses = numClasses;
 }

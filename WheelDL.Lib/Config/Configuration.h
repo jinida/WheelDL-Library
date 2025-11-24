@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Utils/Common/Types.h"
+#include "nlohmann/json.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -41,47 +42,27 @@ namespace WheelDL {
 			 * @param datasetPath Path to dataset YAML file (optional)
 			 * @throws ConfigurationException if any file fails to load
 			 */
-			void loadFromYaml(const std::string& modelPath,
+			void load(const std::string& modelPath,
 				const std::string& hyperParamPath,
-				const std::string& datasetPath = "");
+				const std::string& datasetPath);
 
 			/**
 			 * @brief Get task type (inferred from model config)
 			 * @return TaskType Task type
 			 */
 			TaskType getTaskType() const { return _taskType; }
-
-			// ========== Model Configuration ==========
+			
+			/**
+			 * @brief Get model YAML path
+			 * @return std::string Model YAML path
+			 */
+			std::string getModelPath() const { return _modelPath; }
 
 			/**
-			 * @brief Get number of classes
-			 * @return int Number of classes
+			 * @brief Get Dataset Json path
+			 * @return std::string Dataset JSON path
 			 */
-			int getNumClasses() const { return _numClasses; }
-
-			/**
-			 * @brief Get default activation function
-			 * @return std::string Activation function name (e.g., "ReLU")
-			 */
-			std::string getDefaultActivation() const { return _defaultActivation; }
-
-			/**
-			 * @brief Get width multiple (model scaling)
-			 * @return float Width multiple
-			 */
-			float getWidthMultiple() const { return _widthMultiple; }
-
-			/**
-			 * @brief Get depth multiple (model scaling)
-			 * @return float Depth multiple
-			 */
-			float getDepthMultiple() const { return _depthMultiple; }
-
-			/**
-			 * @brief Get maximum channels
-			 * @return int Maximum channels
-			 */
-			int getMaxChannels() const { return _maxChannels; }
+			std::string getDatasetPath() const { return _datasetPath; }
 
 			// ========== Training Hyperparameters ==========
 
@@ -358,30 +339,18 @@ namespace WheelDL {
 			int getMaxDet() const { return _maxDet; }
 
 			// ========== Dataset Configuration ==========
-
-			/**
-			 * @brief Get dataset name
-			 * @return std::string Dataset name
-			 */
-			std::string getDatasetName() const { return _datasetName; }
-
-			/**
-			 * @brief Get image path
-			 * @return std::string Image folder path
-			 */
-			std::string getImagePath() const { return _imagePath; }
-
-			/**
-			 * @brief Get label path
-			 * @return std::string Label folder path
-			 */
-			std::string getLabelPath() const { return _labelPath; }
-
 			/**
 			 * @brief Get class names map
 			 * @return std::map<int, std::string> Class ID to name mapping
 			 */
 			const std::map<int, std::string>& getClassNames() const { return _classNames; }
+
+			/**
+			 * @brief Get number of classes
+			 * @return int Number of classes
+			 */
+			int getNumClasses() const { return _numClasses; }
+
 			
 			void setImageSize(int imageSize) { _imageSize = imageSize; }
 			/**
@@ -412,17 +381,15 @@ namespace WheelDL {
 			bool IsPatchCore() const { return _isPatchCore; }
 			void setIsEfficientAD(bool val) { _isEfficientAD = val; }
 			void setIsPatchCore(bool val) { _isPatchCore = val; }
+			void setEpochs(int epochs) { _epochs = epochs; }
+			void setWarmupEpochs(float warmupEpochs) { _warmupEpochs = warmupEpochs; }
 
 		private:
 			// Task type (inferred from model)
 			TaskType _taskType;
 
 			// ========== Model Configuration ==========
-			int _numClasses;
-			std::string _defaultActivation;
-			float _widthMultiple;
-			float _depthMultiple;
-			int _maxChannels;
+			std::string _modelPath;
 
 			// ========== Training Hyperparameters ==========
 			int _epochs;
@@ -479,9 +446,8 @@ namespace WheelDL {
 			int _maxDet;
 
 			// ========== Dataset Configuration ==========
-			std::string _datasetName;
-			std::string _imagePath;
-			std::string _labelPath;
+			std::string _datasetPath;
+			int64_t _numClasses;
 			std::map<int, std::string> _classNames;
 
 			// ========== Classification Specific ==========
@@ -490,11 +456,11 @@ namespace WheelDL {
 			// ====== Anomaly Specific ======
 			bool _isEfficientAD = false;
 			bool _isPatchCore = false;
+
 			/**
 			 * @brief Load model configuration
 			 * @param modelConfig YAML node
 			 */
-			void loadModelConfig(const YAML::Node& modelConfig);
 
 			/**
 			 * @brief Load hyperparameters
@@ -506,7 +472,7 @@ namespace WheelDL {
 			 * @brief Load dataset configuration
 			 * @param datasetConfig YAML node
 			 */
-			void loadDatasetConfig(const YAML::Node& datasetConfig);
+			void loadDatasetConfig(const nlohmann::json& datasetJson);
 
 			/**
 			 * @brief Validate configuration values
