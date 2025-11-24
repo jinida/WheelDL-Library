@@ -22,14 +22,10 @@ namespace WheelDL
             public:
                 /**
                  * @brief Construct classification dataset
-                 * @param dataPath Path to image directory
-                 * @param annotationPath Path to annotation file (txt format)
-                 * @param config Configuration object
+                 * @param config Configuration object containing all settings
                  * @param train Whether this is training dataset (affects transforms)
                  */
-                ClassificationDataset(const std::string& dataPath,
-                                     const std::string& annotationPath,
-                                     const Config::Configuration& config,
+                ClassificationDataset(const Config::Configuration& config,
                                      bool train = true);
 
             protected:
@@ -66,9 +62,6 @@ namespace WheelDL
                  * @return torch::Tensor Class label tensor [1]
                  */
                 torch::Tensor getTargetTensor(size_t index, const Annotation& annotations) override;
-
-            private:
-                bool _train;  // Training mode flag
             };
 
         } // namespace Dataset

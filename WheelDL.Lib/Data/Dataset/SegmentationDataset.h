@@ -21,14 +21,10 @@ namespace WheelDL
             public:
                 /**
                  * @brief Construct segmentation dataset
-                 * @param dataPath Path to image directory
-                 * @param annotationPath Path to annotation directory (text files with polygon coordinates)
-                 * @param config Configuration object
+                 * @param config Configuration object containing all settings
                  * @param train Whether this is training dataset (affects transforms)
                  */
-                SegmentationDataset(const std::string& dataPath,
-                                   const std::string& annotationPath,
-                                   const Config::Configuration& config,
+                SegmentationDataset(const Config::Configuration& config,
                                    bool train = true);
 
             protected:
@@ -64,9 +60,6 @@ namespace WheelDL
                  * @return torch::Tensor Segmentation mask [C, H, W] one-hot encoded per class
                  */
                 torch::Tensor getTargetTensor(size_t index, const Annotation& annotations) override;
-
-            private:
-                bool _train;  // Training mode flag
             };
 
         } // namespace Dataset

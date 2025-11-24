@@ -2,10 +2,13 @@
 #include "AnomalyDataset.h"
 #include "Data/Transforms/GeometricTransforms.h"
 #include "Data/Transforms/ColorTransforms.h"
+#include "Config/JsonParser.h"
+#include "Utils/Error/WheelLibException.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <iostream>
 
 namespace WheelDL
 {
@@ -14,74 +17,91 @@ namespace WheelDL
         namespace Dataset
         {
             AnomalyDataset::AnomalyDataset(
-                const std::string& dataPath,
-                const std::string& annotationPath,
                 const Config::Configuration& config,
                 bool train)
-                : BaseDataset<AnomalyDataset>(dataPath, annotationPath, config)
-                , _train(train)
+                : BaseDataset<AnomalyDataset>(config, train)
             {
                 loadAnnotations();
                 _transforms = buildTransforms();
-                
+
             }
 
             void AnomalyDataset::loadAnnotations()
             {
+                using namespace Config;
+                using namespace WheelDL::Utils;
+
+                // Validate paths
                 if (!std::filesystem::exists(_dataPath))
                 {
-                    throw std::runtime_error("Data directory does not exist: " + _dataPath);
+                    throw DataException(
+                        ErrorCode::DATASET_NOT_FOUND,
+                        "Data directory does not exist: " + _dataPath
+                    );
                 }
 
-                // Check if annotation directory exists
+                // Check if annotation file exists
                 bool hasLabels = !_annotationPath.empty() && std::filesystem::exists(_annotationPath);
 
                 if (hasLabels)
                 {
-                    // Iterate through all images in data directory
-                    for (const auto& entry : std::filesystem::directory_iterator(_dataPath))
+                    // Parse JSON annotation file
+                    nlohmann::json annotationJson = JsonParser::parseFrom(_annotationPath);
+
+                    // Validate JSON structure
+                    if (!annotationJson.contains("annotations") || !annotationJson["annotations"].is_array())
                     {
-                        if (!entry.is_regular_file()) continue;
+                        throw DataException(
+                            ErrorCode::DATA_INVALID_FORMAT,
+                            "Invalid annotation JSON: missing 'annotations' array"
+                        );
+                    }
 
-                        std::string imagePath = entry.path().string();
-                        std::string extension = entry.path().extension().string();
+                    // Get expected role: 0=train, 1=test
+                    int expectedRole = _train ? 0 : 1;
 
-                        // Check if it's an image file using base class helper
-                        if (!isImageFile(extension))
+                    // Process each annotation
+                    const auto& annotations = annotationJson["annotations"];
+                    for (const auto& annot : annotations)
+                    {
+                        // Check role filter
+                        int role = JsonParser::getInt(annot, "role", -1);
+                        if (role != expectedRole)
                         {
+                            continue;  // Skip annotations not matching current dataset role
+                        }
+
+                        // Get filename
+                        std::string filename = JsonParser::getString(annot, "filename", "");
+                        if (filename.empty())
+                        {
+                            std::cerr << "Warning: Annotation missing filename, skipping" << std::endl;
                             continue;
                         }
 
-                        // Find corresponding annotation file using base class helper
-                        auto annotationFile = findAnnotationFile(entry.path(), _annotationPath);
-                        if (!annotationFile)
+                        // Build full image path
+                        std::filesystem::path imagePath = std::filesystem::path(_dataPath) / filename;
+                        if (!std::filesystem::exists(imagePath))
                         {
-                            // Skip images without annotations
+                            std::cerr << "Warning: Image file not found: " << imagePath << std::endl;
                             continue;
                         }
 
-                        // Load annotation
-                        std::ifstream file(*annotationFile);
-                        if (!file.is_open())
+                        // Get anomaly label (0 = normal, 1 = anomaly)
+                        int label = JsonParser::getInt(annot, "label", -1);
+                        if (label < 0)
                         {
+                            std::cerr << "Warning: Invalid label for " << filename << std::endl;
                             continue;
                         }
 
-                        // Read anomaly label from file (0 = normal, 1 = anomaly)
-                        int isAnomaly;
-                        if (!(file >> isAnomaly))
-                        {
-                            std::cerr << "Warning: Invalid annotation format in " << annotationFile->string() << std::endl;
-                            continue;
-                        }
-                        // file automatically closed by RAII when going out of scope
-
-                        // Add to image paths
-                        _imagePaths.push_back(imagePath);
+                        // Add to dataset
+                        std::string imagePathStr = imagePath.string();
+                        _imagePaths.push_back(imagePathStr);
 
                         // Create annotation with anomaly label
-                        Annotation annotation = Annotation::forClassification(isAnomaly);
-                        _annotations[imagePath] = annotation;
+                        Annotation annotation = Annotation::forClassification(label);
+                        _annotations[imagePathStr] = annotation;
                     }
                 }
                 else
@@ -111,7 +131,10 @@ namespace WheelDL
 
                 if (_imagePaths.empty())
                 {
-                    throw std::runtime_error("No valid images found");
+                    throw DataException(
+                        ErrorCode::DATA_LOAD_FAILED,
+                        "No valid images found"
+                    );
                 }
             }
 

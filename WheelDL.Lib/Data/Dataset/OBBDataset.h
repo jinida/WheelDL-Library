@@ -20,14 +20,10 @@ namespace WheelDL
             public:
                 /**
                  * @brief Construct OBB dataset
-                 * @param dataPath Path to image directory
-                 * @param annotationPath Path to annotation directory (YOLO-OBB format)
-                 * @param config Configuration object
+                 * @param config Configuration object containing all settings
                  * @param train Whether this is training dataset (affects transforms)
                  */
-                OBBDataset(const std::string& dataPath,
-                          const std::string& annotationPath,
-                          const Config::Configuration& config,
+                OBBDataset(const Config::Configuration& config,
                           bool train = true);
 
             protected:
@@ -56,9 +52,6 @@ namespace WheelDL
                  * @return torch::Tensor Target tensor [num_objects, 6] (class, x, y, w, h, angle)
                  */
                 torch::Tensor getTargetTensor(size_t index, const Annotation& annotations) override;
-
-            private:
-                bool _train;  // Training mode flag
             };
 
         } // namespace Dataset

@@ -2,6 +2,8 @@
 #include "SegmentationDataset.h"
 #include "Data/Transforms/GeometricTransforms.h"
 #include "Data/Transforms/ColorTransforms.h"
+#include "Config/JsonParser.h"
+#include "Utils/Error/WheelLibException.h"
 #include <filesystem>
 #include <stdexcept>
 #include <fstream>
@@ -15,12 +17,9 @@ namespace WheelDL
         namespace Dataset
         {
             SegmentationDataset::SegmentationDataset(
-                const std::string& dataPath,
-                const std::string& annotationPath,
                 const Config::Configuration& config,
                 bool train)
-                : BaseDataset<SegmentationDataset>(dataPath, annotationPath, config)
-                , _train(train)
+                : BaseDataset<SegmentationDataset>(config, train)
             {
                 loadAnnotations();
                 _transforms = buildTransforms();
@@ -28,71 +27,107 @@ namespace WheelDL
 
             void SegmentationDataset::loadAnnotations()
             {
+                using namespace Config;
+                using namespace WheelDL::Utils;
+
+                // Validate paths
                 if (!std::filesystem::exists(_annotationPath))
                 {
-                    throw std::runtime_error("Annotation directory does not exist: " + _annotationPath);
+                    throw DataException(
+                        ErrorCode::DATA_FILE_NOT_FOUND,
+                        "Annotation file does not exist: " + _annotationPath
+                    );
                 }
 
                 if (!std::filesystem::exists(_dataPath))
                 {
-                    throw std::runtime_error("Data directory does not exist: " + _dataPath);
+                    throw DataException(
+                        ErrorCode::DATASET_NOT_FOUND,
+                        "Data directory does not exist: " + _dataPath
+                    );
                 }
 
-                // Iterate through all images in data directory
-                for (const auto& entry : std::filesystem::directory_iterator(_dataPath))
+                // Parse JSON annotation file
+                nlohmann::json annotationJson = JsonParser::parseFrom(_annotationPath);
+
+                // Validate JSON structure
+                if (!annotationJson.contains("annotations") || !annotationJson["annotations"].is_array())
                 {
-                    if (!entry.is_regular_file()) continue;
+                    throw DataException(
+                        ErrorCode::DATA_INVALID_FORMAT,
+                        "Invalid annotation JSON: missing 'annotations' array"
+                    );
+                }
 
-                    std::string imagePath = entry.path().string();
-                    std::string extension = entry.path().extension().string();
+                // Get expected role: 0=train, 1=test
+                int expectedRole = _train ? 0 : 1;
 
-                    // Check if it's an image file (case-insensitive) using base class helper
-                    if (!isImageFile(extension))
+                // Process each annotation
+                const auto& annotations = annotationJson["annotations"];
+                for (const auto& annot : annotations)
+                {
+                    // Check role filter
+                    int role = JsonParser::getInt(annot, "role", -1);
+                    if (role != expectedRole)
                     {
+                        continue;  // Skip annotations not matching current dataset role
+                    }
+
+                    // Get filename
+                    std::string filename = JsonParser::getString(annot, "filename", "");
+                    if (filename.empty())
+                    {
+                        std::cerr << "Warning: Annotation missing filename, skipping" << std::endl;
                         continue;
                     }
 
-                    // Find corresponding annotation file using base class helper
-                    auto annotationFile = findAnnotationFile(entry.path(), _annotationPath);
-                    if (!annotationFile)
+                    // Build full image path
+                    std::filesystem::path imagePath = std::filesystem::path(_dataPath) / filename;
+                    if (!std::filesystem::exists(imagePath))
                     {
+                        std::cerr << "Warning: Image file not found: " << imagePath << std::endl;
                         continue;
                     }
 
-                    // Load annotation
-                    std::ifstream file(*annotationFile);
-                    if (!file.is_open())
+                    int imgWidth, imgHeight;
+                    try
                     {
+                        auto [w, h] = WheelDL::Data::Utils::ImageIO::getImageDimensions(imagePath.string());
+                        imgWidth = w;
+                        imgHeight = h;
+                    }
+                    catch (const std::exception& e)
+                    {
+                        std::cerr << "Warning: Failed to get image dimensions for " << filename << ": " << e.what() << std::endl;
                         continue;
                     }
 
-                    Annotation annotation(LabelType::POLYGON, true);  // Polygon format
-
-                    std::string line;
-                    int lineNumber = 0;
-                    while (std::getline(file, line))
+                    // Parse label array
+                    if (!annot.contains("label") || !annot["label"].is_array())
                     {
-                        ++lineNumber;
-                        if (line.empty()) continue;
+                        std::cerr << "Warning: Annotation missing or invalid label for " << filename << std::endl;
+                        continue;
+                    }
 
-                        std::istringstream iss(line);
-                        int classId;
+                    Annotation annotation(LabelType::POLYGON, false);  // Polygon format, not normalized (pixel coordinates)
 
-                        if (!(iss >> classId))
+                    const auto& labelArray = annot["label"];
+                    for (const auto& obj : labelArray)
+                    {
+                        if (!obj.is_array() || obj.size() < 3)
                         {
-                            // Invalid format, log warning and skip this line
-                            std::cerr << "Warning: Invalid annotation format in "
-                                      << (*annotationFile).string() << " at line "
-                                      << lineNumber << ": " << line << std::endl;
+                            std::cerr << "Warning: Invalid object format in " << filename << std::endl;
                             continue;
                         }
 
-                        // Read polygon coordinates
+                        // Parse: [class_id, x1, y1, x2, y2, ..., xn, yn]
+                        int classId = obj[0].get<int>();
+
+                        // Extract polygon coordinates
                         std::vector<float> polygon;
-                        float coord;
-                        while (iss >> coord)
+                        for (size_t i = 1; i < obj.size(); ++i)
                         {
-                            polygon.push_back(coord);
+                            polygon.push_back(obj[i].get<float>());
                         }
 
                         // Add polygon to annotation (pixel coordinates, not normalized)
@@ -101,18 +136,21 @@ namespace WheelDL
                             annotation.addObject(classId, polygon);
                         }
                     }
-                    // file automatically closed by RAII when going out of scope
 
-                    // NOTE: Normalization will be done after transforms are applied
+					annotation.normalize(imgWidth, imgHeight);
 
                     // Add to dataset
-                    _imagePaths.push_back(imagePath);
-                    _annotations[imagePath] = annotation;
+                    std::string imagePathStr = imagePath.string();
+                    _imagePaths.push_back(imagePathStr);
+                    _annotations[imagePathStr] = annotation;
                 }
 
                 if (_imagePaths.empty())
                 {
-                    throw std::runtime_error("No valid images with annotations found");
+                    throw DataException(
+                        ErrorCode::DATA_LOAD_FAILED,
+                        "No valid images with annotations found for role=" + std::to_string(expectedRole)
+                    );
                 }
             }
 
@@ -120,7 +158,7 @@ namespace WheelDL
             {
                 // Use base class helper to build standard transforms
                 // includeColorAugmentation = true for segmentation task
-                return buildStandardTransforms(_train, true);
+                return buildStandardTransforms(_train, true, _config.getMosaic() > 0.0f);
             }
 
             torch::Tensor SegmentationDataset::getTargetTensor(size_t index, const Annotation& annotations)
@@ -130,6 +168,10 @@ namespace WheelDL
                 int width = _config.getImageSize();
                 int height = _config.getImageSize();
 
+                // Create mutable copy to denormalize
+                auto annotations_ = annotations;
+                annotations_.denormalize(width, height);  // Ensure annotations are in pixel coordinates
+
                 // Get number of classes
                 int numClasses = _config.getNumClasses();
 
@@ -137,13 +179,16 @@ namespace WheelDL
                 cv::Mat mask = cv::Mat::zeros(height, width, CV_32S);
 
                 // Get polygon coordinates and class IDs from annotations
-                const auto& classes = annotations.getClasses();
-                const auto& points = annotations.getPoints();
+                const auto& classes = annotations_.getClasses();
+                const auto& points = annotations_.getPoints();
 
                 // Validate that classes and points sizes match
                 if (classes.size() != points.size())
                 {
-                    throw std::runtime_error("Mismatch between classes and points size in SegmentationDataset");
+                    throw WheelDL::Utils::DataException(
+                        WheelDL::Utils::ErrorCode::DATA_ANNOTATION_INVALID,
+                        "Mismatch between classes and points size in SegmentationDataset"
+                    );
                 }
 
                 // Draw each polygon on the mask

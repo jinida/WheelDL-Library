@@ -21,14 +21,10 @@ namespace WheelDL
             public:
                 /**
                  * @brief Construct anomaly detection dataset
-                 * @param dataPath Path to image directory
-                 * @param annotationPath Path to annotation file (optional, may be empty)
-                 * @param config Configuration object
+                 * @param config Configuration object containing all settings
                  * @param train Whether this is training dataset (affects transforms)
                  */
-                AnomalyDataset(const std::string& dataPath,
-                              const std::string& annotationPath,
-                              const Config::Configuration& config,
+                AnomalyDataset(const Config::Configuration& config,
                               bool train = true);
 
             protected:
@@ -69,7 +65,6 @@ namespace WheelDL
                 torch::Tensor getTargetTensor(size_t index, const Annotation& annotations) override;
 
             private:
-                bool _train;  // Training mode flag
                 std::shared_ptr<Transforms::Transform> _aeTransforms;
             };
 

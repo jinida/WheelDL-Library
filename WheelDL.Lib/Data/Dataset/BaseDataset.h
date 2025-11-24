@@ -9,6 +9,7 @@
 #include "../Transforms/ColorTransforms.h"
 #include "../Augmentation/DatasetAugmentation.h"
 #include "../../Config/Configuration.h"
+#include "../../Utils/Error/WheelLibException.h"
 #include <torch/torch.h>
 #include <string>
 #include <vector>
@@ -90,19 +91,19 @@ namespace WheelDL
             public:
                 /**
                  * @brief Construct a new BaseDataset
-                 * @param dataPath Path to image directory
-                 * @param annotationPath Path to annotation file/directory
                  * @param config Configuration object containing all settings
+                 * @param train Whether this is training dataset (true) or validation (false)
                  */
-                explicit BaseDataset(const std::string& dataPath,
-                    const std::string& annotationPath,
-                    const Config::Configuration& config)
-                    : _dataPath(dataPath)
-                    , _annotationPath(annotationPath)
-                    , _config(config)
+                explicit BaseDataset(const Config::Configuration& config, bool train)
+                    : _config(config)
+                    , _train(train)
                     , _cacheType(CacheType::NONE)
                     , _cacheMutex(std::make_shared<std::mutex>())
                 {
+                    _annotationPath = _config.getDatasetPath();
+                    std::filesystem::path annotPath(_annotationPath);
+                    _dataPath = annotPath.parent_path().parent_path().parent_path().string();
+
                     // Enable cache based on configuration
                     std::string cacheType = _config.getCacheType();
                     if (cacheType == "ram")
@@ -130,7 +131,10 @@ namespace WheelDL
                 {
                     if (index >= _imagePaths.size())
                     {
-                        throw std::out_of_range("Index out of range: " + std::to_string(index));
+                        throw WheelDL::Utils::DataException(
+                            WheelDL::Utils::ErrorCode::OUT_OF_RANGE,
+                            "Index out of range: " + std::to_string(index)
+                        );
                     }
 
                     // 1. Load base image and annotation
@@ -148,6 +152,7 @@ namespace WheelDL
                         for (auto idx : indices)
                         {
                             auto [img, ann] = loadSample(idx);
+							ann.denormalize(img.cols, img.rows);
                             images.push_back(img);
                             annots.push_back(ann);
                         }
@@ -314,7 +319,10 @@ namespace WheelDL
                     size_t totalSize = _imagePaths.size();
                     if (totalSize <= 1)
                     {
-                        throw std::runtime_error("Dataset size too small for mosaic augmentation");
+                        throw WheelDL::Utils::DataException(
+                            WheelDL::Utils::ErrorCode::DATA_INVALID_FORMAT,
+                            "Dataset size too small for mosaic augmentation"
+                        );
                     }
 
                     // Thread-local random generator
@@ -374,7 +382,10 @@ namespace WheelDL
                     auto it = _annotations.find(imagePath);
                     if (it == _annotations.end())
                     {
-                        throw std::runtime_error("Annotation not found for image: " + imagePath);
+                        throw WheelDL::Utils::DataException(
+                            WheelDL::Utils::ErrorCode::DATA_ANNOTATION_INVALID,
+                            "Annotation not found for image: " + imagePath
+                        );
                     }
 
                     return { image, it->second.clone() };
@@ -545,7 +556,10 @@ namespace WheelDL
                     // Validate image
                     if (image.empty())
                     {
-                        throw std::runtime_error("Cannot convert empty image to tensor");
+                        throw WheelDL::Utils::DataException(
+                            WheelDL::Utils::ErrorCode::INVALID_IMAGE_SIZE,
+                            "Cannot convert empty image to tensor"
+                        );
                     }
 
                     // Convert to float (without normalization - ToTensor will handle that)
@@ -580,6 +594,7 @@ namespace WheelDL
                 std::string _dataPath;                                      // Data directory path
                 std::string _annotationPath;                                // Annotation path
                 Config::Configuration _config;                       // Configuration object (const reference to avoid copy)
+                bool _train;                                                // Training mode flag (true=train, false=validation)
                 std::vector<std::string> _imagePaths;                       // List of image paths
                 std::unordered_map<std::string, Annotation> _annotations;   // Annotations map
                 CacheType _cacheType;                                       // Cache type
