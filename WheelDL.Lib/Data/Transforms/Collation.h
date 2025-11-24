@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 
-#include "WheelDL.Lib/Data/Dataset/BaseDataset.h" 
+#include "../Dataset/BaseDataset.h" 
 
 namespace WheelDL {
     namespace Data {
@@ -12,6 +12,5 @@ namespace WheelDL {
         {
             WheelDL::Data::Dataset::DataExample apply_batch(std::vector<WheelDL::Data::Dataset::DataExample> examples) override;
         };
-
     } // namespace Data
 } // namespace WheelDL
