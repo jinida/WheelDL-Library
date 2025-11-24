@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <functional>
 
 namespace WheelDL {
 
@@ -66,18 +67,15 @@ namespace WheelDL {
 	}
 
 	/**
-	 * @struct ProgressData
-	 * @brief Training progress information
+	 * @enum ProgressStage
+	 * @brief Training progress stage
 	 */
-	struct ProgressData {
-		int currentEpoch;
-		int totalEpochs;
-		int currentStep;
-		int totalSteps;
-		float trainLoss;
-		float valLoss;
-		float learningRate;
-		std::string message;
+	enum class ProgressStage {
+		TRAIN_BATCH,
+		TRAIN_EPOCH,
+		VAL_BATCH,
+		VAL_EPOCH,
+		CHECKPOINT_SAVED
 	};
 
 	/**
@@ -90,37 +88,76 @@ namespace WheelDL {
 		float precision;
 		float recall;
 		float f1Score;
-		float mAP;  // mean Average Precision (for detection)
-		float IoU;  // Intersection over Union
+		float mAP;
+		float fitness;
 	};
 
 	/**
-	 * @struct HyperParameters
-	 * @brief Training hyperparameters
+	 * @struct ProgressData
+	 * @brief Training progress information
 	 */
-	struct HyperParameters {
-		int batchSize;
-		int epochs;
+	struct ProgressData {
+		ProgressStage stage;
+		int currentEpoch;
+		int totalEpochs;
+		int currentBatch;
+		int totalBatches;
+		float loss;
+		MetricsData metrics;
 		float learningRate;
-		float weightDecay;
-		float momentum;
-		int warmupEpochs;
-		std::string optimizer;  // "SGD", "Adam", "AdamW"
-		std::string scheduler;  // "CosineAnnealing", "Linear", "None"
+		float gpuMemoryUsage;
+		double elapsedTime;
+		double eta;  // Estimated Time of Arrival
+		std::string message;
 	};
 
 	/**
-	 * @struct DatasetInfo
-	 * @brief Dataset information
+	 * @struct BBox
+	 * @brief Bounding box with top-left and bottom-right coordinates
 	 */
-	struct DatasetInfo {
-		std::string name;
-		std::string path;
-		int numClasses;
-		int numTrainSamples;
-		int numValSamples;
-		int numTestSamples;
-		std::vector<std::string> classNames;
+	struct BBox {
+		float x1, y1;  // Top-left corner
+		float x2, y2;  // Bottom-right corner
 	};
+
+	/**
+	 * @struct Contour
+	 * @brief Contour points for segmentation
+	 */
+	struct Contour {
+		std::vector<float> points;  // [x1, y1, x2, y2, ...] flattened coordinates
+	};
+
+	/**
+	 * @struct PredictionResult
+	 * @brief Prediction/inference result (no Torch dependency)
+	 */
+	struct PredictionResult {
+		std::vector<BBox> boxes;                    // Detection bounding boxes
+		std::vector<float> scores;                  // Confidence scores
+		std::vector<unsigned int> classIds;         // Class IDs
+		std::vector<Contour> contours;              // Segmentation contours (optional)
+
+		// Original image shape (for coordinate scaling)
+		std::pair<int, int> originalShape;          // (height, width)
+
+		// Prediction metadata
+		double inferenceTime;                       // Inference time in milliseconds
+		int numDetections;                          // Number of detections
+	};
+
+	// Forward declaration for callbacks
+	struct ProgressData;
+	struct MetricsData;
+
+	/**
+	 * @brief Callback function for training progress updates
+	 */
+	using ProgressCallback = std::function<void(const ProgressData&)>;
+
+	/**
+	 * @brief Callback function for evaluation progress updates
+	 */
+	using EvaluationCallback = std::function<void(const MetricsData&)>;
 
 } // namespace WheelDL
