@@ -24,7 +24,7 @@ Configuration::Configuration()
 	, _seed(0)
 	, _deterministic(false)
 	, _cosLR(false)
-	, _closeMosaic(10)
+	, _closeMosaic(0)
 	, _amp(true)
 	, _bfloat16(false)
 	, _cache("")
@@ -33,7 +33,7 @@ Configuration::Configuration()
 	, _momentum(0.937f)
 	, _weightDecay(0.0005f)
 	, _amsgrad(false)
-	, _warmupEpochs(3.0f)
+	, _warmupEpochs(0.0f)
 	, _warmupMomentum(0.8f)
 	, _warmupBiasLR(0.1f)
 	, _boxGain(7.5f)
@@ -49,12 +49,13 @@ Configuration::Configuration()
 	, _perspective(0.0f)
 	, _flipud(0.0f)
 	, _fliplr(0.5f)
-	, _mosaic(1.0f)
+	, _mosaic(0.0f)
 	, _mixup(0.0f)
 	, _cutmix(0.0f)
 	, _blurKernelSize(3)
 	, _blurProbability(0.01f)
 	, _fillBorder(0)
+	, isImageNetNormalized(false)
 	, _iou(0.7f)
 	, _maxDet(300)
 	, _dropout(0.0f)
@@ -140,6 +141,7 @@ void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
 	_seed = YamlParser::getInt(hyperParamConfig, "seed", 0);
 	_deterministic = YamlParser::getBool(hyperParamConfig, "deterministic", false);
 	_cosLR = YamlParser::getBool(hyperParamConfig, "cos_lr", false);
+	_linearLR = YamlParser::getBool(hyperParamConfig, "linear_lr", false);
 	_closeMosaic = YamlParser::getInt(hyperParamConfig, "close_mosaic", 10);
 	_amp = YamlParser::getBool(hyperParamConfig, "amp", true);
 	_bfloat16 = YamlParser::getBool(hyperParamConfig, "bfloat16", false);
@@ -196,6 +198,7 @@ void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
 	_blurKernelSize = YamlParser::getInt(hyperParamConfig, "blur_kernel_size", 3);
 	_blurProbability = (TaskType::ANOMALY == _taskType) ? 0.0f : YamlParser::getFloat(hyperParamConfig, "blur_probability", 0.01f);
 	_fillBorder = YamlParser::getInt(hyperParamConfig, "fill_border", 0);
+	isImageNetNormalized = YamlParser::getBool(hyperParamConfig, "imagenet_norm", false);
 
 	// Validation settings
 	_iou = YamlParser::getFloat(hyperParamConfig, "iou", 0.7f);

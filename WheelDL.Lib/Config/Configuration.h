@@ -125,7 +125,7 @@ namespace WheelDL {
 			 * @return bool True if cosine LR
 			 */
 			bool useCosineLR() const { return _cosLR; }
-
+			bool useLinearLR() const { return _linearLR; }
 			/**
 			 * @brief Get close mosaic epochs
 			 * @return int Disable mosaic for final N epochs
@@ -228,6 +228,7 @@ namespace WheelDL {
 
 			// ========== Augmentation Settings ==========
 
+			bool getImageNetNorm() const { return this->isImageNetNormalized; }
 			/**
 			 * @brief Get HSV hue augmentation fraction
 			 * @return float HSV-H
@@ -294,18 +295,6 @@ namespace WheelDL {
 			 */
 			float getMosaic() const { return _mosaic; }
 
-			/**
-			 * @brief Get MixUp augmentation probability
-			 * @return float MixUp probability
-			 */
-			float getMixup() const { return _mixup; }
-
-			/**
-			 * @brief Get CutMix augmentation probability
-			 * @return float CutMix probability
-			 */
-			float getCutmix() const { return _cutmix; }
-			
 			/**
 			 * @brief Get Gaussian blur kernel size
 			 * @return int Blur kernel size
@@ -383,6 +372,8 @@ namespace WheelDL {
 			void setIsPatchCore(bool val) { _isPatchCore = val; }
 			void setEpochs(int epochs) { _epochs = epochs; }
 			void setWarmupEpochs(float warmupEpochs) { _warmupEpochs = warmupEpochs; }
+			void setBatchSize(int batchSize) { _batchSize = batchSize; }
+			void setImageNetNorm(bool val) { isImageNetNormalized = val; }
 
 		private:
 			// Task type (inferred from model)
@@ -402,6 +393,7 @@ namespace WheelDL {
 			int _seed;
 			bool _deterministic;
 			bool _cosLR;
+			bool _linearLR;
 			int _closeMosaic;
 			bool _amp;
 			bool _bfloat16;
@@ -440,6 +432,7 @@ namespace WheelDL {
 			int _blurKernelSize;
 			float _blurProbability;
 			int _fillBorder;
+			bool isImageNetNormalized;
 
 			// ========== Validation Settings ==========
 			float _iou;
