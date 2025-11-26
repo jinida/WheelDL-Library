@@ -36,6 +36,9 @@
     <Filter Include="header\Utils\Workspace">
       <UniqueIdentifier>{7FC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
     </Filter>
+    <Filter Include="header\Utils\Export">
+      <UniqueIdentifier>{8FC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
+    </Filter>
     <Filter Include="header\Data">
       <UniqueIdentifier>{11C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
     </Filter>
@@ -148,6 +151,9 @@
     </Filter>
     <Filter Include="source\Utils\Workspace">
       <UniqueIdentifier>{FFC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Utils\Export">
+      <UniqueIdentifier>{00C737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
     </Filter>
     <Filter Include="source\Data">
       <UniqueIdentifier>{21C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
@@ -306,6 +312,12 @@
     <!-- Workspace Headers -->
     <ClInclude Include="Utils\Workspace\Workspace.h">
       <Filter>header\Utils\Workspace</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Export\ImageExporter.h">
+      <Filter>header\Utils\Export</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Export\MetricsExporter.h">
+      <Filter>header\Utils\Export</Filter>
     </ClInclude>
     <ClInclude Include="framework.h">
       <Filter>header</Filter>
@@ -525,6 +537,9 @@
     <ClInclude Include="Model\Modules\Model.h">
       <Filter>header\Model\Modules</Filter>
     </ClInclude>
+    <ClInclude Include="Data\Dataset\PredDataset.h">
+      <Filter>header\Data\Dataset</Filter>
+    </ClInclude>
   </ItemGroup>
   <!-- Source Files -->
   <ItemGroup>
@@ -584,6 +599,15 @@
     <!-- Workspace Sources -->
     <ClCompile Include="Utils\Workspace\Workspace.cpp">
       <Filter>source\Utils\Workspace</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\Export\ImageExporter.cpp">
+      <Filter>source\Utils\Export</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\Export\MetricsExporter.cpp">
+      <Filter>source\Utils\Export</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\Export\PredictionExporter.cpp">
+      <Filter>source\Utils\Export</Filter>
     </ClCompile>
     <ClCompile Include="dllmain.cpp">
       <Filter>source</Filter>

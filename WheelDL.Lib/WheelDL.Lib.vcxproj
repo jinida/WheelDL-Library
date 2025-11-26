@@ -161,6 +161,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Data\Dataset\PredDataset.h" />
     <ClInclude Include="Data\Transforms\Collation.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Interfaces.h" />
@@ -179,6 +180,8 @@
     <ClInclude Include="Utils\Common\Random.h" />
     <ClInclude Include="Utils\Error\ErrorHandler.h" />
     <ClInclude Include="Utils\Workspace\Workspace.h" />
+    <ClInclude Include="Utils\Export\ImageExporter.h" />
+    <ClInclude Include="Utils\Export\MetricsExporter.h" />
     <ClInclude Include="Config\YamlParser.h" />
     <ClInclude Include="Config\JsonParser.h" />
     <ClInclude Include="Config\Configuration.h" />
@@ -276,6 +279,9 @@
     <ClCompile Include="Utils\Common\Random.cpp" />
     <ClCompile Include="Utils\Error\ErrorHandler.cpp" />
     <ClCompile Include="Utils\Workspace\Workspace.cpp" />
+    <ClCompile Include="Utils\Export\ImageExporter.cpp" />
+    <ClCompile Include="Utils\Export\MetricsExporter.cpp" />
+    <ClCompile Include="Utils\Export\PredictionExporter.cpp" />
     <ClCompile Include="Config\YamlParser.cpp" />
     <ClCompile Include="Config\JsonParser.cpp" />
     <ClCompile Include="Config\Configuration.cpp" />
