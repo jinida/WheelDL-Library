@@ -35,6 +35,20 @@ namespace WheelDL {
                 );
 
                 /**
+                 * @brief Save model only (without optimizer state)
+                 * @param path Checkpoint file path (.pt extension)
+                 * @param model Model to save
+                 * @param metadata Metadata to include
+                 * @throws Utils::WheelLibException if save fails
+                 */
+
+                static void saveModelOnly(
+                    const std::string& path,
+                    const Model::BaseModel& model,
+                    const CheckpointMetadata& metadata
+                );
+
+                /**
                  * @brief Load a complete checkpoint
                  * @param path Checkpoint file path
                  * @param model Model to load state into

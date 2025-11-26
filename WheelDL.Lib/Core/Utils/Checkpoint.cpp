@@ -63,6 +63,52 @@ namespace WheelDL {
                 metadata.deviceType = loadString("meta.device_type");
                 metadata.gpuCount = gpuCountTensor.item<int>();
 
+                // Load metrics data (optional for backward compatibility)
+                torch::Tensor lossTensor, accuracyTensor, precisionTensor, recallTensor;
+                torch::Tensor f1ScoreTensor, mAPTensor, thresholdTensor;
+
+                if (archive.try_read("meta.metrics.loss", lossTensor)) {
+                    metadata.loss = lossTensor.item<float>();
+                } else {
+                    metadata.loss = 0.0f;
+                }
+
+                if (archive.try_read("meta.metrics.accuracy", accuracyTensor)) {
+                    metadata.accuracy = accuracyTensor.item<float>();
+                } else {
+                    metadata.accuracy = 0.0f;
+                }
+
+                if (archive.try_read("meta.metrics.precision", precisionTensor)) {
+                    metadata.precision = precisionTensor.item<float>();
+                } else {
+                    metadata.precision = 0.0f;
+                }
+
+                if (archive.try_read("meta.metrics.recall", recallTensor)) {
+                    metadata.recall = recallTensor.item<float>();
+                } else {
+                    metadata.recall = 0.0f;
+                }
+
+                if (archive.try_read("meta.metrics.f1Score", f1ScoreTensor)) {
+                    metadata.f1Score = f1ScoreTensor.item<float>();
+                } else {
+                    metadata.f1Score = 0.0f;
+                }
+
+                if (archive.try_read("meta.metrics.mAP", mAPTensor)) {
+                    metadata.mAP = mAPTensor.item<float>();
+                } else {
+                    metadata.mAP = 0.0f;
+                }
+
+                if (archive.try_read("meta.metrics.threshold", thresholdTensor)) {
+                    metadata.threshold = thresholdTensor.item<float>();
+                } else {
+                    metadata.threshold = 0.0f;
+                }
+
                 // Load hyperparameters (optional)
                 const std::vector<std::string> hyperParamKeys = {
                     "epochs", "batch_size", "image_size", "optimizer",
@@ -126,6 +172,15 @@ namespace WheelDL {
                     saveString("meta.device_type", metadata.deviceType);
                     archive.write("meta.gpu_count", torch::tensor(metadata.gpuCount));
 
+                    // Save metrics data
+                    archive.write("meta.metrics.loss", torch::tensor(metadata.loss));
+                    archive.write("meta.metrics.accuracy", torch::tensor(metadata.accuracy));
+                    archive.write("meta.metrics.precision", torch::tensor(metadata.precision));
+                    archive.write("meta.metrics.recall", torch::tensor(metadata.recall));
+                    archive.write("meta.metrics.f1Score", torch::tensor(metadata.f1Score));
+                    archive.write("meta.metrics.mAP", torch::tensor(metadata.mAP));
+                    archive.write("meta.metrics.threshold", torch::tensor(metadata.threshold));
+
                     // Save hyperparameters
                     for (const auto& [key, value] : metadata.hyperParams) {
                         saveString("meta.hyper." + key, value);
@@ -143,15 +198,6 @@ namespace WheelDL {
                     for (const auto& buffer : modelBuffers) {
                         std::string modelKey = std::string(MODEL_KEY) + ".buffer." + buffer.key();
                         archive.write(modelKey, buffer.value());
-
-                        // Log buffer info for debugging
-                        std::string sizeStr = "[";
-                        for (int64_t i = 0; i < buffer.value().dim(); ++i) {
-                            if (i > 0) sizeStr += ", ";
-                            sizeStr += std::to_string(buffer.value().size(i));
-                        }
-                        sizeStr += "]";
-                        logger->info("Checkpoint", "Saved buffer: " + buffer.key() + " size=" + sizeStr);
                     }
 
                     // Save model stride
@@ -174,6 +220,98 @@ namespace WheelDL {
                     throw Utils::ConfigurationException(
                         Utils::ErrorCode::FILE_IO_ERROR,
                         "Failed to save checkpoint: " + std::string(e.what())
+                    );
+                }
+            }
+
+            void Checkpoint::saveModelOnly(
+                const std::string& path,
+                const Model::BaseModel& model,
+                const CheckpointMetadata& metadata)
+            {
+                auto logger = Utils::Logger::getInstance();
+                logger->info("Checkpoint", "Saving model-only checkpoint to: " + path);
+
+                try {
+                    // Create parent directory if it doesn't exist
+                    std::filesystem::path checkpointPath(path);
+                    if (checkpointPath.has_parent_path()) {
+                        std::string parentPath = checkpointPath.parent_path().string();
+                        if (!Utils::PathValidator::createDirectoryIfNotExists(parentPath)) {
+                            throw Utils::ConfigurationException(
+                                Utils::ErrorCode::FILE_IO_ERROR,
+                                "Failed to create checkpoint directory: " + parentPath
+                            );
+                        }
+                    }
+
+                    torch::serialize::OutputArchive archive;
+
+                    // Save metadata fields as individual tensors
+                    auto saveString = [&archive](const std::string& key, const std::string& value) {
+                        std::vector<char> chars(value.begin(), value.end());
+                        torch::Tensor tensor = torch::from_blob(
+                            chars.data(),
+                            {static_cast<int64_t>(chars.size())},
+                            torch::kChar
+                        ).clone();
+                        archive.write(key, tensor);
+                    };
+
+                    saveString("meta.wheellib_version", metadata.wheelLibVersion);
+                    saveString("meta.libtorch_version", metadata.libtorchVersion);
+                    saveString("meta.task_type", taskTypeToString(metadata.taskType));
+                    archive.write("meta.epoch", torch::tensor(metadata.epoch));
+                    archive.write("meta.best_fitness", torch::tensor(metadata.bestFitness));
+                    saveString("meta.timestamp", metadata.timestamp);
+                    saveString("meta.device_type", metadata.deviceType);
+                    archive.write("meta.gpu_count", torch::tensor(metadata.gpuCount));
+
+                    // Save metrics data
+                    archive.write("meta.metrics.loss", torch::tensor(metadata.loss));
+                    archive.write("meta.metrics.accuracy", torch::tensor(metadata.accuracy));
+                    archive.write("meta.metrics.precision", torch::tensor(metadata.precision));
+                    archive.write("meta.metrics.recall", torch::tensor(metadata.recall));
+                    archive.write("meta.metrics.f1Score", torch::tensor(metadata.f1Score));
+                    archive.write("meta.metrics.mAP", torch::tensor(metadata.mAP));
+                    archive.write("meta.metrics.threshold", torch::tensor(metadata.threshold));
+
+                    // Save hyperparameters
+                    for (const auto& [key, value] : metadata.hyperParams) {
+                        saveString("meta.hyper." + key, value);
+                    }
+
+                    // Save model state dict
+                    auto modelState = model.getModel()->named_parameters();
+                    for (const auto& param : modelState) {
+                        std::string modelKey = std::string(MODEL_KEY) + "." + param.key();
+                        archive.write(modelKey, param.value());
+                    }
+
+                    // Save model buffers (e.g., BatchNorm running stats, memory bank)
+                    auto modelBuffers = model.getModel()->named_buffers();
+                    for (const auto& buffer : modelBuffers) {
+                        std::string modelKey = std::string(MODEL_KEY) + ".buffer." + buffer.key();
+                        archive.write(modelKey, buffer.value());
+                    }
+
+                    // Save model stride
+                    archive.write(std::string(MODEL_KEY) + ".stride", model.getStride());
+
+                    // Note: Optimizer state is NOT saved for model-only checkpoint
+
+                    // Write to file
+                    archive.save_to(path);
+
+                    logger->info("Checkpoint", "Successfully saved model-only checkpoint (epoch=" +
+                                std::to_string(metadata.epoch) + ", fitness=" +
+                                std::to_string(metadata.bestFitness) + ")");
+                }
+                catch (const std::exception& e) {
+                    logger->error("Checkpoint", "Failed to save model-only checkpoint: " + std::string(e.what()));
+                    throw Utils::ConfigurationException(
+                        Utils::ErrorCode::FILE_IO_ERROR,
+                        "Failed to save model-only checkpoint: " + std::string(e.what())
                     );
                 }
             }
@@ -212,13 +350,16 @@ namespace WheelDL {
                         );
                     }
 
-                    // Load model state dict
-                    auto modelParams = model.getModel()->named_parameters();
-                    for (auto& param : modelParams) {
-                        std::string modelKey = std::string(MODEL_KEY) + "." + param.key();
-                        torch::Tensor loadedParam;
-                        archive.read(modelKey, loadedParam);
-                        param.value().copy_(loadedParam);
+                    // Load model state dict (disable gradient for in-place copy)
+                    {
+                        torch::NoGradGuard noGrad;
+                        auto modelParams = model.getModel()->named_parameters();
+                        for (auto& param : modelParams) {
+                            std::string modelKey = std::string(MODEL_KEY) + "." + param.key();
+                            torch::Tensor loadedParam;
+                            archive.read(modelKey, loadedParam);
+                            param.value().copy_(loadedParam);
+                        }
                     }
 
                     // Load model buffers
@@ -300,7 +441,8 @@ namespace WheelDL {
                     CheckpointMetadata metadata = loadMetadataFromArchive(archive);
 
                     // Check compatibility
-                    if (!isCompatible(metadata)) {
+                    if (!isCompatible(metadata))
+                    {
                         throw Utils::ConfigurationException(
                             Utils::ErrorCode::INVALID_CONFIG,
                             "Checkpoint version incompatible. Checkpoint version: " +
@@ -308,13 +450,16 @@ namespace WheelDL {
                         );
                     }
 
-                    // Load model state dict
-                    auto modelParams = model.getModel()->named_parameters();
-                    for (auto& param : modelParams) {
-                        std::string modelKey = std::string(MODEL_KEY) + "." + param.key();
-                        torch::Tensor loadedParam;
-                        archive.read(modelKey, loadedParam);
-                        param.value().copy_(loadedParam);
+                    // Load model state dict (disable gradient for in-place copy)
+                    {
+                        torch::NoGradGuard noGrad;
+                        auto modelParams = model.getModel()->named_parameters();
+                        for (auto& param : modelParams) {
+                            std::string modelKey = std::string(MODEL_KEY) + "." + param.key();
+                            torch::Tensor loadedParam;
+                            archive.read(modelKey, loadedParam);
+                            param.value().copy_(loadedParam);
+                        }
                     }
 
                     // Load model buffers
@@ -329,15 +474,6 @@ namespace WheelDL {
 
                             // Use set_() instead of copy_() to handle dynamic buffer sizes (e.g., memory_bank)
                             buffer.value().set_(loadedBuffer);
-
-                            // Log buffer info for debugging
-                            std::string sizeStr = "[";
-                            for (int64_t i = 0; i < loadedBuffer.dim(); ++i) {
-                                if (i > 0) sizeStr += ", ";
-                                sizeStr += std::to_string(loadedBuffer.size(i));
-                            }
-                            sizeStr += "]";
-                            logger->info("Checkpoint", "Loaded buffer: " + buffer.key() + " size=" + sizeStr);
                         }
                     }
 

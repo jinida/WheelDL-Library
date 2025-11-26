@@ -27,17 +27,26 @@ namespace WheelDL {
                 std::string deviceType;
                 int gpuCount;
 
+                // Metrics data
+                float loss;
+                float accuracy;
+                float precision;
+                float recall;
+                float f1Score;
+                float mAP;
+                float threshold;
+
                 /**
                  * @brief Create metadata from Configuration and training state
                  * @param config Configuration object
                  * @param epoch Current epoch
-                 * @param fitness Best fitness achieved
+                 * @param metrics Metrics data to save
                  * @return CheckpointMetadata object
                  */
                 static CheckpointMetadata fromConfiguration(
                     const Config::Configuration& config,
                     int epoch,
-                    float fitness
+                    const MetricsData& metrics
                 );
 
             };

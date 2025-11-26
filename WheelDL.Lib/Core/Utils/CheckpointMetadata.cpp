@@ -13,7 +13,7 @@ namespace WheelDL {
             CheckpointMetadata CheckpointMetadata::fromConfiguration(
                 const Config::Configuration& config,
                 int epoch,
-                float fitness)
+                const MetricsData& metrics)
             {
                 CheckpointMetadata metadata;
 
@@ -30,7 +30,16 @@ namespace WheelDL {
                 // Task information
                 metadata.taskType = config.getTaskType();
                 metadata.epoch = epoch;
-                metadata.bestFitness = fitness;
+                metadata.bestFitness = metrics.fitness;
+
+                // Metrics data
+                metadata.loss = metrics.loss;
+                metadata.accuracy = metrics.accuracy;
+                metadata.precision = metrics.precision;
+                metadata.recall = metrics.recall;
+                metadata.f1Score = metrics.f1Score;
+                metadata.mAP = metrics.mAP;
+                metadata.threshold = metrics.threshold;
 
                 // Hyperparameters from configuration
                 metadata.hyperParams["epochs"] = std::to_string(config.getEpochs());
