@@ -21,7 +21,7 @@ namespace WheelDL
             class IAnomalyModel : public torch::nn::Module
             {
             public:
-                virtual std::vector<torch::Tensor> forward(std::vector<torch::Tensor> x) = 0;
+                virtual std::vector<torch::Tensor> forward(std::vector<torch::Tensor>& x) = 0;
                 virtual std::string getModelType() const = 0;
                 virtual int64_t getOutputChannels() const = 0;
                 virtual ~IAnomalyModel() = default;

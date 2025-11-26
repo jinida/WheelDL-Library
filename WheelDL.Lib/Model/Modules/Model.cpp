@@ -167,95 +167,137 @@ namespace WheelDL {
 					.mode(torch::kBilinear).align_corners(false)));
 				net->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(64, 64, 3).stride(1).padding(1)));
 				net->push_back(torch::nn::ReLU(torch::nn::ReLUOptions().inplace(true)));
-				net->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(64, outCh, 1).stride(1).padding(1)));
+				net->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(64, outCh, 3).stride(1).padding(1)));
 
 				return net;
 			}
 
-			std::vector<torch::Tensor> EfficientADImpl::forward(std::vector<torch::Tensor> x)
+			std::vector<torch::Tensor> EfficientADImpl::getMap(torch::Tensor& x)
+			{
+				auto& input = x;
+				torch::NoGradGuard noGrad;
+
+				auto teacherOut = (_teacher->forward(input) - _teacherMean) / _teacherStd;
+				auto studentOut = _student->forward(input).narrow(1, 0, outChannels);
+				auto aeOut = _ae->forward(input);
+
+				auto diffSt = teacherOut - studentOut;
+				auto mapSt = (diffSt * diffSt).mean(1, true);
+
+				auto diffAe = teacherOut - aeOut;
+				auto mapAe = (diffAe * diffAe).mean(1, true);
+
+				return { mapSt, mapAe };
+			}
+
+			std::vector<torch::Tensor> EfficientADImpl::forward(std::vector<torch::Tensor>& x)
 			{
 				if (x.empty()) {
 					throw std::invalid_argument("EfficientADImpl::forward - input vector is empty");
 				}
 
-				auto inputShape = x[0].sizes().vec();
-				
+				auto& inputTensor = x[0];
+				auto inputShape = inputTensor.sizes().vec();
+
+				// Helper lambda for anomaly map calculation
+				auto computeAnomalyMap = [this](const torch::Tensor& teacherOut, const torch::Tensor& studentOut, const torch::Tensor& aeOut) {
+					auto mapSt = torch::mean(torch::pow(teacherOut - studentOut, 2), 1, true);
+					auto mapAe = torch::mean(torch::pow(teacherOut - aeOut, 2), 1, true);
+
+					mapSt = 0.1f * (mapSt - _qStStart) / (_qStEnd - _qStStart + 1e-6f);
+					mapAe = 0.1f * (mapAe - _qAeStart) / (_qAeEnd - _qAeStart + 1e-6f);
+
+					auto anomalyMap = 0.5f * (mapSt + mapAe);
+					return anomalyMap;
+					};
+
+				// --- 6-channel input (teacher/student split) ---
 				if (inputShape[1] == 6)
 				{
-					auto splitResult = torch::split(x[0], 3, 1);
+					auto splitResult = torch::split(inputTensor, 3, 1);
 					auto& input = splitResult[0];
 					auto& aeInput = splitResult[1];
 
-					// Teacher forward (no gradient)
 					torch::Tensor teacherOut, aeTeacherOut;
 					{
-						torch::NoGradGuard noGrad;
+						torch::NoGradGuard noGrad; // Teacher is frozen
 						teacherOut = (_teacher->forward(input) - _teacherMean) / _teacherStd;
 						aeTeacherOut = (_teacher->forward(aeInput) - _teacherMean) / _teacherStd;
 					}
 
-					// Student forward
-					auto studentOutFull = _student->forward(input);
-					auto studentOut = studentOutFull.narrow(1, 0, outChannels);  // First half
-
-					// AE forward
-					auto aeStudentOutFull = _student->forward(aeInput);
-					auto aeStudentOut = aeStudentOutFull.narrow(1, outChannels, outChannels);  // Second half
-
-					auto aeOut = _ae->forward(aeInput);
-
-					auto targetSize = teacherOut.sizes().slice(2);
-					aeOut = torch::nn::functional::interpolate(aeOut,
-						torch::nn::functional::InterpolateFuncOptions()
-						.size(std::vector<int64_t>{targetSize[0], targetSize[1]})
-						.mode(torch::kBilinear)
-						.align_corners(false));
-
-					// Return all outputs for loss computation
-					return { teacherOut, studentOut, aeTeacherOut, aeStudentOut, aeOut };
-				}
-				else 
-				{
-					// Inference mode: expects [image]
-					auto& input = x[0];
-
-					torch::Tensor teacherOut, studentOut, aeOut;
+					if (is_training())
 					{
-						torch::NoGradGuard noGrad;
-						teacherOut = (_teacher->forward(input) - _teacherMean) / _teacherStd;
+						// Student and AE forward for training (requires grad)
+						auto studentOut = _student->forward(input).narrow(1, 0, outChannels);
+						auto aeStudentOut = _student->forward(aeInput).narrow(1, outChannels, outChannels);
+						auto aeOutFromAEInput = _ae->forward(aeInput);
 
-						auto studentOutFull = _student->forward(input);
-						studentOut = studentOutFull.narrow(1, 0, outChannels);  // First half
-
-						aeOut = _ae->forward(input);
-						auto targetSize = teacherOut.sizes().slice(2);
-						aeOut = torch::nn::functional::interpolate(aeOut,
-							torch::nn::functional::InterpolateFuncOptions()
-							.size(std::vector<int64_t>{targetSize[0], targetSize[1]})
-							.mode(torch::kBilinear)
-							.align_corners(false));
+						return { teacherOut, studentOut, aeTeacherOut, aeStudentOut, aeOutFromAEInput };
 					}
+					else
+					{
+						// Evaluation branch (all no_grad)
+						torch::NoGradGuard noGrad;
+						auto studentOut = _student->forward(input).narrow(1, 0, outChannels);
+						auto aeStudentOut = _student->forward(aeInput).narrow(1, outChannels, outChannels);
+						auto aeOutFromAEInput = _ae->forward(aeInput);
+						auto aeOut = _ae->forward(input);
 
-					// Compute anomaly maps
-					auto mapSt = torch::mean(torch::pow(teacherOut - studentOut, 2), 1, true);
-					auto mapAe = torch::mean(torch::pow(teacherOut - aeOut, 2), 1, true);
+						auto anomalyMap = computeAnomalyMap(teacherOut, studentOut, aeOut);
+						auto predScore = std::get<0>(torch::max(anomalyMap.flatten(2), 2));
 
-					mapSt = (mapSt - _qStStart) / (_qStEnd - _qStStart + 1e-6f);
-					mapAe = (mapAe - _qAeStart) / (_qAeEnd - _qAeStart + 1e-6f);
-
-					auto anomalyMap = 0.5f * (mapSt + mapAe);
-					anomalyMap = torch::nn::functional::pad(anomalyMap,
-						torch::nn::functional::PadFuncOptions({ 4, 4, 4, 4 }).mode(torch::kReflect));
-					anomalyMap = torch::nn::functional::interpolate(anomalyMap,
-						torch::nn::functional::InterpolateFuncOptions()
-						.size(std::vector<int64_t>{ input.size(2), input.size(3) })
-						.mode(torch::kBilinear)
-						.align_corners(false));
-
-					auto predScore = torch::max(anomalyMap);
-
-					return { predScore, anomalyMap };
+						return { teacherOut, studentOut, aeTeacherOut, aeStudentOut, aeOutFromAEInput, predScore };
+					}
 				}
+
+				// --- Single input (1~3 channels) ---
+				torch::NoGradGuard noGrad; // Teacher and AE frozen
+				auto teacherOut = (_teacher->forward(inputTensor) - _teacherMean) / _teacherStd;
+				auto studentOut = _student->forward(inputTensor).narrow(1, 0, outChannels);
+				auto aeOut = _ae->forward(inputTensor);
+
+				auto anomalyMap = computeAnomalyMap(teacherOut, studentOut, aeOut);
+				auto predScore = std::get<0>(torch::max(anomalyMap.flatten(2), 2));
+
+				// padding & resize
+				anomalyMap = torch::nn::functional::pad(
+					anomalyMap,
+					torch::nn::functional::PadFuncOptions({ 4, 4, 4, 4 }).mode(torch::kReflect)
+				);
+
+				anomalyMap = torch::nn::functional::interpolate(
+					anomalyMap,
+					torch::nn::functional::InterpolateFuncOptions()
+					.size(std::vector<int64_t>{ inputTensor.size(2), inputTensor.size(3) })
+					.mode(torch::kBilinear)
+					.align_corners(false)
+				);
+
+
+				return { predScore, anomalyMap };
+			}
+
+			void EfficientADImpl::setQuantiles(const BatchIteratorFunc& batchIterator)
+			{
+				torch::NoGradGuard noGrad;
+				std::vector<torch::Tensor> studentMaps;
+				std::vector<torch::Tensor> aeMaps;
+				auto device = _teacherMean.device();
+
+				batchIterator([this, &studentMaps, &aeMaps, &device](const Data::Dataset::PredDataExample& batch, int batchIdx) {
+					auto image = batch.data.data().to(device);
+					auto outputs = getMap(image);
+					studentMaps.push_back(outputs[0].flatten());
+					aeMaps.push_back(outputs[1].flatten());
+				});
+
+				auto allStudentMaps = torch::cat(studentMaps);
+				auto allAeMaps = torch::cat(aeMaps);
+
+				_qStStart.set_(torch::quantile(allStudentMaps, 0.9f));
+				_qStEnd.set_(torch::quantile(allStudentMaps, 0.995f));
+				_qAeStart.set_(torch::quantile(allAeMaps, 0.9f));
+				_qAeEnd.set_(torch::quantile(allAeMaps, 0.995f));
 			}
 
 			void EfficientADImpl::loadTeacherWeights(const std::string& path)
@@ -370,7 +412,7 @@ namespace WheelDL {
 			return features;
 		}
 
-		std::vector<torch::Tensor> PatchCoreImpl::forward(std::vector<torch::Tensor> x)
+		std::vector<torch::Tensor> PatchCoreImpl::forward(std::vector<torch::Tensor>& x)
 		{
 			if (x.empty()) {
 				throw std::invalid_argument("PatchCoreImpl::forward - input vector is empty");
@@ -420,7 +462,6 @@ namespace WheelDL {
 			auto res = xNorm - 2 * torch::mm(x, y.t()) + yNorm.t();
 			return res.clamp_min_(1e-12).sqrt_();
 		}
-
 
 		std::tuple<torch::Tensor, torch::Tensor> PatchCoreImpl::nearestNeighbors(
 			const torch::Tensor& embedding,

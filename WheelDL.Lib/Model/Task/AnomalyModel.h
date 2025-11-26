@@ -33,14 +33,6 @@ namespace WheelDL {
              */
             bool loadPretrained(const std::string& weightsPath);
 
-            using BaseModel::forward;
-            /**
-             * @brief Main forward pass for inference
-             *
-             * @param x Input tensor for inference
-             * @return Output tensor(s) - vector for multi-scale outputs
-			 */
-            std::unordered_map<std::string, torch::Tensor> forward(const Data::Dataset::DataExample& data);
 
             /**
              * @brief Set teacher feature normalization parameters (EfficientAD only)
@@ -87,10 +79,9 @@ namespace WheelDL {
              * Computes quantiles of anomaly maps on validation data.
              * Must be called after training and before inference.
              *
-             * @param loader DataLoader with normal validation samples
+             * @param batchIterator Type-erased batch iterator function
              */
-            template<typename DataLoader>
-            void prepareValidation(DataLoader& loader)
+            void prepareValidation(const Modules::BatchIteratorFunc& batchIterator)
             {
                 // Check if the model implements IFeaturePreparable
                 auto preparable = std::dynamic_pointer_cast<Modules::IFeaturePreparable>(_anomalyModel);
@@ -101,13 +92,13 @@ namespace WheelDL {
                     case Loss::AnomalyLoss::LossType::EfficientAD:
                     {
                         auto efficientAD = _anomalyModel->as<Modules::EfficientAD>();
-                        efficientAD->setQuantiles(loader);
+                        efficientAD->setQuantiles(batchIterator);
                         break;
                     }
                     case Loss::AnomalyLoss::LossType::PatchCore:
                     {
                         break;
-					}
+                    }
                     default:
                         // No feature preparation needed for other loss types
                         break;

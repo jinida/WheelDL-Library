@@ -49,9 +49,9 @@ namespace WheelDL {
                 const std::vector<torch::Tensor>& predictions)
             {
                 // Validate input size
-                if (predictions.size() != 5) {
+                if (predictions.size() < 5) {
                     throw std::invalid_argument(
-                        "EfficientAD loss requires exactly 5 inputs: "
+						"EfficientAD loss requires exactly more than 5 prediction tensors: "
                         "[teacher_out, student_out, ae_teacher_out, ae_student_out, ae_out], got " +
                         std::to_string(predictions.size())
                     );

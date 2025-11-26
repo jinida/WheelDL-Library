@@ -66,8 +66,9 @@ namespace WheelDL {
                 setSaveIndices(builder.getSaveIndices());
 
                 determineLossType();
-
+                _config->setWarmupEpochs(0);
                 _config->setImageSize(256);
+
                 _criterion = initCriterion();
                 _isInitialized = true;
             }
@@ -123,7 +124,6 @@ namespace WheelDL {
                         _lossType = AnomalyLoss::LossType::PatchCore;
 						_config->setIsPatchCore(true);
                         _config->setEpochs(0);
-                        _config->setWarmupEpochs(0);
                         return;
                     }
                     else if (modelType == "SimpleNet") {
@@ -144,21 +144,6 @@ namespace WheelDL {
                 WheelDL::Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
                 "No Anomaly head found in model sequence"
             );
-        }
-
-        std::unordered_map<std::string, torch::Tensor> AnomalyModel::forward(const Data::Dataset::DataExample& batch)
-        {
-            if (_lossType != Loss::AnomalyLoss::LossType::EfficientAD)
-            {
-                return loss(batch);
-			}
-            else
-            {
-                Data::Dataset::DataExample currentData;
-                currentData.data = torch::cat({ batch.data, batch.targets }, 1);
-			    currentData.classes = batch.classes;
-                return loss(currentData);
-            }
         }
     } // namespace Model
 } // namespace WheelDL

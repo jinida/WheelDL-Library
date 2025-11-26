@@ -2,11 +2,17 @@
 
 #include <torch/torch.h>
 #include "Interfaces.h"
+#include "../../Data/Dataset/BaseDataset.h"
+#include "../../Data/Dataset/PredDataset.h"
 #include <unordered_map>
+#include <functional>
 
 namespace WheelDL {
 	namespace Model {
 		namespace Modules {
+
+			// Type-erased batch iterator for DataLoader independence
+			using BatchIteratorFunc = std::function<void(std::function<void(const Data::Dataset::PredDataExample&, int)>)>;
 
 			/**
 			 * @brief EfficientAD Model for Anomaly Detection
@@ -61,7 +67,7 @@ namespace WheelDL {
 				 * @param x Input tensor(s)
 				 * @return std::vector<torch::Tensor> Output tensor(s)
 				 */
-				std::vector<torch::Tensor> forward(std::vector<torch::Tensor> x) override;
+				std::vector<torch::Tensor> forward(std::vector<torch::Tensor>& x) override;
 
 				/**
 				 * @brief Get model type identifier
@@ -91,35 +97,35 @@ namespace WheelDL {
 
 					std::vector<torch::Tensor> meanOutputs;
 					std::vector<torch::Tensor> meanDistances;
-
+					auto device = _teacherMean.device();
 					// First pass: compute mean
 					{
 						torch::NoGradGuard noGrad;
 						for (auto& batch : loader) {
-							auto image = batch.data.data();
-							auto features = _teacher->forward(image);
+							auto image = batch.data.data().to(device);
+							auto input = image.slice(1, 0, 3);
+							auto features = _teacher->forward(input);
 							meanOutputs.push_back(torch::mean(features, { 0, 2, 3 }));
 						}
 					}
 
 					// IMPORTANT: Use set_() to update registered buffers in-place
-					_teacherMean.set_(torch::mean(torch::stack(meanOutputs), 0)
-						.unsqueeze(0).unsqueeze(-1).unsqueeze(-1));
+					_teacherMean.set_(torch::mean(torch::stack(meanOutputs), 0).unsqueeze(0).unsqueeze(-1).unsqueeze(-1));
 
 					// Second pass: compute std
 					{
 						torch::NoGradGuard noGrad;
 						for (auto& batch : loader)
 						{
-							auto image = batch.data.data();
-							auto features = _teacher->forward(image);
+							auto image = batch.data.data().to(device);
+							auto input = image.slice(1, 0, 3);
+							auto features = _teacher->forward(input);
 							auto distances = torch::mean(torch::pow(features - _teacherMean, 2), { 0, 2, 3 });
 							meanDistances.push_back(distances);
 						}
 					}
 
-					auto channelVar = torch::mean(torch::stack(meanDistances), 0)
-						.unsqueeze(0).unsqueeze(-1).unsqueeze(-1);
+					auto channelVar = torch::mean(torch::stack(meanDistances), 0).unsqueeze(0).unsqueeze(-1).unsqueeze(-1);
 					_teacherStd.set_(torch::sqrt(channelVar + 1e-6f));
 				}
 
@@ -129,43 +135,9 @@ namespace WheelDL {
 				 * Computes quantiles of student and AE anomaly maps on normal training data.
 				 * Must be called after training and before inference.
 				 *
-				 * @param loader DataLoader with normal training samples
+				 * @param batchIterator Type-erased batch iterator function
 				 */
-				template<typename DataLoader>
-				void setQuantiles(DataLoader& loader)
-				{
-					bool isTraining = this->is_training();
-					if (isTraining)
-					{
-						this->eval();
-					}
-
-					{
-						torch::NoGradGuard noGrad;
-						std::vector<torch::Tensor> studentMaps;
-						std::vector<torch::Tensor> aeMaps;
-
-						for (auto& batch : loader)
-						{
-							auto image = batch.data.data();
-							auto outputs = this->forward({ image });
-							studentMaps.push_back(outputs[0].flatten());
-							aeMaps.push_back(outputs[1].flatten());
-						}
-						auto allStudentMaps = torch::cat(studentMaps);
-						auto allAeMaps = torch::cat(aeMaps);
-						// IMPORTANT: Use set_() to update registered buffers in-place
-						_qStStart.set_(torch::quantile(allStudentMaps, 0.9f));
-						_qStEnd.set_(torch::quantile(allStudentMaps, 0.995f));
-						_qAeStart.set_(torch::quantile(allAeMaps, 0.9f));
-						_qAeEnd.set_(torch::quantile(allAeMaps, 0.995f));
-					}
-
-					if (isTraining)
-					{
-						this->train();
-					}
-				}
+				void setQuantiles(const BatchIteratorFunc& batchIterator);
 
 				/**
 				 * @brief Load teacher network weights
@@ -198,6 +170,8 @@ namespace WheelDL {
 				 * @return torch::nn::Sequential AutoEncoder network
 				 */
 				torch::nn::Sequential buildAutoEncoder(int64_t outCh);
+
+				std::vector<torch::Tensor> getMap(torch::Tensor& x);
 
 				// Sub-networks
 				torch::nn::Sequential _teacher = nullptr;   ///< Teacher network (frozen)
@@ -273,7 +247,7 @@ namespace WheelDL {
 				 * @param x Input tensor(s)
 				 * @return Output tensor(s)
 				 */
-				std::vector<torch::Tensor> forward(std::vector<torch::Tensor> x) override;
+				std::vector<torch::Tensor> forward(std::vector<torch::Tensor>& x) override;
 
 				/**
 				 * @brief Get model type identifier
