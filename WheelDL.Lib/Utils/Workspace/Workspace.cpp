@@ -171,6 +171,16 @@ namespace WheelDL {
                 );
             }
             logger->debug("Workspace", "Created profiler directory: " + _profilerDir);
+
+            _resultDir = _workspaceRoot + "/result";
+            if (!PathValidator::createDirectoryIfNotExists(_resultDir)) {
+                logger->error("Workspace", "Failed to create result directory: " + _resultDir);
+                throw WheelLibException(
+                    ErrorCode::FILE_IO_ERROR,
+                    "Failed to create result directory: " + _resultDir
+                );
+            }
+            logger->debug("Workspace", "Created result directory: " + _resultDir);
         }
 
     } // namespace Utils

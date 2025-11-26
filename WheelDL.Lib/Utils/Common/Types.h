@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include <functional>
+#include <opencv2/core/core.hpp>
 
 namespace WheelDL {
 
@@ -90,6 +91,7 @@ namespace WheelDL {
 		float f1Score;
 		float mAP;
 		float fitness;
+		float threshold;
 	};
 
 	/**
@@ -137,7 +139,7 @@ namespace WheelDL {
 		std::vector<float> scores;                  // Confidence scores
 		std::vector<unsigned int> classIds;         // Class IDs
 		std::vector<Contour> contours;              // Segmentation contours (optional)
-
+		cv::Mat anomalyMap;
 		// Original image shape (for coordinate scaling)
 		std::pair<int, int> originalShape;          // (height, width)
 

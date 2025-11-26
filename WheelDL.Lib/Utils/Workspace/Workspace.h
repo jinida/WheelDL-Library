@@ -104,6 +104,8 @@ namespace WheelDL {
              */
             bool exists() const;
 
+			std::string getResultDir() const { return _resultDir; }
+
         private:
             /**
              * @brief Generate timestamp string in YYYYMMDD_HHMMSS format
@@ -120,6 +122,7 @@ namespace WheelDL {
             std::string _weightsDir;
             std::string _logsDir;
             std::string _profilerDir;
+			std::string _resultDir;
             std::string _timestamp;
         };
 
