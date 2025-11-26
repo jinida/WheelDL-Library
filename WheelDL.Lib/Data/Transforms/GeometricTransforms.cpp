@@ -135,7 +135,8 @@ namespace WheelDL
 
                 // Resize image
                 cv::Mat resized;
-                cv::resize(image, resized, cv::Size(newWidth, newHeight), 0, 0, cv::INTER_LINEAR);
+				auto flag = scale < 1.0f ? cv::INTER_AREA : cv::INTER_LINEAR;
+                cv::resize(image, resized, cv::Size(newWidth, newHeight), 0, 0, flag);
 
                 // Create canvas with fill color (OpenCV uses BGR order)
                 cv::Mat canvas(targetHeight_, targetWidth_, image.type(),
@@ -283,12 +284,6 @@ namespace WheelDL
                 unsigned int width = static_cast<unsigned int>(image.cols);
                 unsigned int height = static_cast<unsigned int>(image.rows);
 
-                // Validate output size to prevent excessive memory usage
-                const unsigned int MAX_DIMENSION = 16384;  // 16K pixels max per dimension
-                if (targetWidth_ > MAX_DIMENSION || targetHeight_ > MAX_DIMENSION) {
-                    throw std::runtime_error("Target dimensions exceed maximum allowed size (16384x16384)");
-                }
-
                 // Validate memory requirements (assume 3 bytes per pixel for BGR)
                 const size_t MAX_PIXELS = 256 * 1024 * 1024;  // 256M pixels max (~768MB)
                 size_t totalPixels = static_cast<size_t>(targetWidth_) * static_cast<size_t>(targetHeight_);
@@ -299,8 +294,6 @@ namespace WheelDL
                 // Generate random perspective transformation matrix
                 cv::Mat transformMat = generatePerspectiveMatrix(width, height);
 
-                // Apply transformation using Annotation::transform()
-                // This will transform both the image and annotations, then clip and filter
                 annotations.transform(image, transformMat,
                                      cv::Size(static_cast<int>(targetWidth_), static_cast<int>(targetHeight_)),
                                      cv::Scalar(borderB_, borderG_, borderR_),
@@ -408,6 +401,42 @@ namespace WheelDL
                                                            borderR_, borderG_, borderB_, minAreaPixels_);
             }
 
-        } // namespace Transforms
+            EfficientADTransform::EfficientADTransform(std::unique_ptr<Compose> a, std::unique_ptr<Compose> b)
+                : branchA_(std::move(a)), branchB_(std::move(b))
+            {
+                if (!branchA_ || !branchB_) {
+                    throw std::invalid_argument("Both branchA and branchB must be valid Compose objects.");
+                }
+            }
+
+            void EfficientADTransform::apply(cv::Mat& image, Annotation& annotations)
+            {
+                if (image.empty())
+                    throw std::runtime_error("Input image is empty.");
+
+                cv::Mat a = image.clone();
+                branchA_->apply(a, annotations);
+
+                cv::Mat b = image.clone();
+                branchB_->apply(b, annotations);
+
+                std::vector<cv::Mat> chA, chB;
+                cv::split(a, chA);
+                cv::split(b, chB);
+
+                chA.insert(chA.end(), chB.begin(), chB.end());
+
+                cv::merge(chA, image);
+            }
+
+            std::unique_ptr<Transform> EfficientADTransform::clone() const
+            {
+                return std::make_unique<EfficientADTransform>(
+                    std::unique_ptr<Compose>(static_cast<Compose*>(branchA_->clone().release())),
+                    std::unique_ptr<Compose>(static_cast<Compose*>(branchB_->clone().release()))
+                );
+            }
+
+} // namespace Transforms
     } // namespace Data
 } // namespace WheelDL

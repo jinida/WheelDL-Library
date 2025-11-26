@@ -173,6 +173,23 @@ namespace WheelDL
                 cv::Mat generatePerspectiveMatrix(unsigned int width, unsigned int height);
             };
 
+            class EfficientADTransform : public Transform
+            {
+            public:
+                EfficientADTransform(std::unique_ptr<Compose> branchA, std::unique_ptr<Compose> branchB);
+
+                void apply(cv::Mat& image, Annotation& annotations) override;
+
+                std::string getName() const override { return "EfficientADTransform"; }
+                std::unique_ptr<Transform> clone() const override;
+
+            private:
+                std::unique_ptr<Compose> branchA_;
+                std::unique_ptr<Compose> branchB_;
+
+                EfficientADTransform(const EfficientADTransform&) = delete;
+                EfficientADTransform& operator=(const EfficientADTransform&) = delete;
+            };
         } // namespace Transforms
     } // namespace Data
 } // namespace WheelDL

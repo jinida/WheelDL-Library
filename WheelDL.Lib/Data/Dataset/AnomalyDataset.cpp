@@ -140,53 +140,48 @@ namespace WheelDL
 
             std::shared_ptr<Transforms::Transform> AnomalyDataset::buildTransforms()
             {
-                if (_train)
+                if (_config.IsEfficientAD())
                 {
-                    auto aeTransform = std::make_unique<Transforms::Compose>();
-                    aeTransform->addTransform(std::make_unique<Transforms::LetterBox>(_config.getImageSize(), _config.getImageSize()));
-                    aeTransform->addTransform(std::make_unique<Transforms::ColorJitter>(0.2f, 0.2f, 0.2f, 0.0f));
-                    aeTransform->addTransform(std::make_unique<Transforms::ToTensor>());
-                    aeTransform->addTransform(std::make_unique<Transforms::Normalize>(Transforms::Normalize::imageNet()));
-                    _aeTransforms = std::move(aeTransform);
-                }
+                    auto transform1 = std::make_unique<Transforms::Compose>();
+                    transform1->addTransform(std::make_unique<Transforms::LetterBox>(_config.getImageSize(), _config.getImageSize()));
+                    transform1->addTransform(std::make_unique<Transforms::ToTensor>());
+                    transform1->addTransform(std::make_unique<Transforms::Normalize>(Transforms::Normalize::imageNet()));
 
-				auto transform = std::make_shared<Transforms::Compose>();
-                transform->addTransform(std::make_unique<Transforms::LetterBox>(_config.getImageSize(), _config.getImageSize()));
-                if (_train)
-                {
-					transform->addTransform(std::make_unique<Transforms::RandomHorizontalFlip>(_config.getFlipLR()));
+                    auto transform2 = std::make_unique<Transforms::Compose>();
+                    transform2->addTransform(std::make_unique<Transforms::LetterBox>(_config.getImageSize(), _config.getImageSize()));
+                    transform2->addTransform(std::make_unique<Transforms::ColorJitter>(0.1f, 0.1f, 0.1f, 0.0f));
+                    transform2->addTransform(std::make_unique<Transforms::ToTensor>());
+
+                    return std::make_shared<Transforms::EfficientADTransform>(
+                        std::move(transform1),
+                        std::move(transform2)
+                    );
                 }
-                transform->addTransform(std::make_unique<Transforms::ToTensor>());
-                transform->addTransform(std::make_unique<Transforms::Normalize>(Transforms::Normalize::imageNet()));
-				return transform;
+                else 
+                {
+				    auto transform = std::make_shared<Transforms::Compose>();
+                    transform->addTransform(std::make_unique<Transforms::LetterBox>(_config.getImageSize(), _config.getImageSize()));
+                    if (_train)
+                    {
+					    transform->addTransform(std::make_unique<Transforms::RandomHorizontalFlip>(_config.getFlipLR()));
+                    }
+                    transform->addTransform(std::make_unique<Transforms::ToTensor>());
+                    transform->addTransform(std::make_unique<Transforms::Normalize>(Transforms::Normalize::imageNet()));
+    				return transform;
+                }
             }
 
             torch::Tensor AnomalyDataset::getTargetTensor(size_t index, const Annotation& annotations)
             {
-                // Get anomaly label from annotation
-                if (_config.IsEfficientAD() && _train)
+                const auto& classes = annotations.getClasses();
+
+                if (classes.empty())
                 {
-                    auto [image, annotations] = loadSample(index);
-					_aeTransforms->apply(image, annotations);
-
-                    return imageToTensor(image);
+                    return torch::tensor({1}, torch::kLong);
                 }
-                else
-                {
-                    const auto& classes = annotations.getClasses();
 
-                    if (classes.empty())
-                    {
-                        // No label available (training with normal images only)
-                        // Return as 1D tensor with single element (required for collation)
-                        return torch::tensor({1}, torch::kLong);  // 1 indicates unknown/unlabeled
-                    }
-
-                    int label = classes[0];  // 0 = normal, 1 = anomaly
-
-                    // Return as 1D tensor with single element (required for collation)
-                    return torch::tensor({label}, torch::kLong);
-                }
+                int label = classes[0];
+                return torch::tensor({label}, torch::kLong);
             }
 
         } // namespace Dataset

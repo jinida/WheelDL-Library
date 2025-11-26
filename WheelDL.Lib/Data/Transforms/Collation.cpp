@@ -63,5 +63,24 @@ namespace WheelDL {
 			}
 		}
 
+		WheelDL::Data::Dataset::PredDataExample PredDataExampleCollation::apply_batch(std::vector<WheelDL::Data::Dataset::PredDataExample> examples)
+		{
+			std::vector<torch::Tensor> dataTensors;
+			std::vector<std::string> imagePaths;
+			std::vector<std::tuple<int, int>> originalShapes;
+			for (auto& example : examples)
+			{
+				dataTensors.push_back(std::move(example.data));
+				imagePaths.push_back(std::move(example.imagePath[0]));
+				originalShapes.push_back(std::move(example.originalShape[0]));
+			}
+			torch::Tensor stackedData = torch::stack(dataTensors, 0);
+			return WheelDL::Data::Dataset::PredDataExample{
+				std::move(stackedData),
+				std::move(imagePaths),
+				std::move(originalShapes)
+			};
+		}
+
 	} // namespace Data
 } // namespace WheelDL

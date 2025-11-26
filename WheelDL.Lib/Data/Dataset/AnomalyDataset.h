@@ -24,8 +24,7 @@ namespace WheelDL
                  * @param config Configuration object containing all settings
                  * @param train Whether this is training dataset (affects transforms)
                  */
-                AnomalyDataset(const Config::Configuration& config,
-                              bool train = true);
+                AnomalyDataset(const Config::Configuration& config, bool train = true);
 
             protected:
                 /**
@@ -63,9 +62,6 @@ namespace WheelDL
                  * @return torch::Tensor Label tensor [1] (0=normal, 1=anomaly), or -1 if unknown
                  */
                 torch::Tensor getTargetTensor(size_t index, const Annotation& annotations) override;
-
-            private:
-                std::shared_ptr<Transforms::Transform> _aeTransforms;
             };
 
         } // namespace Dataset

@@ -229,6 +229,14 @@ namespace WheelDL
                     }
                 }
 
+                void limitSamples(size_t maxSamples) 
+                {
+                    if (maxSamples > 0 && maxSamples < _imagePaths.size()) 
+                    {
+                        _imagePaths.resize(maxSamples);
+                    }
+                }
+
                 /**
                  * @brief Get data path
                  */
@@ -548,7 +556,7 @@ namespace WheelDL
 
                 /**
                  * @brief Convert OpenCV image to LibTorch tensor
-                 * @param image OpenCV image (BGR format)
+                 * @param image OpenCV image (BGR format, supports multi-channel)
                  * @return torch::Tensor Image tensor [C, H, W] in float32
                  */
                 torch::Tensor imageToTensor(const cv::Mat& image)
@@ -562,9 +570,19 @@ namespace WheelDL
                         );
                     }
 
-                    // Convert to float (without normalization - ToTensor will handle that)
                     cv::Mat floatImage;
-                    image.convertTo(floatImage, CV_32FC3);
+                    int channels = image.channels();
+
+                    // If already float32, no conversion needed
+                    if (image.depth() == CV_32F)
+                    {
+                        floatImage = image;
+                    }
+                    else
+                    {
+                        // Convert to float with dynamic channel count
+                        image.convertTo(floatImage, CV_32FC(channels));
+                    }
 
                     // Ensure image data is continuous in memory for safe torch::from_blob
                     if (!floatImage.isContinuous())
@@ -575,7 +593,7 @@ namespace WheelDL
                     // Create tensor directly without unnecessary copy
                     // Using torch::empty + memcpy instead of from_blob + clone
                     torch::Tensor tensor = torch::empty(
-                        { floatImage.rows, floatImage.cols, 3 },
+                        { floatImage.rows, floatImage.cols, channels },
                         torch::kFloat32
                     );
                     std::memcpy(

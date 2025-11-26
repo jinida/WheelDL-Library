@@ -537,24 +537,23 @@ namespace WheelDL
 
                 int totalPixels = image.rows * image.cols;
 
-#if defined(_MSC_VER) || defined(__AVX2__)
-                // Use AVX2 optimized path if available
-                if (hasAVX2())
-                {
-                    // Create output Mat for float32
-                    cv::Mat floatImage(image.rows, image.cols, CV_32FC3);
+//#if defined(_MSC_VER) || defined(__AVX2__)
+//                // Use AVX2 optimized path if available
+//                if (hasAVX2())
+//                {
+//                    // Create output Mat for float32
+//                    cv::Mat floatImage(image.rows, image.cols, CV_32FC3);
+//
+//                    // Convert uint8 to float with optional BGR->RGB using AVX2
+//                    toTensorAVX2(image.data, reinterpret_cast<float*>(floatImage.data), totalPixels, bgrToRgb_);
+//
+//                    // Replace input image with converted one (use move to avoid reference counting overhead)
+//                    image = std::move(floatImage);
+//                    return;
+//                }
+//#endif
 
-                    // Convert uint8 to float with optional BGR->RGB using AVX2
-                    toTensorAVX2(image.data, reinterpret_cast<float*>(floatImage.data), totalPixels, bgrToRgb_);
-
-                    // Replace input image with converted one (use move to avoid reference counting overhead)
-                    image = std::move(floatImage);
-                    return;
-                }
-#endif
-
-                // Fallback: use OpenCV functions
-                // Convert to float [0, 1] in-place
+               
                 image.convertTo(image, CV_32FC3, 1.0 / 255.0);
 
                 // Convert BGR to RGB if requested (in-place)
@@ -563,9 +562,6 @@ namespace WheelDL
                     cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
                 }
 
-                // Note: We keep the image in HWC format for OpenCV compatibility
-                // The actual CHW conversion would be done by the framework (PyTorch/TensorFlow)
-                // when copying to tensor memory
             }
 
             std::unique_ptr<Transform> ToTensor::clone() const
@@ -591,75 +587,106 @@ namespace WheelDL
 
             void ColorJitter::apply(cv::Mat& image, Annotation& annotations)
             {
-                if (image.empty())
+                if (image.empty() || image.type() != CV_8UC3)
                 {
                     return;
                 }
 
-                // Ensure image is uint8
-                if (image.type() != CV_8UC3)
+                float b_factor = 1.0f;
+                if (brightness_ > 0.0f)
                 {
-                    return;  // Skip if not standard format
+                    float b_min = std::max(0.0f, 1.0f - brightness_);
+                    float b_max = 1.0f + brightness_;
+                    b_factor = rng_.uniformFloat(b_min, b_max);
                 }
 
-                // Apply brightness and contrast together (single convertTo call)
-                if (brightness_ > 0.0f || contrast_ > 0.0f)
+                float c_factor = 1.0f;
+                if (contrast_ > 0.0f)
                 {
-                    float brightnessFactor = brightness_ > 0.0f ?
-                        rng_.uniformFloat(1.0f - brightness_, 1.0f + brightness_) : 1.0f;
-                    float contrastFactor = contrast_ > 0.0f ?
-                        rng_.uniformFloat(1.0f - contrast_, 1.0f + contrast_) : 1.0f;
-
-                    // Combined factor: brightness * contrast (in-place)
-                    float combinedFactor = brightnessFactor * contrastFactor;
-                    image.convertTo(image, -1, combinedFactor, 0);
+                    float c_min = std::max(0.0f, 1.0f - contrast_);
+                    float c_max = 1.0f + contrast_;
+                    c_factor = rng_.uniformFloat(c_min, c_max);
                 }
 
-                // Apply saturation and hue adjustments using OpenCV cvtColor
-                if (saturation_ > 0.0f || hue_ > 0.0f)
+                float s_factor = 1.0f;
+                if (saturation_ > 0.0f)
                 {
-                    float saturationFactor = saturation_ > 0.0f ?
-                        rng_.uniformFloat(1.0f - saturation_, 1.0f + saturation_) : 1.0f;
-                    float hueShift = hue_ > 0.0f ?
-                        rng_.uniformFloat(-hue_, hue_) : 0.0f;
+                    float s_min = std::max(0.0f, 1.0f - saturation_);
+                    float s_max = 1.0f + saturation_;
+                    s_factor = rng_.uniformFloat(s_min, s_max);
+                }
 
-                    // Convert BGR to HSV using OpenCV (more accurate and avoids floating-point errors)
-                    cv::Mat hsvImage;
-                    cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
+                float h_factor = 0.0f;
+                if (hue_ > 0.0f)
+                {
+                    h_factor = rng_.uniformFloat(-hue_, hue_);
+                }
 
-                    // OpenCV HSV ranges: H=[0,180), S=[0,255], V=[0,255]
-                    // Note: OpenCV uses H/2 to fit in uint8 (0-360° → 0-180)
+                std::vector<int> transforms = { 0, 1, 2, 3 };
+                rng_.shuffle(transforms);
+                cv::Mat gray_3c_buffer_;
+                cv::Mat hsv_buffer_;
 
-                    // Adjust HSV values
-                    uint8_t* data = hsvImage.data;
-                    int totalPixels = hsvImage.rows * hsvImage.cols;
-
-                    for (int i = 0; i < totalPixels; ++i)
+                for (int transform_idx : transforms)
+                {
+                    switch (transform_idx)
                     {
-                        int idx = i * 3;
-
-                        // Apply hue shift (H channel is in [0, 180) range)
-                        if (hue_ > 0.0f)
+                    case 0: // Brightness
+                        if (std::abs(b_factor - 1.0f) > 1e-5)
                         {
-                            // Convert hueShift from degrees to OpenCV range [0, 180)
-                            float hueShiftScaled = hueShift / 2.0f;
-                            int h = static_cast<int>(data[idx] + hueShiftScaled);
-                            // Wrap around [0, 180)
-                            if (h < 0) h += 180;
-                            if (h >= 180) h -= 180;
-                            data[idx] = static_cast<uint8_t>(h);
+                            image.convertTo(image, -1, b_factor, 0);
                         }
+                        break;
 
-                        // Apply saturation adjustment (S channel is in [0, 255] range)
-                        if (saturation_ > 0.0f)
+                    case 1: // Contrast
+                        if (std::abs(c_factor - 1.0f) > 1e-5)
                         {
-                            float s = data[idx + 1] * saturationFactor;
-                            data[idx + 1] = static_cast<uint8_t>(std::clamp(s, 0.0f, 255.0f));
+                            cv::Mat gray_1c;
+                            cv::cvtColor(image, gray_1c, cv::COLOR_BGR2GRAY);
+                            cv::cvtColor(gray_1c, gray_3c_buffer_, cv::COLOR_GRAY2BGR);
+                            cv::addWeighted(image, c_factor, gray_3c_buffer_, 1.0f - c_factor, 0, image);
                         }
+                        break;
+
+                    case 2: // Saturation
+                        if (std::abs(s_factor - 1.0f) > 1e-5)
+                        {
+                            cv::Mat gray_1c;
+                            cv::cvtColor(image, gray_1c, cv::COLOR_BGR2GRAY);
+
+                            // [최적화 2] gray_3c_buffer_ 재사용
+                            cv::cvtColor(gray_1c, gray_3c_buffer_, cv::COLOR_GRAY2BGR);
+
+                            cv::addWeighted(image, s_factor, gray_3c_buffer_, 1.0f - s_factor, 0, image);
+                        }
+                        break;
+
+                    case 3: // Hue
+                        if (std::abs(h_factor) > 1e-5)
+                        {
+                            cv::cvtColor(image, hsv_buffer_, cv::COLOR_BGR2HSV);
+
+                            uint8_t* data = hsv_buffer_.data;
+                            int totalPixels = hsv_buffer_.rows * hsv_buffer_.cols;
+                            float hueShiftScaled = h_factor / 2.0f; // OpenCV Hue range [0, 180)
+
+                            cv::parallel_for_(cv::Range(0, totalPixels), [&](const cv::Range& range) {
+                                for (int i = range.start; i < range.end; ++i)
+                                {
+                                    int idx = i * 3; // H channel index
+                                    int h = static_cast<int>(data[idx] + hueShiftScaled);
+
+                                    if (h < 0) h += 180;
+                                    else if (h >= 180) h -= 180;
+
+                                    data[idx] = static_cast<uint8_t>(h);
+                                }
+                                });
+
+                            cv::cvtColor(hsv_buffer_, image, cv::COLOR_HSV2BGR);
+                        }
+                        break;
                     }
-
-                    // Convert HSV back to BGR using OpenCV
-                    cv::cvtColor(hsvImage, image, cv::COLOR_HSV2BGR);
                 }
             }
 
