@@ -15,6 +15,7 @@ namespace WheelDL {
                 , _device(device)
             {
                 _logger->info("BaseValidator", "Validator initialized");
+                setupDevice();
             }
 
             BaseValidator::~BaseValidator()
@@ -29,7 +30,8 @@ namespace WheelDL {
 
                 _profiler.start("validation");
 
-                if (!_batchIterator) {
+                if (!_batchIterator) 
+                {
                     // Try to setup data loader if not injected
                     setupDataLoader();
 
@@ -39,9 +41,7 @@ namespace WheelDL {
                     }
                 }
 
-                setupDevice();
 				model.to(_device);
-                // Set model to evaluation mode
                 model.eval();
 
                 torch::NoGradGuard noGrad;  // Disable gradient computation

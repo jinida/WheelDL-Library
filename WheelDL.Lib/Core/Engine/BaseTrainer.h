@@ -25,6 +25,15 @@
 #include "../Utils/Checkpoint.h"
 #include "../Utils/CheckpointMetadata.h"
 
+// Forward declarations
+namespace WheelDL {
+    namespace Core {
+        namespace Predictor {
+            class BasePredictor;
+        }
+    }
+}
+
 namespace WheelDL {
     namespace Core {
         namespace Trainer {
@@ -110,6 +119,7 @@ namespace WheelDL {
                  */
                 std::string getSaveDirectory() const;
 
+				void setCheckpoint(const std::string& checkpointPath) { _checkpointPath = checkpointPath; }
             protected:
                 // ========== Hook Methods (Pure Virtual) ==========
 
@@ -246,10 +256,69 @@ namespace WheelDL {
                 /**
                  * @brief Save checkpoint
                  * @param epoch Current epoch
-                 * @param fitness Current fitness
+                 * @param metrics Current metrics data
                  * @param isBest Whether this is the best checkpoint
                  */
-                void saveCheckpoint(int epoch, float fitness, bool isBest);
+                void saveCheckpoint(int epoch, bool isBest);
+
+                void saveTrainingResults();
+
+                virtual MetricsData runValidation(int epoch, bool useEmaIfAvailable);
+
+                /**
+                 * @brief Perform final validation with best model
+                 *
+                 * Loads best.pt checkpoint (or uses current model if not exists)
+                 * and performs final validation. Saves best_metrics.json.
+                 * If best.pt didn't exist, saves it after validation.
+                 */
+                void finalValidation();
+
+                /**
+                 * @brief Perform final prediction with best model
+                 *
+                 * Handles all common logic:
+                 * - Loading best.pt checkpoint
+                 * - Creating PredDataset and DataLoader
+                 * - Running prediction loop
+                 * - Calling task-specific export
+                 *
+                 * Uses hook methods for task-specific operations:
+                 * - setupPredictor() for creating predictor
+                 * - exportPredictionResults() for saving results
+                 */
+                void finalPrediction();
+
+                /**
+                 * @brief Setup task-specific predictor (pure virtual hook)
+                 *
+                 * Derived classes must implement this to create their specific predictor.
+                 * For example:
+                 * - AnomalyTrainer: return std::make_unique<AnomalyPredictor>(_config, checkpointPath)
+                 * - DetectionTrainer: return std::make_unique<DetectionPredictor>(_config, checkpointPath)
+                 *
+                 * @param checkpointPath Path to checkpoint file
+                 * @return Unique pointer to task-specific predictor
+                 */
+                virtual std::unique_ptr<Predictor::BasePredictor> setupPredictor(
+                    const std::string& checkpointPath) = 0;
+
+                /**
+                 * @brief Export prediction results (pure virtual hook)
+                 *
+                 * Derived classes must implement task-specific export logic.
+                 * For example:
+                 * - AnomalyTrainer: export JSON + save anomaly maps
+                 * - DetectionTrainer: export JSON with boxes
+                 * - SegmentationTrainer: export JSON with contours
+                 *
+                 * @param results Vector of prediction results
+                 * @param imagePaths Vector of image paths
+                 * @param resultsDir Directory to save results
+                 */
+                virtual void exportPredictionResults(
+                    const std::vector<PredictionResult>& results,
+                    const std::vector<std::string>& imagePaths) = 0;
 
                 /**
                  * @brief Optimizer step with gradient clipping
@@ -280,7 +349,20 @@ namespace WheelDL {
                  */
                 virtual float calculateFitness(const MetricsData& metrics) = 0;
 
-                
+                /**
+                 * @brief Load checkpoint into the trainer's model
+                 * @param checkpointPath Path to checkpoint file (.pt)
+                 * @param resumeTraining If true, also loads optimizer state for resume training
+                 * @return Checkpoint metadata containing epoch, fitness, and other info
+                 *
+                 * This method loads model weights (and optionally optimizer state) from a checkpoint.
+                 * The model must be initialized via setupModel() before calling this method.
+                 *
+                 * Usage:
+                 * - loadCheckpoint("path/to/best.pt") - Load model only (inference/validation)
+                 * - loadCheckpoint("path/to/last.pt", true) - Load model + optimizer (resume training)
+                 */
+                CheckpointMetadata loadCheckpoint(const std::string& checkpointPath, bool resumeTraining = false);
 
             protected:
                 // ========== Configuration & Core Components ==========
@@ -301,7 +383,7 @@ namespace WheelDL {
                 // ========== Data Loaders ==========
                 using BatchIteratorFunc = std::function<void(std::function<void(const WheelDL::Data::Dataset::DataExample&, int)>)>;
                 BatchIteratorFunc _trainBatchIterator;
-
+               
                 // ========== Device & AMP ==========
                 torch::Device _device;
                 bool _useAMP;
@@ -321,6 +403,8 @@ namespace WheelDL {
                 int _totalEpochs;
                 float _bestFitness;
                 MetricsData _currentMetrics;
+				std::vector<MetricsData> _epochMetrics;
+				std::string _checkpointPath;
                 std::unique_ptr<Utils::Workspace> _workspace;
 
                 // ========== Callback & Control ==========

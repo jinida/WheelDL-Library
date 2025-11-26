@@ -92,18 +92,18 @@ namespace WheelDL {
                         "Model must be initialized before loading checkpoint");
                 }
 
-                try {
+                try 
+                {
                     // Load checkpoint using Checkpoint utility (model only, no optimizer)
                     auto metadata = Trainer::Checkpoint::loadModelOnly(checkpointPath, *_model);
+					_config->setImageSize(std::stoi(metadata.hyperParams.at("image_size")));
+					_threshold = metadata.threshold;
 
-                    // Move model to device
                     _model->to(_device);
-
-                    // Set to eval mode
                     _model->eval();
+                    _checkpointPath = checkpointPath;
 
                     _isModelLoaded = true;
-                    _checkpointPath = checkpointPath;
 
                     _logger->info("BasePredictor", "Checkpoint loaded successfully (epoch=" +
                                  std::to_string(metadata.epoch) + ", fitness=" +
@@ -116,8 +116,6 @@ namespace WheelDL {
 
                 _profiler.stop("load_checkpoint");
             }
-
-
 
             PredictionResult BasePredictor::predict(const std::string& filePath)
             {
@@ -162,11 +160,55 @@ namespace WheelDL {
 				// Permute from [H, W, C] to [C, H, W]
 				tensor = tensor.permute({ 2, 0, 1 });
 
-				// Delegate to tensor version of predict
-				return predict(tensor);
+                Utils::GPUMemoryGuard gpuGuard;
+
+                _profiler.start("predict");
+
+                if (!_model || !_isModelLoaded) {
+                    throw Utils::WheelLibException(Utils::ErrorCode::PREDICTION_FAILED,
+                        "Model not loaded. Call loadCheckpoint() first.");
+                }
+
+                // Warmup if not done yet
+                if (!_isWarmedUp && _device.is_cuda())
+                {
+                    warmup();
+                }
+
+                auto originalShape = std::make_tuple(
+                    static_cast<int>(input.rows),
+                    static_cast<int>(input.cols)
+				);
+
+                _profiler.start("preprocess");
+                torch::Tensor preprocessedInput = preprocess(tensor.to(_device));
+                _profiler.stop("preprocess");
+
+                // Inference
+                _profiler.start("inference");
+                auto output = inference(preprocessedInput);
+                _profiler.stop("inference");
+
+
+                _profiler.start("postprocess");
+                PredictionResult result = postprocess(output, originalShape);
+                _profiler.stop("postprocess");
+
+                _profiler.stop("predict");
+                result.inferenceTime = _profiler.getDuration("inference");
+                return result;
+
             }
 
             PredictionResult BasePredictor::predict(const torch::Tensor& input)
+            {
+                return predict(input, std::make_tuple(
+                    static_cast<int>(input.size(-2)),
+                    static_cast<int>(input.size(-1))
+				));
+            }
+
+			PredictionResult BasePredictor::predict(const torch::Tensor& input, const std::tuple<int, int>& originalShape)
             {
                 // RAII guard: automatically clears GPU cache when prediction ends
                 Utils::GPUMemoryGuard gpuGuard;
@@ -179,95 +221,46 @@ namespace WheelDL {
                 }
 
                 // Warmup if not done yet
-                if (!_isWarmedUp && _device.is_cuda()) {
+                if (!_isWarmedUp && _device.is_cuda())
+                {
                     warmup();
                 }
 
                 // Preprocess
                 _profiler.start("preprocess");
-                torch::Tensor preprocessedInput = preprocess(input);
+                torch::Tensor preprocessedInput = preprocess(input.to(_device));
                 _profiler.stop("preprocess");
 
                 // Inference
                 _profiler.start("inference");
-                torch::Tensor output = inference(preprocessedInput);
+                auto output = inference(preprocessedInput);
                 _profiler.stop("inference");
 
                 // Postprocess
                 _profiler.start("postprocess");
-                PredictionResult result = postprocess(output, input);
+                PredictionResult result = postprocess(output, originalShape);
                 _profiler.stop("postprocess");
 
                 _profiler.stop("predict");
+                result.inferenceTime = _profiler.getDuration("inference");
 
                 return result;
             }
 
-            std::vector<PredictionResult> BasePredictor::predictBatch(const std::vector<torch::Tensor>& inputs)
-            {
-                // RAII guard: automatically clears GPU cache when prediction ends
-                Utils::GPUMemoryGuard gpuGuard;
 
-                _profiler.start("predict_batch");
-
-                if (!_model || !_isModelLoaded) {
-                    throw Utils::WheelLibException(Utils::ErrorCode::PREDICTION_FAILED,
-                        "Model not loaded. Call loadCheckpoint() first.");
-                }
-
-                // Warmup if not done yet
-                if (!_isWarmedUp && _device.is_cuda()) {
-                    warmup();
-                }
-
-                std::vector<PredictionResult> results;
-                results.reserve(inputs.size());
-
-                // Preprocess all inputs
-                _profiler.start("preprocess_batch");
-                std::vector<torch::Tensor> preprocessedInputs;
-                preprocessedInputs.reserve(inputs.size());
-                for (const auto& input : inputs) {
-                    preprocessedInputs.push_back(preprocess(input));
-                }
-                _profiler.stop("preprocess_batch");
-
-                // Stack into batch
-                torch::Tensor batchInput = torch::stack(preprocessedInputs, 0);
-
-                // Inference on batch
-                _profiler.start("inference_batch");
-                torch::Tensor batchOutput = inference(batchInput);
-                _profiler.stop("inference_batch");
-
-                // Postprocess each output
-                _profiler.start("postprocess_batch");
-                for (size_t i = 0; i < inputs.size(); ++i) {
-                    // Extract output for this sample
-                    torch::Tensor output = batchOutput[i];
-                    PredictionResult result = postprocess(output, inputs[i]);
-                    results.push_back(result);
-                }
-                _profiler.stop("postprocess_batch");
-
-                _profiler.stop("predict_batch");
-
-                return results;
-            }
-
-            torch::Tensor BasePredictor::inference(const torch::Tensor& preprocessedInput)
+            std::vector<torch::Tensor> BasePredictor::inference(const torch::Tensor& preprocessedInput)
             {
                 torch::NoGradGuard noGrad;  // Disable gradient computation
 
                 // Move input to device
-                torch::Tensor deviceInput = preprocessedInput.to(_device);
+                torch::Tensor deviceInput = preprocessedInput;
 
                 // Forward pass
                 auto outputs = _model->predict(deviceInput);
 
                 // Return first output (most models have single output)
                 // Multi-scale models can override this behavior
-                return outputs[0];
+                return outputs;
             }
 
             void BasePredictor::warmup()

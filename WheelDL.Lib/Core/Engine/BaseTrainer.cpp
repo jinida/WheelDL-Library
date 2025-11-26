@@ -5,6 +5,12 @@
 #include "../../Utils/Common/Constants.h"
 #include "../../Utils/Error/WheelLibException.h"
 #include "../../Utils/Memory/GPUMemoryGuard.h"
+#include "../../Utils/Export/MetricsExporter.h"
+#include "../../Utils/Export/PredictionExporter.h"
+#include "../../Utils/Export/ImageExporter.h"
+#include "../../Data/Dataset/PredDataset.h"
+#include "../../Data/Transforms/Collation.h"
+#include "../Engine/BasePredictor.h"
 
 namespace WheelDL {
     namespace Core {
@@ -21,6 +27,7 @@ namespace WheelDL {
                 , _totalEpochs(0)
                 , _bestFitness(-1.0f)
                 , _shouldStop(false)
+                , _checkpointPath("")
             {
                 _logger->info("BaseTrainer", "Initializing trainer with configuration");
 
@@ -71,11 +78,10 @@ namespace WheelDL {
                 _totalTimer->reset();
 
                 _logger->info("BaseTrainer", "========== Starting Training ==========");
-                _logger->info("BaseTrainer", "Epochs: " + std::to_string(_totalEpochs));
-                _logger->info("BaseTrainer", "Batch Size: " + std::to_string(_config->getBatchSize()));
+                _logger->info("BaseTrainer", "Epochs: " + std::to_string(_config->getEpochs()));
                 _logger->info("BaseTrainer", "Device: " + _config->getDevice());
 
-                try 
+                try
                 {
                     // ========== Setup Phase ==========
                     _profiler.start("setup");
@@ -83,78 +89,71 @@ namespace WheelDL {
                     initializeSeeds();
                     setupDevice();
                     setupSaveDirectory();
-                    setupModel();           // Hook
-                    setupDataLoaders();     // Hook
-                    setupValidator();       // Hook
+                    setupModel();
+                    if (!_checkpointPath.empty())
+                    {
+                        loadCheckpoint(_checkpointPath);
+                    }
+                    setupDataLoaders();
+                    setupValidator();
                     setupOptimizer();
                     setupScheduler();
                     setupAMP();
                     initializeEMA();
                     initializeEarlyStopping();
                     freezeLayersIfNeeded();
+
                     _totalEpochs = _config->getEpochs();
 
                     _profiler.stop("setup");
                     _logger->info("BaseTrainer", "Setup completed in " +
-                                 std::to_string(_profiler.getStatistics("setup").total) + "ms");
+                        std::to_string(_profiler.getStatistics("setup").total) + "ms");
 
                     // ========== Training Loop ==========
-                    for (int epoch = 0; epoch < _totalEpochs; ++epoch) 
+                    for (int epoch = _currentEpoch; epoch < _totalEpochs; ++epoch)
                     {
-                        if (_shouldStop) 
+                        if (_shouldStop)
                         {
-                            _logger->warn("BaseTrainer", "Training stopped by user at epoch " +
-                                         std::to_string(epoch));
+                            _logger->warn("BaseTrainer", "Training stopped by user at epoch " + std::to_string(epoch));
                             break;
                         }
 
                         _currentEpoch = epoch;
                         _epochTimer->reset();
 
-                        // Train epoch
-                        _logger->info("BaseTrainer", "---------- Epoch " + std::to_string(epoch + 1) + "/" + std::to_string(_totalEpochs) + " ----------");
+                        _logger->info("BaseTrainer", "---------- Epoch " + std::to_string(epoch + 1) +
+                            "/" + std::to_string(_totalEpochs) + " ----------");
+
                         trainEpoch(epoch);
 
-                        // Validate epoch
                         if (_validator)
                         {
-                            // Use EMA model for validation if available
-                            if (_ema && _model)
-                            {
-                                auto originalSeq = _model->swapModelSequential(_ema->getEMAModel());
-                                _currentMetrics = _validator->validate(*_model, epoch);
-                                _model->swapModelSequential(originalSeq);
-                            }
-                            else
-                            {
-                                // Validate with regular model
-                                _currentMetrics = _validator->validate(*_model, epoch);
-                            }
+                            _currentMetrics = runValidation(epoch, true);
                         }
-                        else
+                        else 
                         {
-                            _logger->warn("BaseTrainer", "Validator not initialized, skipping validation");
+                            _logger->warn("BaseTrainer", "Skipping validation (No validator)");
                         }
 
                         schedulerStep();
                         float currentFitness = calculateFitness(_currentMetrics);
-                        saveCheckpoint(epoch, currentFitness, false);
+                        _epochMetrics.push_back(_currentMetrics);
 
-                        // Save best checkpoint
-                        bool isBest = currentFitness > _bestFitness;
-                        if (isBest) {
+                        // 4. Save Checkpoints
+                        saveCheckpoint(epoch, false); // Save Last
+
+                        if (currentFitness > _bestFitness) {
                             _bestFitness = currentFitness;
-                            saveCheckpoint(epoch, currentFitness, true);
+                            saveCheckpoint(epoch, true); // Save Best
                         }
 
-                        // Early stopping check
+                        // 5. Check Early Stopping
                         if (_earlyStopping && _earlyStopping->shouldStop(currentFitness)) {
-                            _logger->info("BaseTrainer", "Early stopping triggered at epoch " +
-                                         std::to_string(epoch + 1));
+                            _logger->info("BaseTrainer", "Early stopping triggered at epoch " + std::to_string(epoch + 1));
                             break;
                         }
 
-                        // Epoch callback
+                        // 6. Report Progress
                         double epochTime = _epochTimer->elapsedSeconds();
                         double totalTime = _totalTimer->elapsedSeconds();
                         double eta = (totalTime / (epoch + 1)) * (_totalEpochs - epoch - 1);
@@ -172,61 +171,24 @@ namespace WheelDL {
 
                         invokeProgressCallback(progressData);
 
-                        _logger->info("BaseTrainer", "Epoch completed in " +
-                                     std::to_string(epochTime) + "s | ETA: " +
-                                     std::to_string(eta / 60.0) + "m");
+                        _logger->info("BaseTrainer", "Epoch finished: " + std::to_string(epochTime) +
+                            "s | ETA: " + std::to_string(eta / 60.0) + "m");
                     }
 
-                    // ========== Training Completed ==========
-
-					// ========== Last Validation ==========
-					_profiler.start("final_validation");
-
-                    if (_validator)
-                    {
-                        _logger->info("BaseTrainer", "Performing final validation with best model");
-                        if (_ema && _model)
-                        {
-                            auto originalSeq = _model->swapModelSequential(_ema->getEMAModel());
-                            _currentMetrics = _validator->validate(*_model, _currentEpoch);
-                            _model->swapModelSequential(originalSeq);
-                        }
-                        else
-                        {
-                            _currentMetrics = _validator->validate(*_model, _currentEpoch);
-                        }
-                        _logger->info("BaseTrainer", "Final validation metrics - Loss: " +
-                                     std::to_string(_currentMetrics.loss));
-
-                        // Update best fitness and save checkpoint if this is the best so far
-                        float finalFitness = calculateFitness(_currentMetrics);
-                        if (finalFitness > _bestFitness) {
-                            _bestFitness = finalFitness;
-                            saveCheckpoint(_currentEpoch, finalFitness, true);
-                            _logger->info("BaseTrainer", "Final validation improved best fitness: " +
-                                         std::to_string(_bestFitness));
-                        }
-						saveCheckpoint(_currentEpoch, finalFitness, false);
-                    }
-                    else
-                    {
-                        _logger->warn("BaseTrainer", "Validator not initialized, skipping final validation");
-					}
 
                     _profiler.stop("total_training");
-                    double totalTime = _totalTimer->elapsedSeconds();
 
+                    saveTrainingResults();
+                    finalValidation();      
+                    finalPrediction();      
+                    
                     _logger->info("BaseTrainer", "========== Training Completed ==========");
-                    _logger->info("BaseTrainer", "Total time: " + std::to_string(totalTime / 60.0) + " minutes");
+                    _logger->info("BaseTrainer", "Total time: " + std::to_string(_totalTimer->elapsedSeconds() / 60.0) + "m");
                     _logger->info("BaseTrainer", "Best fitness: " + std::to_string(_bestFitness));
 
-					_profiler.stop("final_validation");
-                    // Export profiler report
-                    if (_workspace) 
-                    {
+                    if (_workspace) {
                         std::string profilerPath = _workspace->getProfilerDir() + "/profiler_report.html";
                         _profiler.exportToHTML(profilerPath);
-                        _logger->info("BaseTrainer", "Profiler report saved: " + profilerPath);
                     }
 
                     return _currentMetrics;
@@ -252,7 +214,8 @@ namespace WheelDL {
                 }
 
                 // Set deterministic if requested
-                if (_config->isDeterministic()) {
+                if (_config->isDeterministic()) 
+                {
                     // LibTorch deterministic settings
                     torch::globalContext().setDeterministicCuDNN(true);
                     torch::globalContext().setBenchmarkCuDNN(false);
@@ -342,6 +305,12 @@ namespace WheelDL {
 
             void BaseTrainer::setupOptimizer()
             {
+                if (_config->IsPatchCore())
+                {
+                    _logger->info("BaseTrainer", "No optimizer configured, skipping optimizer setup");
+					return;
+                }
+
                 _profiler.start("setup_optimizer");
 
                 if (!_model) {
@@ -349,12 +318,21 @@ namespace WheelDL {
                         "Model must be initialized before optimizer");
                 }
 
-                auto parameters = _model->parameters();
-                _optimizer = Optimizer::OptimizerFactory::createFromConfig(parameters, *_config);
+                auto allParams = _model->parameters();
+                std::vector<torch::Tensor> trainableParams;
+                trainableParams.reserve(allParams.size());
 
+                for (auto& p : allParams) 
+                {
+                    if (p.requires_grad()) 
+                    {
+                        trainableParams.push_back(p);
+                    }
+                }
+                
+                _optimizer = Optimizer::OptimizerFactory::createFromConfig(trainableParams, *_config);
                 _logger->info("BaseTrainer", "Optimizer created: " + _config->getOptimizer());
                 _logger->info("BaseTrainer", "Initial LR: " + std::to_string(_config->getLearningRate()));
-
                 _profiler.stop("setup_optimizer");
             }
 
@@ -362,19 +340,25 @@ namespace WheelDL {
             {
                 _profiler.start("setup_scheduler");
 
-                if (!_optimizer) {
-                    throw Utils::WheelLibException(Utils::ErrorCode::TRAINING_FAILED,
-                        "Optimizer must be initialized before scheduler");
+                if (!_optimizer) 
+                {
+					return;
                 }
 
                 if (_config->useCosineLR()) {
                     _scheduler = std::make_unique<Optimizer::Scheduler::CosineAnnealingLR>(
                         _optimizer.get(), *_config);
                     _logger->info("BaseTrainer", "Using CosineAnnealingLR scheduler");
-                } else {
+                } 
+				else if (_config->useLinearLR())
+                {
                     _scheduler = std::make_unique<Optimizer::Scheduler::LinearLR>(
                         _optimizer.get(), *_config);
                     _logger->info("BaseTrainer", "Using LinearLR scheduler");
+                }
+                else
+                {
+					_logger->info("BaseTrainer", "No learning rate scheduler configured");
                 }
 
                 _profiler.stop("setup_scheduler");
@@ -487,19 +471,31 @@ namespace WheelDL {
                 _profiler.stop("train_epoch");
             }
 
-            void BaseTrainer::saveCheckpoint(int epoch, float fitness, bool isBest)
+            void BaseTrainer::saveCheckpoint(int epoch, bool isBest)
             {
                 _profiler.start("save_checkpoint");
 
-                if (!_model || !_optimizer || !_workspace) 
+                if (isBest)
                 {
-                    _logger->warn("BaseTrainer", "Cannot save checkpoint - model, optimizer, or workspace not initialized");
-                    _profiler.stop("save_checkpoint");
-                    return;
+                    if (!_model || !_workspace)
+                    {
+                        _logger->warn("BaseTrainer", "Cannot save checkpoint - model or workspace not initialized");
+                        _profiler.stop("save_checkpoint");
+                        return;
+                    }
+                }
+                else
+                {
+                    if (!_model || !_optimizer || !_workspace)
+                    {
+                        _logger->warn("BaseTrainer", "Cannot save checkpoint - model, optimizer, or workspace not initialized");
+                        _profiler.stop("save_checkpoint");
+                        return;
+                    }
                 }
 
                 // Create metadata from configuration
-                auto metadata = CheckpointMetadata::fromConfiguration(*_config, epoch, fitness);
+                auto metadata = CheckpointMetadata::fromConfiguration(*_config, epoch, _currentMetrics);
 
                 // Determine filename: best.pt or last.pt
                 std::string filename = isBest ? "best.pt" : "last.pt";
@@ -510,21 +506,207 @@ namespace WheelDL {
                 {
                     // Swap to EMA Sequential
                     auto originalSeq = _model->swapModelSequential(_ema->getEMAModel());
-                    // Save checkpoint with EMA weights
-                    Checkpoint::save(path, *_model, *_optimizer, metadata);
-                    // Restore original Sequential
+
+                    if (isBest) {
+                        // Best checkpoint: save model only (no optimizer state)
+                        Checkpoint::saveModelOnly(path, *_model, metadata);
+                    } else {
+                        // Last checkpoint: save with optimizer for resume training
+                        Checkpoint::save(path, *_model, *_optimizer, metadata);
+                    }
+
                     _model->swapModelSequential(originalSeq);
 
                     _logger->info("BaseTrainer", "Checkpoint saved with EMA weights: " + filename);
                 }
                 else
                 {
-                    // Save regular model
-                    Checkpoint::save(path, *_model, *_optimizer, metadata);
+                    if (isBest) {
+                        // Best checkpoint: save model only (no optimizer state)
+                        Checkpoint::saveModelOnly(path, *_model, metadata);
+                    } else {
+                        // Last checkpoint: save with optimizer for resume training
+                        Checkpoint::save(path, *_model, *_optimizer, metadata);
+                    }
                     _logger->info("BaseTrainer", "Checkpoint saved: " + filename);
                 }
 
                 _profiler.stop("save_checkpoint");
+            }
+
+            void BaseTrainer::saveTrainingResults()
+            {
+                if (_epochMetrics.empty())
+                {
+                    _logger->warn("BaseTrainer", "No epoch metrics to save");
+                    return;
+                }
+
+                _profiler.start("save_training_results");
+
+                // Get results directory from workspace
+                std::string resultsDir = _workspace ? _workspace->getLogsDir() : "./results";
+
+                // Export metrics using MetricsExporter utility
+                Utils::Export::MetricsExporter::exportAll(
+                    _epochMetrics,
+                    resultsDir,
+                    "training_metrics.json",
+                    "training_metrics.csv",
+                    _bestFitness
+                );
+
+                _profiler.stop("save_training_results");
+			}
+
+            MetricsData BaseTrainer::runValidation(int epoch, bool useEmaIfAvailable)
+            {
+                if (!_validator)
+                {
+                    return MetricsData();
+                }
+
+                if (useEmaIfAvailable && _ema && _model)
+                {
+                    auto originalSeq = _model->swapModelSequential(_ema->getEMAModel());
+
+                    try
+                    {
+                        auto metrics = _validator->validate(*_model, epoch);
+
+                        _model->swapModelSequential(originalSeq);
+                        return metrics;
+                    }
+                    catch (...)
+                    {
+                        _model->swapModelSequential(originalSeq);
+                        throw;
+                    }
+                }
+
+                return _validator->validate(*_model, epoch);
+            }
+
+            void BaseTrainer::finalValidation()
+            {
+                _profiler.start("final_validation");
+                _logger->info("BaseTrainer", "========== Final Validation ==========");
+
+                if (!_validator) {
+                    _logger->warn("BaseTrainer", "Validator not initialized, skipping final validation");
+                    _profiler.stop("final_validation");
+                    return;
+                }
+
+                try
+                {
+                    namespace fs = std::filesystem;
+                    fs::path weightsDir = _workspace->getWeightsDir();
+                    fs::path bestPath = weightsDir / "best.pt";
+
+                    bool loadedBest = false;
+
+                    if (fs::exists(bestPath))
+                    {
+                        _logger->info("BaseTrainer", "Loading best checkpoint: " + bestPath.string());
+
+                        auto metadata = Checkpoint::loadModelOnly(bestPath.string(), *_model);
+						_currentEpoch = metadata.epoch;
+                        _model->to(_device);
+                        _model->eval();
+                        loadedBest = true;
+                        _logger->info("BaseTrainer", "Loaded best model (epoch=" + std::to_string(metadata.epoch) +
+                            ", fitness=" + std::to_string(metadata.bestFitness) + ")");
+                    }
+                    else
+                    {
+                        _logger->warn("BaseTrainer", "best.pt not found, utilizing current model state.");
+                        _model->eval();
+                    }
+
+                    _currentMetrics = runValidation(_currentEpoch, !loadedBest);
+
+                    if (!loadedBest)
+                    {
+                        _logger->info("BaseTrainer", "Saving current model as best checkpoint.");
+                        saveCheckpoint(_currentEpoch, true);
+                    }
+
+                    fs::path logsDir = _workspace->getLogsDir();
+                    std::string jsonPath = (logsDir / "best_metrics.json").string();
+                    _bestFitness = calculateFitness(_currentMetrics);
+                    Utils::Export::MetricsExporter::exportToJSON(
+                        { _currentMetrics },
+                        jsonPath,
+                        _bestFitness
+                    );
+
+                    _logger->info("BaseTrainer", "Final Validation Completed");
+                    _logger->info("BaseTrainer", "  Loss: " + std::to_string(_currentMetrics.loss));
+                    _logger->info("BaseTrainer", "  Fitness: " + std::to_string(_bestFitness));
+                }
+                catch (const std::exception& e)
+                {
+                    _logger->error("BaseTrainer", "Final validation failed: " + std::string(e.what()));
+                }
+
+                _profiler.stop("final_validation");
+            }
+
+            void BaseTrainer::finalPrediction()
+            {
+                _profiler.start("final_prediction");
+                _logger->info("BaseTrainer", "========== Final Prediction ==========");
+
+                try
+                {
+                    std::string bestPath = _workspace->getWeightsDir() + "/best.pt";
+                    if (!std::filesystem::exists(bestPath)) {
+                        _logger->warn("BaseTrainer", "best.pt not found, skipping prediction");
+                        _profiler.stop("final_prediction");
+                        return;
+                    }
+
+                     auto predictor = setupPredictor(bestPath);
+                    if (!predictor) 
+                    {
+                        throw Utils::WheelLibException(Utils::ErrorCode::PREDICTION_FAILED, "Failed to create predictor");
+                    }
+                    auto dataset = WheelDL::Data::Dataset::PredDataset(*_config);
+                    auto dataSize = dataset.size();
+                    auto dataLoader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
+                        std::move(dataset),
+                        torch::data::DataLoaderOptions().batch_size(1).workers(_config->getWorkers())
+                    );
+
+                    _logger->info("BaseTrainer", "Running predictions on device: " + _device.str());
+
+                    // 3. Prepare Containers (Reserve memory)
+                    std::vector<PredictionResult> allPredictions;
+                    std::vector<std::string> allImagePaths;
+					allPredictions.reserve(dataSize.value());
+					allImagePaths.reserve(dataSize.value());
+
+                    for (auto& batch : *dataLoader)
+                    {
+                        if (batch.empty()) continue;
+
+                        const auto& sample = batch.front();
+                        auto input = sample.data.to(_device);
+                        auto result = predictor->predict(input, sample.originalShape[0]);
+                        allPredictions.push_back(std::move(result));
+                        allImagePaths.push_back(sample.imagePath[0]);
+                    }
+
+                    _logger->info("BaseTrainer", "Predictions completed: " + std::to_string(allPredictions.size()));
+                    exportPredictionResults(allPredictions, allImagePaths);
+                }
+                catch (const std::exception& e)
+                {
+                    _logger->error("BaseTrainer", "Final prediction failed: " + std::string(e.what()));
+                }
+
+                _profiler.stop("final_prediction");
             }
 
             void BaseTrainer::optimizerStep()
@@ -556,6 +738,71 @@ namespace WheelDL {
             std::string BaseTrainer::getSaveDirectory() const
             {
                 return _workspace ? _workspace->getRoot() : "";
+            }
+
+            CheckpointMetadata BaseTrainer::loadCheckpoint(const std::string& checkpointPath, bool resumeTraining)
+            {
+                _profiler.start("load_checkpoint");
+                _logger->info("BaseTrainer", "Loading checkpoint: " + checkpointPath);
+
+                if (!_model)
+                {
+                    throw Utils::WheelLibException(
+                        Utils::ErrorCode::TRAINING_FAILED,
+                        "Model must be initialized before loading checkpoint. Call setupModel() first."
+                    );
+                }
+
+                try
+                {
+                    CheckpointMetadata metadata;
+
+                    if (resumeTraining)
+                    {
+                        if (!_optimizer)
+                        {
+                            throw Utils::WheelLibException(
+                                Utils::ErrorCode::TRAINING_FAILED,
+                                "Optimizer must be initialized to resume training. Call setupOptimizer() first."
+                            );
+                        }
+
+                        metadata = Checkpoint::load(checkpointPath, *_model, *_optimizer);
+                        _logger->info("BaseTrainer", "Loaded checkpoint with optimizer state for resume training");
+                    }
+                    else
+                    {
+                        metadata = Checkpoint::loadModelOnly(checkpointPath, *_model);
+                        _logger->info("BaseTrainer", "Loaded model weights only");
+                    }
+
+                    // Move model to configured device
+                    _model->to(_device);
+
+                    // Update trainer state from metadata
+                    _currentEpoch = metadata.epoch;
+                    _bestFitness = metadata.bestFitness;
+
+                    _logger->info("BaseTrainer", "Checkpoint loaded successfully (epoch=" +
+                        std::to_string(metadata.epoch) + ", fitness=" +
+                        std::to_string(metadata.bestFitness) + ")");
+
+                    _profiler.stop("load_checkpoint");
+                    return metadata;
+                }
+                catch (const Utils::WheelLibException&)
+                {
+                    _profiler.stop("load_checkpoint");
+                    throw;
+                }
+                catch (const std::exception& e)
+                {
+                    _profiler.stop("load_checkpoint");
+                    throw Utils::WheelLibException(
+                        Utils::ErrorCode::FILE_IO_ERROR,
+                        "Failed to load checkpoint: " + std::string(e.what())
+                    );
+                }
             }
 
         } // namespace Trainer

@@ -67,13 +67,7 @@ namespace WheelDL {
                 PredictionResult predict(const std::string& filePath);
                 PredictionResult predict(const cv::Mat& input);
                 PredictionResult predict(const torch::Tensor& input);
-
-                /**
-                 * @brief Predict on batch of inputs
-                 * @param inputs Vector of input tensors
-                 * @return Vector of prediction results
-                 */
-                std::vector<PredictionResult> predictBatch(const std::vector<torch::Tensor>& inputs);
+                PredictionResult predict(const torch::Tensor& input, const std::tuple<int, int>& originalShape);
 
                 /**
                  * @brief Load model from checkpoint
@@ -117,8 +111,8 @@ namespace WheelDL {
                  * @return Processed prediction result
                  */
                 virtual PredictionResult postprocess(
-                    const torch::Tensor& output,
-                    const torch::Tensor& originalInput) = 0;
+                    const std::vector<torch::Tensor>& output,
+                    const std::tuple<int, int>& originalShape) = 0;
 
                 // ========== Common Methods ==========
 
@@ -134,7 +128,7 @@ namespace WheelDL {
                  * @param preprocessedInput Preprocessed input tensor
                  * @return Raw model output
                  */
-                torch::Tensor inference(const torch::Tensor& preprocessedInput);
+                std::vector<torch::Tensor> inference(const torch::Tensor& preprocessedInput);
 
                 /**
                  * @brief Warmup model (run dummy inference)
@@ -160,7 +154,10 @@ namespace WheelDL {
                 // ========== State ==========
                 bool _isModelLoaded;
                 bool _isWarmedUp;
+
+				// ========== Checkpoint Path ==========
                 std::string _checkpointPath;
+				float _threshold;
             };
 
         } // namespace Predictor
