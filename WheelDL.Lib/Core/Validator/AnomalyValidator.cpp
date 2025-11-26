@@ -40,12 +40,10 @@ namespace WheelDL {
 			{
 				WheelDL::Data::Dataset::DataExample preprocessed;
 				preprocessed.data = batch.data.to(_device);
-
 				if (batch.targets.defined())
 				{
 					preprocessed.targets = batch.targets.to(_device);
 				}
-
 				preprocessed.classes = batch.classes.to(_device);
 
 				return preprocessed;
@@ -53,7 +51,7 @@ namespace WheelDL {
 
 			torch::Tensor AnomalyValidator::postprocessBatch(const std::vector<torch::Tensor>& prediction)
 			{
-				return prediction[0];
+				return _config->IsEfficientAD() ? prediction[5] : prediction[0];
 			}
 
 			MetricsData AnomalyValidator::computeMetrics(
@@ -91,12 +89,20 @@ namespace WheelDL {
 					metrics.fitness = computeAUCROC(scoresCPU, labelsCPU);
 					metrics.mAP = computeAveragePrecision(scoresCPU, labelsCPU);
 
+					// Compute all metrics at optimal F1 threshold
 					float optimalThreshold = 0.5f;
-					metrics.f1Score = computeF1Score(scoresCPU, labelsCPU, optimalThreshold);
+					float precision = 0.0f;
+					float recall = 0.0f;
+					float accuracy = 0.0f;
 
-					torch::Tensor predictions = (scoresCPU > optimalThreshold).to(torch::kFloat32);
-					torch::Tensor correct = (predictions == labelsCPU).to(torch::kFloat32);
-					metrics.accuracy = correct.mean().item<float>();
+					metrics.f1Score = computeOptimalMetrics(
+						scoresCPU, labelsCPU,
+						optimalThreshold, precision, recall, accuracy);
+
+					metrics.threshold = optimalThreshold;
+					metrics.precision = precision;
+					metrics.recall = recall;
+					metrics.accuracy = accuracy;
 
 					_logger->info("AnomalyValidator", "Metrics - AUC-ROC: " + std::to_string(metrics.fitness) +
 						" | AP: " + std::to_string(metrics.mAP) +
@@ -116,92 +122,106 @@ namespace WheelDL {
 				return metrics;
 			}
 
-			float AnomalyValidator::computeAUCROC(const torch::Tensor& scores, const torch::Tensor& labels)
+			float AnomalyValidator::computeAUCROC(const torch::Tensor& scores,
+				const torch::Tensor& labels)
 			{
 				try {
-					int n = scores.size(0);
-					if (n == 0) {
+					int count = scores.size(0);
+					if (count == 0) {
 						return 0.0f;
 					}
-
-					const float* scoresData = scores.data_ptr<float>();
-					const float* labelsData = labels.data_ptr<float>();
-
-					std::vector<int> indices(n);
-					std::iota(indices.begin(), indices.end(), 0);
-
-					std::sort(indices.begin(), indices.end(), [&](int i, int j) {
-						return scoresData[i] > scoresData[j];
-						});
-
-					int numPos = 0;
-					int numNeg = 0;
-					for (int i = 0; i < n; ++i) {
-						if (labelsData[i] > 0.5f) {
-							numPos++;
-						}
-						else {
-							numNeg++;
-						}
+					struct ScoreItem { float score; int label; };
+					std::vector<ScoreItem> items;
+					items.reserve(count);
+					const float* scoreData = scores.data_ptr<float>();
+					const float* labelData = labels.data_ptr<float>();
+					for (int i = 0; i < count; i++) {
+						items.push_back({
+							scoreData[i],
+							(labelData[i] > 0.5f) ? 1 : 0
+							});
 					}
-
-					if (numPos == 0 || numNeg == 0) {
+					std::sort(items.begin(), items.end(),
+						[](const ScoreItem& a, const ScoreItem& b) {
+							return a.score > b.score;
+						});
+					int numPositive = 0;
+					int numNegative = 0;
+					for (const auto& item : items) {
+						if (item.label)
+							numPositive++;
+						else
+							numNegative++;
+					}
+					if (numPositive == 0 || numNegative == 0) {
 						return 0.5f;
 					}
-
 					float auc = 0.0f;
-					int truePos = 0;
-					int falsePos = 0;
-					float prevTPR = 0.0f;
-					float prevFPR = 0.0f;
+					int truePositive = 0;
+					int falsePositive = 0;
+					float prevTpr = 0.0f;
+					float prevFpr = 0.0f;
+					int i = 0;
+					while (i < count) 
+					{
+						float currentScore = items[i].score;
 
-					for (int i = 0; i < n; ++i) {
-						int idx = indices[i];
-						if (labelsData[idx] > 0.5f) {
-							truePos++;
+						int tpInc = 0;
+						int fpInc = 0;
+						int j = i;
+
+						while (j < count && items[j].score == currentScore) {
+							if (items[j].label)
+								tpInc++;
+							else
+								fpInc++;
+							j++;
 						}
-						else {
-							falsePos++;
-						}
 
-						float tpr = static_cast<float>(truePos) / numPos;
-						float fpr = static_cast<float>(falsePos) / numNeg;
+						truePositive += tpInc;
+						falsePositive += fpInc;
 
-						auc += (fpr - prevFPR) * (tpr + prevTPR) / 2.0f;
+						float tpr = static_cast<float>(truePositive) / numPositive;
+						float fpr = static_cast<float>(falsePositive) / numNegative;
 
-						prevTPR = tpr;
-						prevFPR = fpr;
+						auc += (fpr - prevFpr) * (tpr + prevTpr) * 0.5f;
+
+						prevTpr = tpr;
+						prevFpr = fpr;
+
+						i = j;
 					}
-
 					return auc;
 				}
-				catch (const std::exception& e) {
-					_logger->error("AnomalyValidator", "Failed to compute AUC-ROC: " + std::string(e.what()));
+				catch (const std::exception& e) 
+				{
+					_logger->error("AnomalyValidator",
+						"Failed to compute AUC-ROC: " + std::string(e.what()));
 					return 0.0f;
 				}
 			}
 
-			float AnomalyValidator::computeAveragePrecision(const torch::Tensor& scores, const torch::Tensor& labels)
+			float AnomalyValidator::computeAveragePrecision(const torch::Tensor& scores,
+				const torch::Tensor& labels)
 			{
 				try {
-					int n = scores.size(0);
-					if (n == 0) {
+					int count = scores.size(0);
+					if (count == 0) {
 						return 0.0f;
 					}
 
-					const float* scoresData = scores.data_ptr<float>();
-					const float* labelsData = labels.data_ptr<float>();
+					const float* scoreData = scores.data_ptr<float>();
+					const float* labelData = labels.data_ptr<float>();
 
-					std::vector<int> indices(n);
+					std::vector<int> indices(count);
 					std::iota(indices.begin(), indices.end(), 0);
 
-					std::sort(indices.begin(), indices.end(), [&](int i, int j) {
-						return scoresData[i] > scoresData[j];
-						});
+					std::sort(indices.begin(), indices.end(),
+						[&](int a, int b) { return scoreData[a] > scoreData[b]; });
 
 					int numPos = 0;
-					for (int i = 0; i < n; ++i) {
-						if (labelsData[i] > 0.5f) {
+					for (int i = 0; i < count; i++) {
+						if (labelData[i] > 0.5f) {
 							numPos++;
 						}
 					}
@@ -213,9 +233,11 @@ namespace WheelDL {
 					float ap = 0.0f;
 					int truePos = 0;
 
-					for (int i = 0; i < n; ++i) {
+					// AP = �� precision@k for all positive labels / numPos
+					for (int i = 0; i < count; i++) {
 						int idx = indices[i];
-						if (labelsData[idx] > 0.5f) {
+
+						if (labelData[idx] > 0.5f) {
 							truePos++;
 							float precision = static_cast<float>(truePos) / (i + 1);
 							ap += precision;
@@ -226,55 +248,80 @@ namespace WheelDL {
 					return ap;
 				}
 				catch (const std::exception& e) {
-					_logger->error("AnomalyValidator", "Failed to compute Average Precision: " + std::string(e.what()));
+					_logger->error("AnomalyValidator",
+						"Failed to compute Average Precision: " + std::string(e.what()));
 					return 0.0f;
 				}
 			}
 
-			float AnomalyValidator::computeF1Score(const torch::Tensor& scores, const torch::Tensor& labels, float& threshold)
+			float AnomalyValidator::computeOptimalMetrics(
+				const torch::Tensor& scores,
+				const torch::Tensor& labels,
+				float& threshold,
+				float& outPrecision,
+				float& outRecall,
+				float& outAccuracy)
 			{
 				try {
-					int n = scores.size(0);
-					if (n == 0)
-					{
+					int count = scores.size(0);
+					if (count == 0) {
 						threshold = 0.5f;
+						outPrecision = 0.0f;
+						outRecall = 0.0f;
+						outAccuracy = 0.0f;
 						return 0.0f;
 					}
 
-					const float* scoresData = scores.data_ptr<float>();
-					const float* labelsData = labels.data_ptr<float>();
+					const float* scoreData = scores.data_ptr<float>();
+					const float* labelData = labels.data_ptr<float>();
 
 					int totalPos = 0;
-					for (int i = 0; i < n; ++i) {
-						if (labelsData[i] > 0.5f) totalPos++;
+					int totalNeg = 0;
+					for (int i = 0; i < count; i++) {
+						if (labelData[i] > 0.5f) {
+							totalPos++;
+						} else {
+							totalNeg++;
+						}
 					}
 
 					if (totalPos == 0) {
 						threshold = 0.5f;
+						outPrecision = 0.0f;
+						outRecall = 0.0f;
+						outAccuracy = static_cast<float>(totalNeg) / count;
 						return 0.0f;
 					}
 
-					std::vector<int> indices(n);
+					std::vector<int> indices(count);
 					std::iota(indices.begin(), indices.end(), 0);
 
-					std::sort(indices.begin(), indices.end(), [&](int i, int j) {
-						return scoresData[i] > scoresData[j];
-						});
+					std::sort(indices.begin(), indices.end(),
+						[&](int a, int b) { return scoreData[a] > scoreData[b]; });
 
 					float bestF1 = 0.0f;
 					float bestThreshold = 0.0f;
+					float bestPrecision = 0.0f;
+					float bestRecall = 0.0f;
+					float bestAccuracy = 0.0f;
+
 					int cumTP = 0;
 
-					for (int i = 0; i < n; ++i) {
+					for (int i = 0; i < count; i++) {
 						int idx = indices[i];
 
-						if (labelsData[idx] > 0.5f) {
+						if (labelData[idx] > 0.5f) {
 							cumTP++;
 						}
 
-						int predictedPos = i + 1;
+						int predictedPos = i + 1;  // samples with score >= scoreData[idx]
+						int predictedNeg = count - predictedPos;
+						int fp = predictedPos - cumTP;
+						int tn = totalNeg - fp;
+
 						float precision = static_cast<float>(cumTP) / predictedPos;
 						float recall = static_cast<float>(cumTP) / totalPos;
+						float accuracy = static_cast<float>(cumTP + tn) / count;
 
 						float f1 = 0.0f;
 						if (precision + recall > 0) {
@@ -283,21 +330,29 @@ namespace WheelDL {
 
 						if (f1 > bestF1) {
 							bestF1 = f1;
-							bestThreshold = scoresData[idx];
+							bestThreshold = scoreData[idx];
+							bestPrecision = precision;
+							bestRecall = recall;
+							bestAccuracy = accuracy;
 						}
 					}
 
 					threshold = bestThreshold;
+					outPrecision = bestPrecision;
+					outRecall = bestRecall;
+					outAccuracy = bestAccuracy;
 					return bestF1;
 				}
-				catch (const std::exception& e)
-				{
-					_logger->error("AnomalyValidator", "Failed to compute F1 Score: " + std::string(e.what()));
+				catch (const std::exception& e) {
+					_logger->error("AnomalyValidator",
+						"Failed to compute optimal metrics: " + std::string(e.what()));
 					threshold = 0.5f;
+					outPrecision = 0.0f;
+					outRecall = 0.0f;
+					outAccuracy = 0.0f;
 					return 0.0f;
 				}
 			}
-
 		}
 	}
 }

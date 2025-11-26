@@ -90,37 +90,16 @@ namespace WheelDL {
                  *         - contours: anomaly region contours
                  */
                 PredictionResult postprocess(
-                    const torch::Tensor& output,
-                    const torch::Tensor& originalInput) override;
-
-            private:
-                /**
-                 * @brief Extract contours from anomaly score map
-                 *
-                 * Applies threshold to create binary mask, then extracts contours.
-                 *
-                 * @param anomalyMap Anomaly score map [H, W]
-                 * @param threshold Anomaly threshold [0, 1]
-                 * @return Vector of contours
-                 */
-                std::vector<Contour> extractAnomalyContours(
-                    const torch::Tensor& anomalyMap,
-                    float threshold);
-
-                /**
-                 * @brief Compute image-level anomaly score
-                 *
-                 * Computes max or mean of anomaly score map.
-                 *
-                 * @param anomalyMap Anomaly score map [H, W]
-                 * @return Image-level score [0, 1]
-                 */
-                float computeImageLevelScore(const torch::Tensor& anomalyMap);
+                    const std::vector<torch::Tensor>& output,
+                    const std::tuple<int, int>& originalShape) override;
 
             private:
                 std::string _modelYamlPath;  /// Path to model YAML configuration
-                float _threshold;            /// Anomaly detection threshold [0, 1]
                 bool _isModelPrepared;       /// Whether model has been prepared
+
+                // ImageNet normalization tensors
+                torch::Tensor _mean;
+                torch::Tensor _std;
             };
 
         } // namespace Predictor

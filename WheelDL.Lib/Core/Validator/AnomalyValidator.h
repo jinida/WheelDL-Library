@@ -34,7 +34,6 @@ namespace WheelDL {
                  * @brief Destructor
                  */
                 ~AnomalyValidator() override = default;
-
             protected:
                 // ========== Hook Methods Implementation ==========
 
@@ -90,19 +89,22 @@ namespace WheelDL {
                 float computeAveragePrecision(const torch::Tensor& scores, const torch::Tensor& labels);
 
                 /**
-                 * @brief Compute F1 Score with optimal threshold
+                 * @brief Compute optimal metrics at best F1 threshold
                  * @param scores Anomaly scores [N]
                  * @param labels Ground truth labels [N] (0=normal, 1=anomaly)
-                 * @param threshold Optimal threshold (output)
+                 * @param[out] threshold Optimal threshold
+                 * @param[out] precision Precision at optimal threshold
+                 * @param[out] recall Recall at optimal threshold
+                 * @param[out] accuracy Accuracy at optimal threshold
                  * @return F1 Score value [0, 1]
                  */
-                float computeF1Score(const torch::Tensor& scores, const torch::Tensor& labels, float& threshold);
-
-                /**
-                 * @brief Flatten anomaly score map if needed
-                 * @param anomalyMap Anomaly map [N, H, W] or [N]
-                 * @return Flattened scores [N]
-                 */
+                float computeOptimalMetrics(
+                    const torch::Tensor& scores,
+                    const torch::Tensor& labels,
+                    float& threshold,
+                    float& precision,
+                    float& recall,
+                    float& accuracy);
             };
 
         } // namespace Validator

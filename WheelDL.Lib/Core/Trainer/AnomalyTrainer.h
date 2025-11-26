@@ -3,6 +3,7 @@
 #include "../Engine/BaseTrainer.h"
 #include "../../Model/Task/AnomalyModel.h"
 #include "../../Data/Dataset/AnomalyDataset.h"
+#include <functional>
 
 namespace WheelDL {
     namespace Core {
@@ -81,10 +82,62 @@ namespace WheelDL {
                  */
                 float calculateFitness(const MetricsData& metrics) override;
 
+                /**
+                 * @brief Setup anomaly predictor for inference
+                 *
+                 * Creates AnomalyPredictor with checkpoint.
+                 *
+                 * @param checkpointPath Path to checkpoint file
+                 * @return Unique pointer to AnomalyPredictor
+                 */
+                std::unique_ptr<Predictor::BasePredictor> setupPredictor(
+                    const std::string& checkpointPath) override;
+
+                /**
+                 * @brief Export anomaly prediction results
+                 *
+                 * Saves results as JSON file and anomaly maps.
+                 * Format includes:
+                 * - Image path
+                 * - Anomaly score
+                 * - Anomaly class (normal/anomaly)
+                 * - Anomaly map path (if saved)
+                 *
+                 * @param results Vector of prediction results
+                 * @param imagePaths Vector of image paths
+                 * @param resultsDir Directory to save results
+                 */
+                void exportPredictionResults(
+                    const std::vector<PredictionResult>& results,
+                    const std::vector<std::string>& imagePaths) override;
+
+                /**
+                 * @brief Run validation with prepareValidation call
+                 *
+                 * Overrides BaseTrainer::runValidation to call prepareValidation
+                 * before each validation (required for EfficientAD quantile setup).
+                 *
+                 * @param epoch Current epoch number
+                 * @param useEmaIfAvailable Whether to use EMA model if available
+                 * @return Validation metrics
+                 */
+                MetricsData runValidation(int epoch, bool useEmaIfAvailable) override;
+
             private:
                 std::string _modelYamlPath;  ///< Path to model YAML configuration
                 bool _isModelPrepared;       ///< Whether model has been prepared for training
-                bool _isValidationPrepared;  ///< Whether model has been prepared for validation
+
+                /**
+                 * @brief Callback to prepare validation (e.g., EfficientAD quantile setup)
+                 *
+                 * Set by setupDataLoaders(), uses 10% subset for efficiency
+                 */
+                std::function<void()> _prepareValidationCallback;
+
+                /**
+                 * @brief Batch iterator for 10% subset (used for quantile computation)
+                 */
+                Model::Modules::BatchIteratorFunc _prepareBatchIterator;
             };
 
         } // namespace Trainer

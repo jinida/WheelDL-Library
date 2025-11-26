@@ -2,8 +2,17 @@
 #include "WheelDL.Lib/Data/Transforms/Collation.h"
 #include "AnomalyTrainer.h"
 #include "../Validator/AnomalyValidator.h"
+#include "../Predictor/AnomalyPredictor.h"
 #include "../../Utils/Error/WheelLibException.h"
 #include "../../Utils/Error/ErrorCodes.h"
+#include "../../Utils/Export/PredictionExporter.h"
+#include "../../Utils/Export/ImageExporter.h"
+#include <opencv2/opencv.hpp>
+#include <fstream>
+#include <sstream>
+#include <nlohmann/json.hpp>
+#include <chrono>
+#include <algorithm>
 
 namespace WheelDL {
     namespace Core {
@@ -12,7 +21,6 @@ namespace WheelDL {
             AnomalyTrainer::AnomalyTrainer(const std::shared_ptr<Config::Configuration> config)
                 : BaseTrainer(config)
                 , _isModelPrepared(false)
-                , _isValidationPrepared(false)
             {
                 _logger->info("AnomalyTrainer", "Initializing anomaly detection trainer");
 
@@ -32,7 +40,7 @@ namespace WheelDL {
                         "Configuration task type must be ANOMALY for AnomalyTrainer"
                     );
                 }
-
+                _config->setImageNetNorm(true);
                 _logger->info("AnomalyTrainer", "Model YAML: " + _modelYamlPath);
             }
 
@@ -69,7 +77,7 @@ namespace WheelDL {
                         std::to_string(trainDataset->size().value_or(0)) + " samples");
 
                     // Create DataLoader with LibTorch
-                    auto trainLoader = torch::data::make_data_loader(
+					auto trainLoader = torch::data::make_data_loader<torch::data::samplers::RandomSampler>(
                         std::move(trainDataset->map(Data::DataExampleCollation())),
                         torch::data::DataLoaderOptions()
                             .batch_size(_config->getBatchSize())
@@ -106,8 +114,47 @@ namespace WheelDL {
                         _profiler.stop("prepare_model_training");
                     }
 
-                    // Now move the loader to the trainer
+					// Inject training DataLoader into trainer
                     setTrainDataLoader(std::move(trainLoader));
+
+                    if (_config->IsEfficientAD())
+                    {
+                        // Create 10% subset dataset for efficient quantile computation
+                        auto prepareDataset = std::make_shared<Data::Dataset::PredDataset>(*_config, true);
+                        size_t subsetSize = std::max(size_t(1), trainDataset->size().value_or(0) / 10);
+                        prepareDataset->limitSamples(subsetSize);
+
+                        _logger->info("AnomalyTrainer", "Prepare dataset: " +
+                            std::to_string(prepareDataset->size().value_or(0)) + " samples (10% subset)");
+
+                        auto prepareLoader = torch::data::make_data_loader<torch::data::samplers::RandomSampler>(
+                            std::move(prepareDataset->map(Data::PredDataExampleCollation())),
+                            torch::data::DataLoaderOptions()
+                            .batch_size(_config->getBatchSize())
+                            .workers(_config->getWorkers())
+                            .drop_last(false)
+                        );
+
+                        // Store in shared_ptr and create batch iterator
+                        auto prepareLoaderPtr = std::make_shared<decltype(prepareLoader)>(std::move(prepareLoader));
+                        _prepareBatchIterator = [prepareLoaderPtr](std::function<void(const Data::Dataset::PredDataExample&, int)> callback) {
+                            int batchIdx = 0;
+                            for (auto& batch : *(*prepareLoaderPtr)) {
+                                callback(batch, batchIdx++);
+                            }
+                        };
+
+                        _prepareValidationCallback = [this]() {
+                            auto anomalyModel = dynamic_cast<Model::AnomalyModel*>(_model.get());
+                            if (anomalyModel && _prepareBatchIterator)
+                            {
+                                anomalyModel->eval();
+                                _logger->info("AnomalyTrainer", "Preparing validation (quantile setup)...");
+                                anomalyModel->prepareValidation(_prepareBatchIterator);
+                            }
+                        };
+                    }
+                    // Now move the loader to the trainer
 
                     _logger->info("AnomalyTrainer", "Data loaders setup completed");
                 }
@@ -126,9 +173,8 @@ namespace WheelDL {
                 _profiler.start("setup_validator");
                 _logger->info("AnomalyTrainer", "Setting up validator");
 
-                try 
+                try
                 {
-                    // Create AnomalyValidator
                     _validator = std::make_unique<Validator::AnomalyValidator>(_config);
 
                     // Create validation dataset
@@ -137,47 +183,18 @@ namespace WheelDL {
                     _logger->info("AnomalyTrainer", "Validation dataset created with " +
                                  std::to_string(valDataset->size().value_or(0)) + " samples");
 
-                    // Create validation DataLoader
-                    auto valLoader = torch::data::make_data_loader(
+                    // Create validation DataLoader as shared_ptr
+                    auto valLoader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
                         std::move(valDataset->map(Data::DataExampleCollation())),
-                        torch::data::DataLoaderOptions() 
+                        torch::data::DataLoaderOptions()
                             .batch_size(_config->getBatchSize())
                             .workers(_config->getWorkers())
                             .drop_last(false)
                     );
 
-                    // Prepare model for validation BEFORE moving the loader
-                    // This computes quantiles (EfficientAD)
-                    if (!_isValidationPrepared) {
-                        _profiler.start("prepare_model_validation");
-                        _logger->info("AnomalyTrainer", "Preparing model for validation...");
-
-                        try {
-                            auto anomalyModel = dynamic_cast<Model::AnomalyModel*>(_model.get());
-                            if (!anomalyModel) {
-                                throw Utils::ModelException(
-                                    Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
-                                    "Model is not an AnomalyModel"
-                                );
-                            }
-
-                            // Use the valLoader we just created for preparation
-                            anomalyModel->prepareValidation(*valLoader);
-
-                            _isValidationPrepared = true;
-                            _logger->info("AnomalyTrainer", "Validation preparation completed");
-                        }
-                        catch (const std::exception& e) {
-                            _logger->error("AnomalyTrainer", "Failed to prepare validation: " + std::string(e.what()));
-                            throw;
-                        }
-
-                        _profiler.stop("prepare_model_validation");
-                    }
-
-                    // Now inject data loader into validator
+                    // Inject data loader into validator
                     auto anomalyValidator = dynamic_cast<Validator::AnomalyValidator*>(_validator.get());
-                    if (anomalyValidator) 
+                    if (anomalyValidator)
                     {
                         anomalyValidator->setDataLoader(std::move(valLoader));
                     }
@@ -217,27 +234,140 @@ namespace WheelDL {
 
             float AnomalyTrainer::calculateFitness(const MetricsData& metrics)
             {
-                // For anomaly detection, fitness is typically:
-                // - AUC-ROC (Area Under Curve)
-                // - AP (Average Precision)
-                // - F1 Score
-                //
-                // Since MetricsData contains fitness field, use it directly
-                // If fitness is not computed, use 1.0 - loss as fallback
+                return metrics.fitness;
+            }
 
-                if (metrics.fitness > 0.0f) {
-                    return metrics.fitness;
+            std::unique_ptr<Predictor::BasePredictor> AnomalyTrainer::setupPredictor(const std::string& checkpointPath)
+            {
+                _logger->info("AnomalyTrainer", "Setting up anomaly predictor with checkpoint: " + checkpointPath);
+
+                try {
+                    // Create AnomalyPredictor with configuration and checkpoint path
+                    auto predictor = std::make_unique<Predictor::AnomalyPredictor>(_config, checkpointPath);
+
+                    _logger->info("AnomalyTrainer", "Anomaly predictor setup completed");
+                    return predictor;
                 }
-                else if (metrics.mAP > 0.0f) {
-                    // Use mAP as fitness (for PatchCore, etc.)
-                    return metrics.mAP;
-                }
-                else {
-                    // Fallback: use negative loss (lower loss = higher fitness)
-                    return 1.0f / (1.0f + metrics.loss);
+                catch (const std::exception& e) {
+                    throw Utils::ModelException(
+                        Utils::ErrorCode::MODEL_LOAD_FAILED,
+                        "Failed to setup anomaly predictor: " + std::string(e.what())
+                    );
                 }
             }
 
+            void AnomalyTrainer::exportPredictionResults(
+                const std::vector<PredictionResult>& results,
+                const std::vector<std::string>& imagePaths)
+            {
+                namespace fs = std::filesystem;
+
+                fs::path resultsPath = _workspace->getResultDir();
+                _logger->info("AnomalyTrainer", "Exporting anomaly prediction results to: " + resultsPath.string());
+
+                try
+                {
+                    fs::path anomalyMapsDir = resultsPath / "anomaly_maps";
+                    if (!fs::exists(anomalyMapsDir))
+                    {
+                        fs::create_directories(anomalyMapsDir);
+                    }
+
+                    nlohmann::json predictionsJson = nlohmann::json::array();
+
+                    predictionsJson.get<nlohmann::json::array_t>().reserve(results.size());
+
+                    for (size_t i = 0; i < results.size(); ++i)
+                    {
+                        const auto& result = results[i];
+                        const auto& imagePath = imagePaths[i];
+
+                        nlohmann::json predJson;
+                        predJson["image_path"] = imagePath;
+                        predJson["inference_time_ms"] = result.inferenceTime;
+
+                        if (!result.scores.empty()) {
+                            predJson["anomaly_score"] = result.scores[0];
+                        }
+
+                        if (!result.classIds.empty()) {
+                            predJson["class_id"] = result.classIds[0];
+                            predJson["label"] = (result.classIds[0] == 0) ? "normal" : "anomaly";
+                        }
+
+                        if (!result.anomalyMap.empty()) {
+                            std::hash<std::string> hasher;
+                            size_t hashValue = hasher(imagePath);
+                            std::stringstream ss;
+                            ss << std::hex << hashValue;
+
+                            std::string filename = ss.str() + ".jpg";
+                            fs::path mapPath = anomalyMapsDir / filename;
+
+                            std::vector<uchar> buffer;
+                            std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, 80 };
+
+                            bool encoded = cv::imencode(".jpg", result.anomalyMap, buffer, params);
+
+                            if (encoded) {
+                                std::ofstream outFile(mapPath, std::ios::binary);
+                                if (outFile.is_open()) {
+                                    outFile.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+                                    outFile.close();
+
+                                    predJson["anomaly_map"] = "./anomaly_maps/" + filename;
+                                    _logger->debug("AnomalyTrainer", "Saved anomaly map: " + filename);
+                                }
+                                else {
+                                    _logger->warn("AnomalyTrainer", "Failed to save anomaly map to disk for: " + imagePath);
+                                }
+                            }
+                            else {
+                                _logger->warn("AnomalyTrainer", "Failed to encode anomaly map for: " + imagePath);
+                            }
+                        }
+
+                        predictionsJson.push_back(predJson);
+                    }
+
+                    fs::path predictionsPath = resultsPath / "predictions.json";
+                    std::ofstream jsonFile(predictionsPath);
+                    if (!jsonFile.is_open())
+                    {
+                        throw Utils::DataException(
+                            Utils::ErrorCode::FILE_IO_ERROR,
+                            "Failed to create predictions.json file"
+                        );
+                    }
+
+                    nlohmann::json rootJson;
+                    rootJson["predictions"] = predictionsJson;
+                    rootJson["total_predictions"] = results.size();
+                    jsonFile << std::setw(4) << rootJson << std::endl;
+
+                    _logger->info("AnomalyTrainer", "Exported " + std::to_string(results.size()) +
+                        " prediction results to " + predictionsPath.string());
+                }
+                catch (const std::exception& e) {
+                    throw Utils::DataException(
+                        Utils::ErrorCode::FILE_IO_ERROR,
+                        "Failed to export anomaly prediction results: " + std::string(e.what())
+                    );
+                }
+            }
+
+            MetricsData AnomalyTrainer::runValidation(int epoch, bool useEmaIfAvailable)
+            {
+                // Call prepareValidation before each validation
+                // This is required for EfficientAD to setup quantile normalization
+                if (_prepareValidationCallback)
+                {
+                    _prepareValidationCallback();
+                }
+
+                // Call base class validation
+                return BaseTrainer::runValidation(epoch, useEmaIfAvailable);
+            }
 
         } // namespace Trainer
     } // namespace Core
