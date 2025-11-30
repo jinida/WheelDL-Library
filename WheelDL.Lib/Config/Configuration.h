@@ -120,6 +120,7 @@ namespace WheelDL {
 			 */
 			bool isDeterministic() const { return _deterministic; }
 
+			bool isEmaEnabled() const { return _emaEnabled; }
 			/**
 			 * @brief Check if cosine LR scheduler is enabled
 			 * @return bool True if cosine LR
@@ -365,7 +366,7 @@ namespace WheelDL {
 			 * @return bool True if device string suggests multi-GPU
 			 */
 			bool useDDP() const;
-
+			
 			bool IsEfficientAD() const { return _isEfficientAD; }
 			bool IsPatchCore() const { return _isPatchCore; }
 			void setIsEfficientAD(bool val) { _isEfficientAD = val; }
@@ -433,6 +434,7 @@ namespace WheelDL {
 			float _blurProbability;
 			int _fillBorder;
 			bool isImageNetNormalized;
+			bool _emaEnabled;
 
 			// ========== Validation Settings ==========
 			float _iou;

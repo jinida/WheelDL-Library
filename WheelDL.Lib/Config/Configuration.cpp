@@ -60,6 +60,7 @@ Configuration::Configuration()
 	, _maxDet(300)
 	, _dropout(0.0f)
 	, _cacheSize(256)
+	, _emaEnabled(false)
 {
 }
 
@@ -145,6 +146,7 @@ void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
 	_closeMosaic = YamlParser::getInt(hyperParamConfig, "close_mosaic", 10);
 	_amp = YamlParser::getBool(hyperParamConfig, "amp", true);
 	_bfloat16 = YamlParser::getBool(hyperParamConfig, "bfloat16", false);
+	_emaEnabled = YamlParser::getBool(hyperParamConfig, "ema", false);
 
 	// Cache settings
 	if (hyperParamConfig["cache"]) {
