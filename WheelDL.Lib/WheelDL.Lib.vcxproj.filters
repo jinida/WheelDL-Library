@@ -516,12 +516,21 @@
     <ClInclude Include="Core\Trainer\AnomalyTrainer.h">
       <Filter>header\Core\Trainer</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Trainer\ClassificationTrainer.h">
+      <Filter>header\Core\Trainer</Filter>
+    </ClInclude>
     <!-- Core Validator Headers -->
     <ClInclude Include="Core\Validator\AnomalyValidator.h">
       <Filter>header\Core\Validator</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Validator\ClassificationValidator.h">
+      <Filter>header\Core\Validator</Filter>
+    </ClInclude>
     <!-- Core Predictor Headers -->
     <ClInclude Include="Core\Predictor\AnomalyPredictor.h">
+      <Filter>header\Core\Predictor</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Predictor\ClassificationPredictor.h">
       <Filter>header\Core\Predictor</Filter>
     </ClInclude>
     <!-- Core Utils Headers -->
@@ -871,12 +880,21 @@
     <ClCompile Include="Core\Trainer\AnomalyTrainer.cpp">
       <Filter>source\Core\Trainer</Filter>
     </ClCompile>
+    <ClCompile Include="Core\Trainer\ClassificationTrainer.cpp">
+      <Filter>source\Core\Trainer</Filter>
+    </ClCompile>
     <!-- Core Validator Implementation -->
     <ClCompile Include="Core\Validator\AnomalyValidator.cpp">
       <Filter>source\Core\Validator</Filter>
     </ClCompile>
+    <ClCompile Include="Core\Validator\ClassificationValidator.cpp">
+      <Filter>source\Core\Validator</Filter>
+    </ClCompile>
     <!-- Core Predictor Implementation -->
     <ClCompile Include="Core\Predictor\AnomalyPredictor.cpp">
+      <Filter>source\Core\Predictor</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Predictor\ClassificationPredictor.cpp">
       <Filter>source\Core\Predictor</Filter>
     </ClCompile>
     <!-- Core Utils Sources -->

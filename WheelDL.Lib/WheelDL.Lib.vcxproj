@@ -251,10 +251,13 @@
     <ClInclude Include="Core\Engine\BasePredictor.h" />
     <!-- Core Trainer Headers -->
     <ClInclude Include="Core\Trainer\AnomalyTrainer.h" />
+    <ClInclude Include="Core\Trainer\ClassificationTrainer.h" />
     <!-- Core Validator Headers -->
     <ClInclude Include="Core\Validator\AnomalyValidator.h" />
+    <ClInclude Include="Core\Validator\ClassificationValidator.h" />
     <!-- Core Predictor Headers -->
     <ClInclude Include="Core\Predictor\AnomalyPredictor.h" />
+    <ClInclude Include="Core\Predictor\ClassificationPredictor.h" />
     <!-- Core Utils Headers -->
     <ClInclude Include="Core\Utils\Checkpoint.h" />
     <ClInclude Include="Core\Utils\CheckpointMetadata.h" />
@@ -342,10 +345,13 @@
     <ClCompile Include="Core\Engine\BaseValidator.cpp" />
     <!-- Core Trainer Implementation -->
     <ClCompile Include="Core\Trainer\AnomalyTrainer.cpp" />
+    <ClCompile Include="Core\Trainer\ClassificationTrainer.cpp" />
     <!-- Core Validator Implementation -->
     <ClCompile Include="Core\Validator\AnomalyValidator.cpp" />
+    <ClCompile Include="Core\Validator\ClassificationValidator.cpp" />
     <!-- Core Predictor Implementation -->
     <ClCompile Include="Core\Predictor\AnomalyPredictor.cpp" />
+    <ClCompile Include="Core\Predictor\ClassificationPredictor.cpp" />
     <!-- Core Utils Implementation -->
     <ClCompile Include="Core\Utils\Checkpoint.cpp" />
     <ClCompile Include="Core\Utils\CheckpointMetadata.cpp" />
