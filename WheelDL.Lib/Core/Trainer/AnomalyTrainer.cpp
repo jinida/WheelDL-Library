@@ -234,7 +234,7 @@ namespace WheelDL {
 
             float AnomalyTrainer::calculateFitness(const MetricsData& metrics)
             {
-                return metrics.fitness;
+				return metrics.aucROC * 0.5 + metrics.f1Score * 0.5;
             }
 
             std::unique_ptr<Predictor::BasePredictor> AnomalyTrainer::setupPredictor(const std::string& checkpointPath)
@@ -344,7 +344,15 @@ namespace WheelDL {
                     rootJson["predictions"] = predictionsJson;
                     rootJson["total_predictions"] = results.size();
                     jsonFile << std::setw(4) << rootJson << std::endl;
+                    jsonFile << std::setw(4) << rootJson << std::endl;
+                    jsonFile.close();
 
+                    if (jsonFile.fail()) {
+                        throw Utils::DataException(
+                            Utils::ErrorCode::FILE_IO_ERROR,
+                            "Failed to write predictions.json"
+                        );
+                    }
                     _logger->info("AnomalyTrainer", "Exported " + std::to_string(results.size()) +
                         " prediction results to " + predictionsPath.string());
                 }

@@ -19,8 +19,14 @@ namespace WheelDL {
 
 			void AnomalyValidator::setupDataLoader()
 			{
-				auto valDataset = std::make_shared<Data::Dataset::AnomalyDataset>(*_config, false);
+				if (_batchIterator) {
+					_logger->info("AnomalyValidator",
+						"Using injected DataLoader for validation");
+					return;
 
+				}
+
+				auto valDataset = std::make_shared<Data::Dataset::AnomalyDataset>(*_config, false);
 				_logger->info("AnomalyTrainer", "Validation dataset created with " +
 					std::to_string(valDataset->size().value_or(0)) + " samples");
 
@@ -86,7 +92,7 @@ namespace WheelDL {
 					auto scoresCPU = anomalyScores.cpu().contiguous().to(torch::kFloat32);
 					auto labelsCPU = labels.cpu().contiguous().to(torch::kFloat32);
 
-					metrics.fitness = computeAUCROC(scoresCPU, labelsCPU);
+					metrics.aucROC = computeAUCROC(scoresCPU, labelsCPU);
 					metrics.mAP = computeAveragePrecision(scoresCPU, labelsCPU);
 
 					// Compute all metrics at optimal F1 threshold
@@ -104,7 +110,7 @@ namespace WheelDL {
 					metrics.recall = recall;
 					metrics.accuracy = accuracy;
 
-					_logger->info("AnomalyValidator", "Metrics - AUC-ROC: " + std::to_string(metrics.fitness) +
+					_logger->info("AnomalyValidator", "Metrics - AUC-ROC: " + std::to_string(metrics.aucROC) +
 						" | AP: " + std::to_string(metrics.mAP) +
 						" | F1: " + std::to_string(metrics.f1Score) +
 						" | Acc: " + std::to_string(metrics.accuracy));
