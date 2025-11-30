@@ -22,6 +22,18 @@ namespace WheelDL {
              * - Focal loss with optimized computation
              * - Support for both hard and soft labels
              */
+
+            namespace {
+                enum class Reduction { None, Mean, Sum };
+
+                Reduction parseReduction(const std::string& r) {
+                    if (r == "none") return Reduction::None;
+                    if (r == "mean") return Reduction::Mean;
+                    if (r == "sum")  return Reduction::Sum;
+                    throw std::invalid_argument("Reduction must be 'none', 'mean', or 'sum'");
+                }
+            }
+
             class ClassificationLoss : public BaseLoss {
             public:
                 /**
@@ -79,6 +91,8 @@ namespace WheelDL {
                     const torch::Tensor& prediction,
                     const torch::Tensor& target) override;
 
+                torch::Tensor getSoftTarget(const torch::Tensor& target) const;
+
                 /**
                  * @brief Get loss name
                  *
@@ -135,9 +149,8 @@ namespace WheelDL {
                  * Formula: FL(pt) = -alpha * (1 - pt)^gamma * log(pt)
                  */
                 [[nodiscard]] torch::Tensor computeFocalLoss(
-                    const torch::Tensor& prediction,
-                    const torch::Tensor& target
-                );
+                    const torch::Tensor& logProb,
+                    const torch::Tensor& target);
 
                 /**
                  * @brief Compute cross-entropy with label smoothing
@@ -160,7 +173,7 @@ namespace WheelDL {
                 float _labelSmoothing;        ///< Label smoothing factor
                 float _focalAlpha;            ///< Focal loss alpha parameter
                 float _focalGamma;            ///< Focal loss gamma parameter
-                std::string _reduction;       ///< Reduction method
+                Reduction _reduction;       ///< Reduction method
             };
 
         } // namespace Loss
