@@ -4,6 +4,7 @@
 #include <torch/torch.h>
 #include <memory>
 #include <cmath>
+#include <unordered_map>
 
 namespace WheelDL {
     namespace Optimizer {
@@ -21,13 +22,16 @@ namespace WheelDL {
              *
              * Reference: "Mean teachers are better role models"
              * https://arxiv.org/abs/1703.01780
+             *
+             * Note: This implementation uses parameter copying instead of model cloning
+             * to avoid requiring torch::nn::Cloneable support in all model modules.
              */
             class ModelEMA {
             public:
                 /**
                  * @brief Constructor
                  *
-                 * Creates a deep copy of the model's _model member for EMA tracking.
+                 * Copies all parameters and buffers from the model for EMA tracking.
                  *
                  * @param model Model to track with EMA
                  * @param maxDecay Maximum decay rate (default: 0.9999)
@@ -41,7 +45,7 @@ namespace WheelDL {
                                  int updateCount = 0);
 
                 /**
-                 * @brief Update EMA model with current model parameters
+                 * @brief Update EMA parameters with current model parameters
                  *
                  * Should be called after each training step or batch.
                  *
@@ -50,11 +54,23 @@ namespace WheelDL {
                 void update(const Model::BaseModel& model);
 
                 /**
-                 * @brief Get EMA model
+                 * @brief Apply EMA parameters to the model
                  *
-                 * @return torch::nn::Sequential EMA model for inference
+                 * Backs up current model parameters and applies EMA parameters.
+                 * Call restoreOriginalParams() to restore the original parameters.
+                 *
+                 * @param model Model to apply EMA parameters to
                  */
-                torch::nn::Sequential getEMAModel() const { return _emaModel; }
+                void applyToModel(Model::BaseModel& model);
+
+                /**
+                 * @brief Restore original parameters to the model
+                 *
+                 * Restores the parameters that were backed up during applyToModel().
+                 *
+                 * @param model Model to restore original parameters to
+                 */
+                void restoreOriginalParams(Model::BaseModel& model);
 
                 /**
                  * @brief Get number of updates performed
@@ -132,7 +148,10 @@ namespace WheelDL {
                                    float decay);
 
             private:
-                torch::nn::Sequential _emaModel;  ///< EMA model (cloned from BaseModel::_model)
+                std::unordered_map<std::string, torch::Tensor> _emaParameters;   ///< EMA parameters (name -> tensor)
+                std::unordered_map<std::string, torch::Tensor> _emaBuffers;      ///< EMA buffers (name -> tensor)
+                std::unordered_map<std::string, torch::Tensor> _backupParameters; ///< Backup of original parameters
+                std::unordered_map<std::string, torch::Tensor> _backupBuffers;    ///< Backup of original buffers
                 float _maxDecay;                   ///< Maximum decay rate
                 int _decayRamp;                    ///< Decay ramp time constant
                 int _updates;                      ///< Number of updates

@@ -30,8 +30,6 @@ namespace WheelDL {
                     );
                 }
 
-                // Clone the model's _model member (torch::nn::Sequential)
-                // We need to use a workaround since LibTorch doesn't have direct clone()
                 auto sourceModel = model.getModel();
                 if (!sourceModel) {
                     throw Utils::ConfigurationException(
@@ -40,22 +38,15 @@ namespace WheelDL {
                     );
                 }
 
-                // Create a deep copy by cloning the module
-                _emaModel = std::dynamic_pointer_cast<torch::nn::SequentialImpl>(
-                    sourceModel->clone()
-                );
-
-                if (!_emaModel) {
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::INVALID_CONFIG,
-                        "Failed to clone model"
-                    );
+                // Copy all parameters (detached and cloned)
+                for (const auto& param : sourceModel->named_parameters()) {
+                    _emaParameters[param.key()] = param.value().detach().clone();
+                    _emaParameters[param.key()].set_requires_grad(false);
                 }
 
-                // Set EMA model to eval mode and disable gradients
-                _emaModel->eval();
-                for (auto& param : _emaModel->parameters()) {
-                    param.set_requires_grad(false);
+                // Copy all buffers (detached and cloned)
+                for (const auto& buffer : sourceModel->named_buffers()) {
+                    _emaBuffers[buffer.key()] = buffer.value().detach().clone();
                 }
             }
 
@@ -69,51 +60,106 @@ namespace WheelDL {
 
                 float decay = getDecay();
 
-                // Get named parameters from both models
                 auto sourceModel = model.getModel();
                 if (!sourceModel) {
                     return;
                 }
 
-                auto currentParams = sourceModel->named_parameters();
-                auto emaParams = _emaModel->named_parameters();
+                // Update EMA parameters
+                for (const auto& param : sourceModel->named_parameters()) {
+                    const std::string& name = param.key();
+                    const torch::Tensor& currentTensor = param.value();
 
-                // Update each EMA parameter
-                for (auto& currentParam : currentParams) {
-                    const std::string& name = currentParam.key();
-                    const torch::Tensor& currentTensor = currentParam.value();
-
-                    // Find corresponding EMA parameter
-                    auto emaIter = std::find_if(emaParams.begin(), emaParams.end(),
-                        [&name](const auto& p) { return p.key() == name; });
-
-                    if (emaIter != emaParams.end()) {
-                        torch::Tensor& emaTensor = emaIter->value();
-                        updateParameter(emaTensor, currentTensor, decay);
+                    auto it = _emaParameters.find(name);
+                    if (it != _emaParameters.end()) {
+                        updateParameter(it->second, currentTensor, decay);
                     }
                 }
 
-                // Copy buffers (e.g., running_mean, running_var, num_batches_tracked in BatchNorm)
-                // Buffers are COPIED directly, NOT updated with EMA decay
-                // This ensures BatchNorm statistics reflect current model state
-                auto currentBuffers = sourceModel->named_buffers();
-                auto emaBuffers = _emaModel->named_buffers();
+                // Copy buffers directly (no EMA decay for buffers like BatchNorm stats)
+                for (const auto& buffer : sourceModel->named_buffers()) {
+                    const std::string& name = buffer.key();
+                    const torch::Tensor& currentTensor = buffer.value();
 
-                for (auto& currentBuffer : currentBuffers) {
-                    const std::string& name = currentBuffer.key();
-                    const torch::Tensor& currentTensor = currentBuffer.value();
-
-                    auto emaIter = std::find_if(emaBuffers.begin(), emaBuffers.end(),
-                        [&name](const auto& b) { return b.key() == name; });
-
-                    if (emaIter != emaBuffers.end()) {
-                        torch::Tensor& emaTensor = emaIter->value();
-                        // Copy buffers directly without applying EMA
-                        emaTensor.copy_(currentTensor);
+                    auto it = _emaBuffers.find(name);
+                    if (it != _emaBuffers.end()) {
+                        it->second.copy_(currentTensor);
                     }
                 }
 
                 _updates++;
+            }
+
+            void ModelEMA::applyToModel(Model::BaseModel& model)
+            {
+                torch::NoGradGuard no_grad;
+
+                auto targetModel = model.getModel();
+                if (!targetModel) {
+                    return;
+                }
+
+                // Backup current parameters
+                _backupParameters.clear();
+                for (const auto& param : targetModel->named_parameters()) {
+                    _backupParameters[param.key()] = param.value().detach().clone();
+                }
+
+                // Backup current buffers
+                _backupBuffers.clear();
+                for (const auto& buffer : targetModel->named_buffers()) {
+                    _backupBuffers[buffer.key()] = buffer.value().detach().clone();
+                }
+
+                // Apply EMA parameters to model
+                for (auto& param : targetModel->named_parameters()) {
+                    const std::string& name = param.key();
+                    auto it = _emaParameters.find(name);
+                    if (it != _emaParameters.end()) {
+                        param.value().data().copy_(it->second);
+                    }
+                }
+
+                // Apply EMA buffers to model
+                for (auto& buffer : targetModel->named_buffers()) {
+                    const std::string& name = buffer.key();
+                    auto it = _emaBuffers.find(name);
+                    if (it != _emaBuffers.end()) {
+                        buffer.value().copy_(it->second);
+                    }
+                }
+            }
+
+            void ModelEMA::restoreOriginalParams(Model::BaseModel& model)
+            {
+                torch::NoGradGuard no_grad;
+
+                auto targetModel = model.getModel();
+                if (!targetModel) {
+                    return;
+                }
+
+                // Restore original parameters
+                for (auto& param : targetModel->named_parameters()) {
+                    const std::string& name = param.key();
+                    auto it = _backupParameters.find(name);
+                    if (it != _backupParameters.end()) {
+                        param.value().data().copy_(it->second);
+                    }
+                }
+
+                // Restore original buffers
+                for (auto& buffer : targetModel->named_buffers()) {
+                    const std::string& name = buffer.key();
+                    auto it = _backupBuffers.find(name);
+                    if (it != _backupBuffers.end()) {
+                        buffer.value().copy_(it->second);
+                    }
+                }
+
+                // Clear backups
+                _backupParameters.clear();
+                _backupBuffers.clear();
             }
 
             float ModelEMA::getDecay() const
@@ -162,7 +208,8 @@ namespace WheelDL {
 
                 // Ensure both tensors are on the same device
                 if (emaParam.device() != currentParam.device()) {
-                    return;  // Skip if devices don't match
+                    // Move EMA param to current param's device
+                    emaParam = emaParam.to(currentParam.device());
                 }
 
                 // Ensure both tensors have the same shape
@@ -170,8 +217,8 @@ namespace WheelDL {
                     return;  // Skip if shapes don't match
                 }
 
-                // Apply EMA update using .data() to avoid in-place operation errors
-                emaParam.data().mul_(decay).add_(currentParam.data(), 1.0f - decay);
+                // Apply EMA update
+                emaParam.mul_(decay).add_(currentParam.detach(), 1.0f - decay);
             }
 
         } // namespace EMA

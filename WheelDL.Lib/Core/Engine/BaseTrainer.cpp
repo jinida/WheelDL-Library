@@ -366,18 +366,25 @@ namespace WheelDL {
 
             void BaseTrainer::initializeEMA()
             {
-                if (_config->getTaskType() == TaskType::ANOMALY)
+                // Skip EMA for anomaly detection (PatchCore doesn't need EMA)
+                if (_config->IsPatchCore())
                 {
-                    _logger->info("BaseTrainer", "EMA is only supported for detection tasks, skipping EMA initialization");
+                    _logger->info("BaseTrainer", "Skipping EMA initialization for PatchCore");
                     return;
                 }
+
+                if (!_config->isEmaEnabled())
+                {
+                    _logger->info("BaseTrainer", "EMA not enabled in configuration");
+                    return;
+				}
 
                 if (!_model)
                 {
                     throw Utils::WheelLibException(Utils::ErrorCode::TRAINING_FAILED,
                         "Model must be initialized before EMA");
                 }
-                
+
                 _profiler.start("initialize_ema");
 
                 _ema = std::make_unique<Optimizer::EMA::ModelEMA>(
@@ -501,23 +508,33 @@ namespace WheelDL {
                 std::string filename = isBest ? "best.pt" : "last.pt";
                 std::string path = _workspace->getWeightsDir() + "/" + filename;
 
-                // Save with EMA model if available
+                // Save with EMA parameters if available
                 if (_ema && _model)
                 {
-                    // Swap to EMA Sequential
-                    auto originalSeq = _model->swapModelSequential(_ema->getEMAModel());
+                    // Apply EMA parameters to model
+                    _ema->applyToModel(*_model);
 
-                    if (isBest) {
-                        // Best checkpoint: save model only (no optimizer state)
-                        Checkpoint::saveModelOnly(path, *_model, metadata);
-                    } else {
-                        // Last checkpoint: save with optimizer for resume training
-                        Checkpoint::save(path, *_model, *_optimizer, metadata);
+                    try
+                    {
+                        if (isBest) {
+                            // Best checkpoint: save model only (no optimizer state)
+                            Checkpoint::saveModelOnly(path, *_model, metadata);
+                        } else {
+                            // Last checkpoint: save with optimizer for resume training
+                            Checkpoint::save(path, *_model, *_optimizer, metadata);
+                        }
+
+                        // Restore original parameters
+                        _ema->restoreOriginalParams(*_model);
+
+                        _logger->info("BaseTrainer", "Checkpoint saved with EMA weights: " + filename);
                     }
-
-                    _model->swapModelSequential(originalSeq);
-
-                    _logger->info("BaseTrainer", "Checkpoint saved with EMA weights: " + filename);
+                    catch (...)
+                    {
+                        // Restore original parameters even on error
+                        _ema->restoreOriginalParams(*_model);
+                        throw;
+                    }
                 }
                 else
                 {
@@ -568,18 +585,21 @@ namespace WheelDL {
 
                 if (useEmaIfAvailable && _ema && _model)
                 {
-                    auto originalSeq = _model->swapModelSequential(_ema->getEMAModel());
+                    // Apply EMA parameters for validation
+                    _ema->applyToModel(*_model);
 
                     try
                     {
                         auto metrics = _validator->validate(*_model, epoch);
 
-                        _model->swapModelSequential(originalSeq);
+                        // Restore original parameters
+                        _ema->restoreOriginalParams(*_model);
                         return metrics;
                     }
                     catch (...)
                     {
-                        _model->swapModelSequential(originalSeq);
+                        // Restore original parameters even on error
+                        _ema->restoreOriginalParams(*_model);
                         throw;
                     }
                 }
@@ -720,6 +740,8 @@ namespace WheelDL {
                 if (_scheduler) 
                 {
                     _scheduler->step(_currentEpoch);
+                    _logger->info("BaseTrainer", "Learning Rate updated to: " +
+						std::to_string(_scheduler->getCurrentLR()));
                 }
             }
 
