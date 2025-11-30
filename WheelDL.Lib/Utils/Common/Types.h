@@ -83,15 +83,17 @@ namespace WheelDL {
 	 * @struct MetricsData
 	 * @brief Training and validation metrics
 	 */
-	struct MetricsData {
-		float loss;
-		float accuracy;
-		float precision;
-		float recall;
-		float f1Score;
-		float mAP;
-		float fitness;
-		float threshold;
+	struct MetricsData 
+	{
+		float loss = 0.0f;
+		float accuracy = 0.0f;
+		float precision = 0.0f;
+		float recall = 0.0f;
+		float f1Score = 0.0f;
+		float mAP = 0.0f;
+		float fitness = 0.0f;
+		float threshold = 0.0f;
+		float aucROC = 0.0f;
 	};
 
 	/**

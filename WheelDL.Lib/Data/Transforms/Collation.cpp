@@ -19,7 +19,7 @@ namespace WheelDL {
 			}
 
 			torch::Tensor stackedData = torch::stack(dataTensors, 0);
-			torch::Tensor stackedClasses = torch::stack(classesTensors, 0);
+			torch::Tensor stackedClasses = torch::cat(classesTensors, 0);
 
 			if (targetsTensors.size() == 0)
 			{

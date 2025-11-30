@@ -47,6 +47,7 @@ namespace WheelDL {
                         epochJson["mAP"] = metric.mAP;
                         epochJson["fitness"] = metric.fitness;
                         epochJson["threshold"] = metric.threshold;
+						epochJson["aucROC"] = metric.aucROC;
 
                         metricsJson.push_back(epochJson);
                     }
@@ -127,7 +128,9 @@ namespace WheelDL {
                                << metric.f1Score << ","
                                << metric.mAP << ","
                                << metric.fitness << ","
+							    << metric.aucROC << ","
                                << metric.threshold << "\n";
+
                     }
 
                     csvFile.close();
