@@ -33,4 +33,4 @@ python_src
 3rdparty
 packages
 LibTorch_apitest
-test_result.txt
+scripts
