@@ -180,6 +180,47 @@ inline constexpr float HEIGHT_MIN_THRESHOLD = 1e-5f;
     float gridCellOffset = 0.5f
 );
 
+/**
+ * @brief Apply Non-Maximum Suppression to detection predictions
+ *
+ * Filters overlapping detections by keeping only the highest confidence
+ * predictions within each class, using IoU threshold to determine overlap.
+ *
+ * @param prediction Raw predictions [batch, num_boxes, 4 + num_classes] or [num_boxes, 4 + num_classes]
+ *                   Box format: [x_center, y_center, width, height, class_scores...]
+ * @param confThresh Confidence threshold to filter low confidence detections (default: 0.25)
+ * @param iouThresh IoU threshold for NMS - boxes with IoU > threshold are suppressed (default: 0.45)
+ * @param maxDet Maximum number of detections to keep per image (default: 300)
+ * @return Filtered detections [N, 6] as [x1, y1, x2, y2, confidence, class_id]
+ *         Returns empty tensor if no detections pass threshold
+ */
+[[nodiscard]] std::vector<torch::Tensor> nonMaxSuppression(
+    const torch::Tensor& prediction,
+    float confThresh,
+    float iouThresh,
+    int maxDet
+);
+
+/**
+ * @brief Apply Non-Maximum Suppression for Oriented Bounding Boxes
+ *
+ * Similar to standard NMS but uses Probiou for rotated box IoU computation.
+ *
+ * @param prediction Raw predictions [batch, num_boxes, 5 + num_classes] or [num_boxes, 5 + num_classes]
+ *                   Box format: [x_center, y_center, width, height, angle, class_scores...]
+ * @param confThresh Confidence threshold to filter low confidence detections (default: 0.25)
+ * @param iouThresh IoU threshold for NMS using Probiou (default: 0.45)
+ * @param maxDet Maximum number of detections to keep per image (default: 300)
+ * @return Filtered detections [N, 7] as [cx, cy, w, h, angle, confidence, class_id]
+ *         Returns empty tensor if no detections pass threshold
+ */
+[[nodiscard]] std::vector<torch::Tensor> nonMaxSuppressionOBB(
+    const torch::Tensor& prediction,
+    float confThresh,
+    float iouThresh,
+    int maxDet
+);
+
 } // namespace Utils
 } // namespace Model
 } // namespace WheelDL

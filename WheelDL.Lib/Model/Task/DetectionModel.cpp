@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "DetectionModel.h"
+#include "../Modules/Head.h"
 #include "../Builder/ModelBuilder.h"
 #include "../../Utils/Error/WheelLibException.h"
 #include "../../Utils/Error/ErrorCodes.h"
@@ -58,7 +59,7 @@ namespace WheelDL {
 
                 // Build model
                 auto model = builder.build();
-
+                
                 // Set the model
                 setModel(model);
 
@@ -69,6 +70,8 @@ namespace WheelDL {
                 // Calculate stride for detection layers
                 // Use smaller fixed size for efficiency (256 is sufficient to determine stride)
                 _stride = calculateStride(256);
+                
+
                 auto maxStride = _stride.max().item<float>();
                 auto adjustedImageSize = static_cast<int>(
                     std::ceil(static_cast<float>(imageSize) / maxStride) * maxStride
@@ -80,7 +83,10 @@ namespace WheelDL {
                         << " to be compatible with model stride." << std::endl;
                     _config->setImageSize(adjustedImageSize);
                 }
-
+				auto headRef = model[model->size() - 1]->as<Modules::DetectImpl>();
+				headRef->stride = _stride;
+				headRef->inputSize = _config->getImageSize();
+				headRef->biasInit();
                 _criterion = initCriterion();
                 _isInitialized = true;
 
@@ -118,10 +124,12 @@ namespace WheelDL {
             // Create and return detection loss
             return std::make_unique<DetectionLoss>(
                 _config->getNumClasses(),
+                _config->getImageSize(),
                 _stride,
                 _boxGain,
                 _clsGain,
-                _dflGain
+                _dflGain,
+                _config->getTopK()
             );
         }
 

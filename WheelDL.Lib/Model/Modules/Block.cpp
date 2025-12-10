@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Block.h"
 #include <limits>
+#include <optional>
 
 namespace WheelDL {
     namespace Model {
@@ -694,7 +695,11 @@ namespace WheelDL {
 
             std::vector<torch::Tensor> CBLinearImpl::forward(torch::Tensor x) {
                 auto output = _conv->forward(x);
-                return output.split(_c2s, /*dim=*/1);
+#if TORCH_VERSION_MAJOR < 2
+                return output.split_with_sizes(_c2s, /*dim=*/1);
+#else
+				return output.split(_c2s, /*dim=*/1);
+#endif
             }
 
             // ============================================================================

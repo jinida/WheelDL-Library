@@ -111,7 +111,8 @@ namespace WheelDL {
                 return result;
             }
 
-            torch::Tensor DetectImpl::_inference(const std::vector<torch::Tensor>& x) {
+            torch::Tensor DetectImpl::_inference(const std::vector<torch::Tensor>& x) 
+            {
                 auto shape = x[0].sizes();  // BCHW
 
                 std::vector<torch::Tensor> xCatList;
@@ -151,26 +152,34 @@ namespace WheelDL {
                     _lastInputShapes = currentShapes;
                 }
 
-                auto splits = xCat.split({ regMax * 4, nc }, 1);
+#if TORCH_VERSION_MAJOR < 2
+                auto splits = xCat.split_with_sizes({ regMax * 4, nc }, 1);
+#else
+				auto splits = xCat.split({ regMax * 4, nc }, 1);
+#endif
                 auto& box = splits[0];
                 auto& cls = splits[1];
 
                 torch::Tensor dbox;
-                if (regMax > 1) {
+                if (regMax > 1)
+                {
                     auto dflBox = _dfl.forward<torch::Tensor>(box);
                     dbox = decodeBboxes(dflBox, anchors.unsqueeze(0)) * strides;
                 }
-                else {
+                else
+                {
                     dbox = decodeBboxes(box, anchors.unsqueeze(0)) * strides;
                 }
 
-                return torch::cat({ dbox, cls.sigmoid() }, 1);
+                return torch::cat({ dbox, cls.sigmoid() }, 1).permute({ 0, 2, 1 }).contiguous();
             }
 
-            void DetectImpl::biasInit() {
-                for (int64_t i = 0; i < nl; ++i) {
-                    // Validate stride tensor bounds
-                    if (i >= stride.size(0)) {
+            void DetectImpl::biasInit()
+            {
+                for (int64_t i = 0; i < nl; ++i) 
+                {
+                    if (i >= stride.size(0))
+                    {
                         throw std::out_of_range("DetectImpl::biasInit - Stride index " + std::to_string(i) +
                             " out of bounds, size: " + std::to_string(stride.size(0)));
                     }
@@ -179,33 +188,26 @@ namespace WheelDL {
                     auto cv3 = _cv3->ptr(i)->as<torch::nn::Sequential>();
                     auto s = stride[i].item<double>();
 
-                    // Get the last conv layer
                     auto cv2Last = (*cv2)[cv2->size() - 1]->as<torch::nn::Conv2d>();
                     auto cv3Last = (*cv3)[cv3->size() - 1]->as<torch::nn::Conv2d>();
 
-                    // Initialize box bias
                     cv2Last->bias.data().fill_(1.0);
 
-                    // Initialize class bias
-                    // Use configurable input size instead of hardcoded 640.0
                     auto clsBias = std::log(5.0 / nc / std::pow(inputSize / s, 2));
                     cv3Last->bias.data().slice(0, 0, nc).fill_(clsBias);
                 }
             }
 
-            torch::Tensor DetectImpl::decodeBboxes(const torch::Tensor& bboxes, const torch::Tensor& anchors, bool xywh) {
+            torch::Tensor DetectImpl::decodeBboxes(const torch::Tensor& bboxes, const torch::Tensor& anchors, bool xywh) 
+            {
                 return dist2bbox(bboxes, anchors, xywh, 1);
             }
-
-            // ============================================================================
-            // OBBImpl Implementation
-            // ============================================================================
 
             OBBImpl::OBBImpl(int64_t nc, int64_t ne, const std::vector<int64_t>& ch)
                 : DetectImpl(nc, ch), ne(ne) {
 
                 int64_t c4 = std::max(ch[0] / 4, ne);
-				torch::nn::ModuleList cv4;
+                torch::nn::ModuleList cv4;
                 for (int64_t i = 0; i < nl; ++i)
                 {
                     torch::nn::Sequential seq;
@@ -228,28 +230,38 @@ namespace WheelDL {
                     angleList.push_back(cv4Out.view({ bs, ne, -1 }));
                 }
                 auto angleTensor = torch::cat(angleList, 2);
-                angle = (angleTensor.sigmoid() - 0.25) * M_PI;
+                angleTensor = (angleTensor.sigmoid() - 0.25) * M_PI;
 
+                angle = angleTensor;
                 auto detOut = DetectImpl::forward(x);
 
-                if (is_training()) {
+                if (is_training())
+                {
                     std::vector<torch::Tensor> result = detOut;
-                    result.push_back(angle);
+                    result.push_back(angleTensor);
                     return result;
                 }
 
+                auto& det = detOut[0];
+                auto dbox = det.slice(2, 0, 4);
+                auto cls = det.slice(2, 4);
+                auto anglePermuted = angleTensor.permute({ 0, 2, 1 });
+
+                std::vector<torch::Tensor> y = { torch::cat({ dbox, anglePermuted, cls }, 2) };
+
                 if (export_)
                 {
-                    // TODO
-                    return { torch::cat({detOut[0], angle}, 1) };
+                    return y;
                 }
-                // TODO
-                return { torch::cat({detOut[0], angle}, 1), detOut[1], angle };
+
+                y.insert(y.end(), detOut.begin() + 1, detOut.end());
+                y.push_back(angleTensor);
+                return y;
             }
 
-            torch::Tensor OBBImpl::decodeBboxes(const torch::Tensor& bboxes, const torch::Tensor& anchors)
+            torch::Tensor OBBImpl::decodeBboxes(const torch::Tensor& bboxes, const torch::Tensor& anchors, bool xywh)
             {
-                return dist2rbox(bboxes, angle, anchors, 1);
+                return dist2rbox(bboxes, angle, anchors.permute({0, 2, 1}).contiguous(), xywh);
             }
 
             // ============================================================================

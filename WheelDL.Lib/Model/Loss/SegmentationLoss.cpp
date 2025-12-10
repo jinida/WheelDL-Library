@@ -52,7 +52,6 @@ namespace WheelDL {
             std::unordered_map<std::string, torch::Tensor> SegmentationLoss::compute(
                 const torch::Tensor& prediction,
                 const Data::Dataset::DataExample& target) {
-                // Delegate to tensor overload
                 return compute(prediction, target.targets);
             }
 

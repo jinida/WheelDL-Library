@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "OBBModel.h"
+#include "../Modules/Head.h"
 #include "../Builder/ModelBuilder.h"
 #include "../../Utils/Error/WheelLibException.h"
 #include "../../Utils/Error/ErrorCodes.h"
@@ -84,6 +85,11 @@ namespace WheelDL {
                     _config->setImageSize(adjustedImageSize);
                 }
 
+                auto headRef = model[model->size() - 1]->as<Modules::OBBImpl>();
+                headRef->stride = _stride;
+                headRef->inputSize = _config->getImageSize();
+                headRef->biasInit();
+
                 // Initialize criterion
                 _criterion = initCriterion();
                 _isInitialized = true;
@@ -122,10 +128,12 @@ namespace WheelDL {
             // Create and return OBB loss
             return std::make_unique<OBBLoss>(
                 _config->getNumClasses(),
+                _config->getImageSize(),
                 _stride,
                 _boxGain,
                 _clsGain,
-                _dflGain
+                _dflGain,
+				_config->getTopK()
             );
         }
 

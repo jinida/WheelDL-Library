@@ -9,53 +9,14 @@ namespace WheelDL {
     namespace Model {
         namespace Loss {
 
-            // Forward declarations for internal classes
             class DFLoss;
             class OrientedBboxLoss;
 
-            /**
-             * @brief Complete OBB Loss for YOLO-style oriented object detection
-             *
-             * Integrates:
-             * 1. OBB Task-Aligned Assignment for GT matching
-             * 2. OrientedBboxLoss with Probiou and DFL
-             * 3. Classification loss (BCE)
-             * 4. Automatic anchor generation and rotated bbox decoding
-             *
-             * Key differences from DetectionLoss:
-             * - Uses OBBTaskAlignedAssigner instead of TaskAlignedAssigner
-             * - Uses Probiou instead of CIoU for bbox loss
-             * - Handles angle prediction (5th parameter in bbox)
-             * - Uses dist2rbox for rotated bbox decoding
-             *
-             * Key improvements over Python version:
-             * - Zero-copy tensor operations where possible
-             * - Efficient batch processing
-             * - Smart memory management with move semantics
-             * - Pre-allocated tensors for repeated operations
-             * - Template-based polymorphism for different tasks
-             *
-             * Usage:
-             * @code
-             * OBBLoss loss(numClasses, stride);
-             * loss.setLossWeights(7.5f, 0.5f, 1.5f);  // box, cls, dfl
-             * auto [totalLoss, detachedLoss] = loss(predictions, batch);
-             * @endcode
-             */
             class OBBLoss : public BaseLoss {
             public:
-                /**
-                 * @brief Construct OBB loss
-                 *
-                 * @param numClasses Number of object classes
-                 * @param stride Stride values for each detection layer
-                 * @param boxGain Box loss weight (default: 7.5)
-                 * @param clsGain Classification loss weight (default: 0.5)
-                 * @param dflGain DFL loss weight (default: 1.5)
-                 * @param talTopk Top-k for task-aligned assignment (default: 10)
-                 */
                 explicit OBBLoss(
                     int64_t numClasses,
+                    int64_t imageSize,
                     const torch::Tensor& stride,
                     float boxGain = 7.5f,
                     float clsGain = 0.5f,
@@ -63,154 +24,72 @@ namespace WheelDL {
                     int64_t talTopk = 10
                 );
 
-                /**
-                 * @brief Destructor
-                 */
                 ~OBBLoss();
 
-                /**
-                 * @brief Compute OBB loss with concatenated predictions (inference format)
-                 *
-                 * @param prediction Model predictions [batch, 145, 8400] (concatenated from all scales)
-                 *                   where 145 = 4*regMax + numClasses + 1 (angle)
-                 * @param target DataExample containing targets, classes, and batchIndices
-                 * @return Map containing {"box": box_loss, "cls": cls_loss, "dfl": dfl_loss, "total": total_loss}
-                 */
                 [[nodiscard]] std::unordered_map<std::string, torch::Tensor> compute(
                     const torch::Tensor& prediction,
                     const Data::Dataset::DataExample& target) override;
 
-                /**
-                 * @brief Compute OBB loss with multi-scale predictions (training format)
-                 *
-                 * @param predictions Vector of predictions for each scale:
-                 *                    - [batch, 145, 80, 80] for P3
-                 *                    - [batch, 145, 40, 40] for P4
-                 *                    - [batch, 145, 20, 20] for P5
-                 *                    where 145 = 4*regMax + numClasses + 1 (angle)
-                 * @param target DataExample containing targets, classes, and batchIndices
-                 * @return Map containing {"box": box_loss, "cls": cls_loss, "dfl": dfl_loss, "total": total_loss}
-                 */
                 [[nodiscard]] std::unordered_map<std::string, torch::Tensor> compute(
                     const std::vector<torch::Tensor>& predictions,
                     const Data::Dataset::DataExample& target) override;
 
-                // Note: compute(Tensor, Tensor) is not implemented.
-                // Calling it will throw runtime_error from BaseLoss default implementation.
-
-                /**
-                 * @brief Get loss name
-                 */
                 [[nodiscard]] std::string name() const override {
                     return "OBBLoss";
                 }
 
-                /**
-                 * @brief Set loss weights
-                 *
-                 * @param box Box loss weight (default: 7.5)
-                 * @param cls Classification loss weight (default: 0.5)
-                 * @param dfl DFL loss weight (default: 1.5)
-                 */
                 void setLossWeights(float box, float cls, float dfl) {
                     _boxGain = box;
                     _clsGain = cls;
                     _dflGain = dfl;
                 }
 
-                /**
-                 * @brief Get loss weights
-                 *
-                 * @return Tuple of (box_gain, cls_gain, dfl_gain)
-                 */
                 [[nodiscard]] std::tuple<float, float, float> getLossWeights() const {
                     return std::make_tuple(_boxGain, _clsGain, _dflGain);
                 }
 
-                /**
-                 * @brief Set device for loss computation
-                 *
-                 * @param device Target device (CPU or CUDA)
-                 */
                 void to(const torch::Device& device);
 
             private:
-                /**
-                 * @brief Preprocess targets from batch format to model format
-                 *
-                 * @param targets Raw targets [num_gt, 7] as [batch_idx, class, x, y, w, h, angle]
-                 * @param batchSize Batch size
-                 * @param scaleTensor Scale tensor for denormalizing coordinates
-                 * @return Preprocessed targets [batch_size, max_num_gt, 6] as [class, x, y, w, h, angle]
-                 */
                 [[nodiscard]] torch::Tensor preprocess(
                     const torch::Tensor& targets,
-                    int64_t batchSize,
-                    const torch::Tensor& scaleTensor
+                    int64_t batchSize
                 );
 
-                /**
-                 * @brief Decode distance predictions to oriented bounding boxes
-                 *
-                 * @param anchorPoints Anchor points [num_anchors, 2]
-                 * @param predDist Distance distributions [batch, num_anchors, 4*regMax]
-                 * @param predAngle Angle predictions [batch, num_anchors, 1]
-                 * @return Decoded rotated boxes [batch, num_anchors, 5] in xywhr format
-                 */
                 [[nodiscard]] torch::Tensor decodeBbox(
-                    const torch::Tensor& anchorPoints,
                     const torch::Tensor& predDist,
                     const torch::Tensor& predAngle
                 );
 
+                void initializeAnchors();
+
             private:
-                // Loss components
-                std::unique_ptr<BCEWithLogitsLoss> _bce;  ///< BCE loss for classification
-                std::unique_ptr<OrientedBboxLoss> _bboxLoss;  ///< Oriented bbox loss with Probiou + DFL
-                std::unique_ptr<Utils::OBBTaskAlignedAssigner> _assigner;  ///< OBB task-aligned assigner
+                std::unique_ptr<BCEWithLogitsLoss> _bce;
+                std::unique_ptr<OrientedBboxLoss> _bboxLoss;
+                std::unique_ptr<Utils::OBBTaskAlignedAssigner> _assigner;
 
-                // Model parameters
-                int64_t _numClasses;   ///< Number of classes
-                int64_t _regMax;       ///< DFL regression max
-                int64_t _numOutputs;   ///< Outputs per anchor (5 + numClasses for OBB)
-                torch::Tensor _stride; ///< Stride for each layer (cloned for safety)
-                torch::Tensor _proj;   ///< Projection tensor for DFL decoding [regMax]
+                int64_t _numClasses;
+                int64_t _regMax;
+                int64_t _imageSize;
+                int64_t _numOutputs;
 
-                // OPTIMIZATION: Pre-cached projection tensors for different dtypes
-                torch::Tensor _projFloat32;  ///< Projection tensor in float32
-                torch::Tensor _projFloat16;  ///< Projection tensor in float16
-                torch::Tensor _projBFloat16; ///< Projection tensor in bfloat16 (for Ampere+ GPUs)
+                torch::Tensor _stride;
+                std::vector<float> _strideValuesCPU;
+                std::vector<std::pair<int64_t, int64_t>> _featShapes;
 
-                // OPTIMIZATION: CPU cached values to avoid GPU-CPU transfers
-                std::vector<float> _strideValuesCPU;  ///< Stride values cached on CPU
+                torch::Tensor _anchorPoints;
+                torch::Tensor _strideTensor;
+                torch::Tensor _scaleTensor;
+                torch::Tensor _proj;
 
-                // OPTIMIZATION: Anchor cache to avoid regeneration
-                struct AnchorCache {
-                    torch::Tensor anchorPoints;
-                    torch::Tensor strideTensor;
-                    int64_t imgSize;
-                    torch::ScalarType dtype;
-                    torch::Device device;
+                float _boxGain;
+                float _clsGain;
+                float _dflGain;
 
-                    AnchorCache() : imgSize(-1), dtype(torch::kFloat32), device(torch::kCPU) {}
-                };
-                mutable AnchorCache _anchorCache;  ///< Cached anchor points and stride tensor
-
-                // Loss weights
-                float _boxGain;  ///< Box loss weight
-                float _clsGain;  ///< Classification loss weight
-                float _dflGain;  ///< DFL loss weight
-
-                // Cached values for performance optimization
-                float _totalStrideFactor;  ///< Pre-computed stride factor (sum of 1/(stride^2))
-
-                // Flags
-                bool _useDfl;    ///< Whether to use DFL
-
-                // Device
+                bool _useDfl;
                 torch::Device _device;
             };
 
-        } // namespace Loss
-    } // namespace Model
-} // namespace WheelDL
+        }
+    }
+}

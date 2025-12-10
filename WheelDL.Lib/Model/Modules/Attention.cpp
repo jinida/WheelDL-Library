@@ -124,7 +124,11 @@ namespace WheelDL {
 				auto qkv = _qkv->forward(x);
 				qkv = qkv.view({ B, _numHeads, _keyDim * 2 + _headDim, N });
 
+#if TORCH_VERSION_MAJOR < 2
+				auto splits = qkv.split_with_sizes({ _keyDim, _keyDim, _headDim }, /*dim=*/2);
+#else
 				auto splits = qkv.split({ _keyDim, _keyDim, _headDim }, /*dim=*/2);
+#endif
 				// Transpose from [B, numHeads, dim, N] to [B, numHeads, N, dim] for attention computation
 				auto q = splits[0].transpose(-2, -1);  // [B, numHeads, N, keyDim]
 				auto k = splits[1].transpose(-2, -1);  // [B, numHeads, N, keyDim]
@@ -214,7 +218,7 @@ namespace WheelDL {
 			}
 
 			torch::Tensor PSAImpl::forward(torch::Tensor x) {
-				auto splits = _cv1->forward(x).split({ _c, _c }, /*dim=*/1);
+				auto splits = _cv1->forward(x).split(_c, /*dim=*/1);
 				auto& a = splits[0];
 				auto& b = splits[1];
 

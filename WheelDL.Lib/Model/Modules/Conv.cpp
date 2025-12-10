@@ -3,6 +3,7 @@
 #include "Utils.h"
 #include <numeric>
 #include <cmath>
+#include <optional>
 
 namespace WheelDL {
 	namespace Model {
@@ -92,9 +93,7 @@ namespace WheelDL {
 
 			DWConvImpl::DWConvImpl(int64_t c1, int64_t c2, int64_t k, int64_t s,
 				int64_t d, const std::string& act)
-				: ConvImpl(c1, c2, k, s, std::nullopt,
-					std::gcd(c1, c2), // groups = gcd(c1, c2) for depthwise
-					d, act) {
+				: ConvImpl(c1, c2, k, s, std::nullopt, std::gcd(c1, c2), d, act) {
 			}
 
 			// ============================================================================

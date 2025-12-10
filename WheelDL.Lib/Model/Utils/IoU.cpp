@@ -569,6 +569,237 @@ namespace WheelDL {
                 return std::make_tuple(allAnchors, allStrides);
             }
 
+            std::vector<torch::Tensor> nonMaxSuppression(
+                const torch::Tensor& prediction,
+                float confThresh,
+                float iouThresh,
+                int maxDet
+            ) {
+                torch::NoGradGuard no_grad;
+
+                torch::Tensor pred = prediction.dim() == 2 ? prediction.unsqueeze(0) : prediction;
+                const int64_t batchSize = pred.size(0);
+
+                std::vector<torch::Tensor> results;
+                results.reserve(batchSize);
+
+                int totalDetections = 0;
+
+                for (int64_t b = 0; b < batchSize; ++b) {
+                    auto img = pred[b];
+
+                    auto [classConf, classIdx] = img.slice(1, 4).max(1);
+                    auto confMask = classConf > confThresh;
+                    auto validIndices = confMask.nonzero().squeeze(1);
+
+                    if (validIndices.numel() == 0) {
+                        results.push_back(torch::empty({ 0, 6 }, img.options()));
+                        continue;
+                    }
+
+                    const int64_t topK = std::min(static_cast<int64_t>(maxDet * 5), validIndices.numel());
+                    auto validConf = classConf.index_select(0, validIndices);
+                    auto [topConf, topLocalIdx] = validConf.topk(topK);
+                    auto topIdx = validIndices.index_select(0, topLocalIdx);
+
+                    auto boxes = img.index_select(0, topIdx).slice(1, 0, 4);
+                    auto finalClassIdx = classIdx.index_select(0, topIdx);
+
+                    auto x = boxes.select(1, 0);
+                    auto y = boxes.select(1, 1);
+                    auto halfW = boxes.select(1, 2) * 0.5f;
+                    auto halfH = boxes.select(1, 3) * 0.5f;
+
+                    auto x1 = x - halfW;
+                    auto y1 = y - halfH;
+                    auto x2 = x + halfW;
+                    auto y2 = y + halfH;
+
+                    auto x1_cpu = x1.cpu();
+                    auto y1_cpu = y1.cpu();
+                    auto x2_cpu = x2.cpu();
+                    auto y2_cpu = y2.cpu();
+                    auto cls_cpu = finalClassIdx.cpu();
+
+                    const float* x1_ptr = x1_cpu.data_ptr<float>();
+                    const float* y1_ptr = y1_cpu.data_ptr<float>();
+                    const float* x2_ptr = x2_cpu.data_ptr<float>();
+                    const float* y2_ptr = y2_cpu.data_ptr<float>();
+                    const int64_t* cls_ptr = cls_cpu.data_ptr<int64_t>();
+
+                    std::vector<float> areas(topK);
+                    for (int64_t i = 0; i < topK; ++i) {
+                        areas[i] = (x2_ptr[i] - x1_ptr[i]) * (y2_ptr[i] - y1_ptr[i]);
+                    }
+
+                    std::vector<int64_t> keep;
+                    keep.reserve(maxDet);
+                    std::vector<bool> suppressed(topK, false);
+
+                    for (int64_t i = 0; i < topK && static_cast<int>(keep.size()) < maxDet; ++i) {
+                        if (suppressed[i]) continue;
+                        keep.push_back(i);
+
+                        const float ax1 = x1_ptr[i], ay1 = y1_ptr[i];
+                        const float ax2 = x2_ptr[i], ay2 = y2_ptr[i];
+                        const float area_a = areas[i];
+                        const int64_t cls_a = cls_ptr[i];
+
+                        for (int64_t j = i + 1; j < topK; ++j) {
+                            if (suppressed[j] || cls_ptr[j] != cls_a) continue;
+
+                            const float inter_x1 = std::max(ax1, x1_ptr[j]);
+                            const float inter_y1 = std::max(ay1, y1_ptr[j]);
+                            const float inter_x2 = std::min(ax2, x2_ptr[j]);
+                            const float inter_y2 = std::min(ay2, y2_ptr[j]);
+
+                            if (inter_x2 <= inter_x1 || inter_y2 <= inter_y1) continue;
+
+                            const float inter_area = (inter_x2 - inter_x1) * (inter_y2 - inter_y1);
+                            const float iou = inter_area / (area_a + areas[j] - inter_area);
+
+                            if (iou > iouThresh) {
+                                suppressed[j] = true;
+                            }
+                        }
+                    }
+
+                    if (keep.empty()) {
+                        results.push_back(torch::empty({ 0, 6 }, img.options()));
+                        continue;
+                    }
+
+                    const int64_t numKeep = static_cast<int64_t>(keep.size());
+                    auto keepTensor = torch::from_blob(keep.data(), { numKeep }, torch::kLong).to(topIdx.device());
+
+                    auto finalBoxes = torch::stack({
+                        x1.index_select(0, keepTensor),
+                        y1.index_select(0, keepTensor),
+                        x2.index_select(0, keepTensor),
+                        y2.index_select(0, keepTensor)
+                        }, 1);
+
+                    results.push_back(torch::cat({
+                        finalBoxes,
+                        topConf.index_select(0, keepTensor).unsqueeze(1),
+                        finalClassIdx.index_select(0, keepTensor).to(torch::kFloat32).unsqueeze(1)
+                        }, 1));
+                }
+
+                return results;
+            }
+
+            std::vector<torch::Tensor> nonMaxSuppressionOBB(
+                const torch::Tensor& prediction,
+                float confThresh,
+                float iouThresh,
+                int maxDet
+            ) {
+                torch::NoGradGuard no_grad;
+
+                torch::Tensor pred = prediction.dim() == 2 ? prediction.unsqueeze(0) : prediction;
+                const int64_t batchSize = pred.size(0);
+                const auto device = pred.device();
+
+                std::vector<torch::Tensor> results;
+                results.reserve(batchSize);
+
+                for (int64_t b = 0; b < batchSize; ++b) {
+                    auto img = pred[b];
+
+                    if (img.size(0) == 0 || img.size(1) <= 5) {
+                        results.push_back(torch::empty({ 0, 7 }, img.options()));
+                        continue;
+                    }
+
+                    auto classScores = img.slice(1, 5);
+                    if (classScores.size(1) == 0) {
+                        results.push_back(torch::empty({ 0, 7 }, img.options()));
+                        continue;
+                    }
+
+                    auto [classConf, classIdx] = classScores.max(1);
+                    auto validMask = classConf > confThresh;
+                    auto validCount = validMask.sum().item<int64_t>();
+
+                    if (validCount == 0) {
+                        results.push_back(torch::empty({ 0, 7 }, img.options()));
+                        continue;
+                    }
+
+                    auto validIndices = validMask.nonzero().view(-1);
+
+                    const int64_t topK = std::min(static_cast<int64_t>(maxDet * 5), validCount);
+                    auto validConf = classConf.index_select(0, validIndices);
+                    auto [topConf, topLocalIdx] = validConf.topk(topK);
+                    auto topIdx = validIndices.index_select(0, topLocalIdx);
+
+                    auto obbBoxes = img.index_select(0, topIdx).slice(1, 0, 5);
+                    auto topClassIdx = classIdx.index_select(0, topIdx);
+
+                    auto uniqueClasses = std::get<0>(torch::_unique(topClassIdx));
+                    auto uniqueClassesCPU = uniqueClasses.cpu();
+                    const int64_t numClasses = uniqueClassesCPU.size(0);
+                    const int64_t* uniqueClassPtr = uniqueClassesCPU.data_ptr<int64_t>();
+
+                    std::vector<int64_t> keepAll;
+                    keepAll.reserve(maxDet);
+
+                    for (int64_t c = 0; c < numClasses && static_cast<int64_t>(keepAll.size()) < maxDet; ++c) {
+                        int64_t cls = uniqueClassPtr[c];
+                        auto classMask = topClassIdx == cls;
+                        auto classIndices = classMask.nonzero().view(-1);
+                        const int64_t numBoxes = classIndices.size(0);
+
+                        if (numBoxes == 0) continue;
+
+                        if (numBoxes == 1) {
+                            keepAll.push_back(classIndices[0].item<int64_t>());
+                            continue;
+                        }
+
+                        auto classBoxes = obbBoxes.index_select(0, classIndices);
+
+                        auto boxes1 = classBoxes.unsqueeze(1).expand({ numBoxes, numBoxes, 5 }).reshape({ -1, 5 });
+                        auto boxes2 = classBoxes.unsqueeze(0).expand({ numBoxes, numBoxes, 5 }).reshape({ -1, 5 });
+                        auto iouFlat = probiou(boxes1, boxes2);
+                        auto iouMatrix = iouFlat.view({ numBoxes, numBoxes }).cpu();
+
+                        auto iouPtr = iouMatrix.data_ptr<float>();
+                        auto classIndicesCPU = classIndices.cpu();
+                        auto classIdxPtr = classIndicesCPU.data_ptr<int64_t>();
+
+                        std::vector<bool> suppressed(numBoxes, false);
+
+                        for (int64_t i = 0; i < numBoxes && static_cast<int64_t>(keepAll.size()) < maxDet; ++i) {
+                            if (suppressed[i]) continue;
+
+                            keepAll.push_back(classIdxPtr[i]);
+
+                            for (int64_t j = i + 1; j < numBoxes; ++j) {
+                                if (!suppressed[j] && iouPtr[i * numBoxes + j] > iouThresh) {
+                                    suppressed[j] = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (keepAll.empty()) {
+                        results.push_back(torch::empty({ 0, 7 }, img.options()));
+                        continue;
+                    }
+
+                    auto keepTensor = torch::tensor(keepAll, torch::TensorOptions().dtype(torch::kLong).device(device));
+
+                    results.push_back(torch::cat({
+                        obbBoxes.index_select(0, keepTensor),
+                        topConf.index_select(0, keepTensor).unsqueeze(1),
+                        topClassIdx.index_select(0, keepTensor).to(torch::kFloat32).unsqueeze(1)
+                        }, 1));
+                }
+
+                return results;
+            }
         } // namespace Utils
     } // namespace Model
 } // namespace WheelDL

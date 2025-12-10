@@ -123,8 +123,11 @@ namespace WheelDL {
                     splitSizes.push_back(H * W);
                 }
 
+#if TORCH_VERSION_MAJOR < 2
                 valueList = value.split_with_sizes(splitSizes, /*dim=*/1);
-
+#else
+				valueList = value.split(splitSizes, /*dim=*/1);
+#endif
                 // Convert sampling locations to grid coordinates
                 // samplingGrids = 2 * samplingLocations - 1
                 auto samplingGrids = 2.0 * samplingLocations - 1.0;
@@ -252,52 +255,28 @@ namespace WheelDL {
                 const torch::Tensor& anchors,
                 int64_t dim
             ) {
-                // distance: (bs, 4, h*w)
-                // angle: (bs, 1, h*w)
-                // anchors: (h*w, 2)
-
-                // Validate distance dimension is even
-                auto distDimSize = distance.size(dim);
-                if (distDimSize <= 0 || distDimSize % 2 != 0) {
-                    throw std::invalid_argument("distance.size(dim) must be positive and even, got: " +
-                                               std::to_string(distDimSize));
-                }
-
-                auto size = distDimSize / 2;
-                auto lt = distance.narrow(dim, 0, size);
-                auto rb = distance.narrow(dim, size, size);
+                auto chunks = distance.chunk(2, dim);
+                auto lt = chunks[0];  // [bs, num_anchors, 2]
+                auto rb = chunks[1];  // [bs, num_anchors, 2]
 
                 auto cos = torch::cos(angle);
                 auto sin = torch::sin(angle);
 
-                // Compute center points
-                auto anchorExpanded = anchors.unsqueeze(0);
-                if (anchors.dim() == 2) {
-                    anchorExpanded = anchors;
-                }
+                // Compute offset from anchor
+                auto offset = (rb - lt) / 2;  // [bs, num_anchors, 2]
+                auto offsetChunks = offset.chunk(2, dim);
+                auto xf = offsetChunks[0];  // [bs, num_anchors, 1]
+                auto yf = offsetChunks[1];  // [bs, num_anchors, 1]
 
-                auto xc = anchorExpanded.select(-1, 0);
-                auto yc = anchorExpanded.select(-1, 1);
+                // Apply rotation
+                auto x = xf * cos - yf * sin;
+                auto y = xf * sin + yf * cos;
+                auto xy = torch::cat({ x, y }, dim) + anchors;
 
-                // Compute rotated box parameters - validate lt size is even
-                auto ltDimSize = lt.size(dim);
-                if (ltDimSize <= 0 || ltDimSize % 2 != 0) {
-                    throw std::invalid_argument("lt.size(dim) must be positive and even, got: " +
-                                               std::to_string(ltDimSize));
-                }
-                auto ltSize = ltDimSize / 2;
-                auto w = lt.narrow(dim, 0, ltSize) + rb.narrow(dim, 0, ltSize);
-                auto h = lt.narrow(dim, ltSize, ltSize) + rb.narrow(dim, ltSize, ltSize);
+                // Width and height
+                auto wh = lt + rb;
 
-                // Return [cx, cy, w, h, angle]
-                std::vector<torch::Tensor> outputs;
-                outputs.push_back(xc.unsqueeze(dim));
-                outputs.push_back(yc.unsqueeze(dim));
-                outputs.push_back(w);
-                outputs.push_back(h);
-                outputs.push_back(angle);
-
-                return torch::cat(outputs, dim);
+                return torch::cat({ xy, wh }, dim);  // [bs, num_anchors, 4]
             }
 
             std::pair<torch::Tensor, torch::Tensor> makeAnchors(

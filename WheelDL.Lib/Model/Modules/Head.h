@@ -64,7 +64,7 @@ namespace WheelDL {
 				 * @param xywh Output format (xywh or xyxy)
 				 * @return torch::Tensor Decoded bounding boxes
 				 */
-				torch::Tensor decodeBboxes(const torch::Tensor& bboxes, const torch::Tensor& anchors, bool xywh = true);
+				virtual torch::Tensor decodeBboxes(const torch::Tensor& bboxes, const torch::Tensor& anchors, bool xywh = true);
 
 				// Public members
 				bool export_ = false;
@@ -126,7 +126,7 @@ namespace WheelDL {
 				 * @param anchors Anchor points
 				 * @return torch::Tensor Decoded rotated bounding boxes
 				 */
-				torch::Tensor decodeBboxes(const torch::Tensor& bboxes, const torch::Tensor& anchors);
+				torch::Tensor decodeBboxes(const torch::Tensor& bboxes, const torch::Tensor& anchors, bool xywh = true) override;
 
 				int64_t ne;  // number of extra parameters
 				torch::Tensor angle;

@@ -3,6 +3,7 @@
 #include "ModuleFactory.h"
 #include "../../Modules/Block.h"
 #include "../../Modules/Conv.h"
+#include <optional>
 
 namespace WheelDL {
 namespace Model {

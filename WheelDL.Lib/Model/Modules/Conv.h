@@ -2,6 +2,7 @@
 
 #include <torch/torch.h>
 #include "Interfaces.h"
+#include <optional>
 
 namespace WheelDL {
     namespace Model {

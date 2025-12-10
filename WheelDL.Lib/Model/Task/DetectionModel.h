@@ -53,7 +53,6 @@ public:
      * @return true if successful, false otherwise
      */
     bool loadPretrained(const std::string& weightsPath);
-
 protected:
     /**
      * @brief Initialize loss criterion
