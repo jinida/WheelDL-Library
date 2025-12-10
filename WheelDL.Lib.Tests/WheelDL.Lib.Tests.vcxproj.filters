@@ -387,23 +387,5 @@
       <Filter>Data Files\Phase3TestConfigs\Models</Filter>
     </None>
     <!-- Data Files - Phase4TestConfig -->
-    <None Include="Data\Phase4TestConfig\default_model.yaml">
-      <Filter>Data Files\Phase4TestConfig</Filter>
-    </None>
-    <None Include="Data\Phase4TestConfig\linear_lr_config.yaml">
-      <Filter>Data Files\Phase4TestConfig</Filter>
-    </None>
-    <None Include="Data\Phase4TestConfig\cosine_lr_config.yaml">
-      <Filter>Data Files\Phase4TestConfig</Filter>
-    </None>
-    <None Include="Data\Phase4TestConfig\sgd_config.yaml">
-      <Filter>Data Files\Phase4TestConfig</Filter>
-    </None>
-    <None Include="Data\Phase4TestConfig\adam_config.yaml">
-      <Filter>Data Files\Phase4TestConfig</Filter>
-    </None>
-    <None Include="Data\Phase4TestConfig\adamw_config.yaml">
-      <Filter>Data Files\Phase4TestConfig</Filter>
-    </None>
   </ItemGroup>
 </Project>

@@ -29,26 +29,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -72,7 +72,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IncludePath>$(MSBuildProjectDirectory);$(IncludePath)</IncludePath>
-    <LibraryPath>C:\opencv\install\x64\vc17\lib;C:\torchlib\debug\libtorch\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\lib\x64;$(LibraryPath)</LibraryPath>
+    <LibraryPath>C:\opencv\build\x64\vc16\lib;C:\torchlib\debug\libtorch\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>$(MSBuildProjectDirectory);$(IncludePath)</IncludePath>
@@ -124,7 +124,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;C:\opencv\install\include;C:\torchlib\$(Configuration)\libtorch\include;C:\torchlib\$(Configuration)\libtorch\include\torch\csrc\api\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;C:\opencv\build\include;C:\torchlib\$(Configuration)\libtorch\include;C:\torchlib\$(Configuration)\libtorch\include\torch\csrc\api\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/utf-8 /FS %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
@@ -136,6 +136,9 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>opencv_core4110d.lib;opencv_imgproc4110d.lib;opencv_imgcodecs4110d.lib;c10.lib;c10_cuda.lib;torch.lib;torch_cpu.lib;torch_cuda.lib;cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Lib>
+      <AdditionalOptions>-INCLUDE:?warp_size@cuda@at@@YAHXZ %(AdditionalOptions)</AdditionalOptions>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -252,12 +255,21 @@
     <!-- Core Trainer Headers -->
     <ClInclude Include="Core\Trainer\AnomalyTrainer.h" />
     <ClInclude Include="Core\Trainer\ClassificationTrainer.h" />
+    <ClInclude Include="Core\Trainer\DetectionTrainer.h" />
+    <ClInclude Include="Core\Trainer\OBBTrainer.h" />
+    <ClInclude Include="Core\Trainer\SegmentationTrainer.h" />
     <!-- Core Validator Headers -->
     <ClInclude Include="Core\Validator\AnomalyValidator.h" />
     <ClInclude Include="Core\Validator\ClassificationValidator.h" />
+    <ClInclude Include="Core\Validator\DetectionValidator.h" />
+    <ClInclude Include="Core\Validator\OBBValidator.h" />
+    <ClInclude Include="Core\Validator\SegmentationValidator.h" />
     <!-- Core Predictor Headers -->
     <ClInclude Include="Core\Predictor\AnomalyPredictor.h" />
     <ClInclude Include="Core\Predictor\ClassificationPredictor.h" />
+    <ClInclude Include="Core\Predictor\DetectionPredictor.h" />
+    <ClInclude Include="Core\Predictor\OBBPredictor.h" />
+    <ClInclude Include="Core\Predictor\SegmentationPredictor.h" />
     <!-- Core Utils Headers -->
     <ClInclude Include="Core\Utils\Checkpoint.h" />
     <ClInclude Include="Core\Utils\CheckpointMetadata.h" />
@@ -346,12 +358,21 @@
     <!-- Core Trainer Implementation -->
     <ClCompile Include="Core\Trainer\AnomalyTrainer.cpp" />
     <ClCompile Include="Core\Trainer\ClassificationTrainer.cpp" />
+    <ClCompile Include="Core\Trainer\DetectionTrainer.cpp" />
+    <ClCompile Include="Core\Trainer\OBBTrainer.cpp" />
+    <ClCompile Include="Core\Trainer\SegmentationTrainer.cpp" />
     <!-- Core Validator Implementation -->
     <ClCompile Include="Core\Validator\AnomalyValidator.cpp" />
     <ClCompile Include="Core\Validator\ClassificationValidator.cpp" />
+    <ClCompile Include="Core\Validator\DetectionValidator.cpp" />
+    <ClCompile Include="Core\Validator\OBBValidator.cpp" />
+    <ClCompile Include="Core\Validator\SegmentationValidator.cpp" />
     <!-- Core Predictor Implementation -->
     <ClCompile Include="Core\Predictor\AnomalyPredictor.cpp" />
     <ClCompile Include="Core\Predictor\ClassificationPredictor.cpp" />
+    <ClCompile Include="Core\Predictor\DetectionPredictor.cpp" />
+    <ClCompile Include="Core\Predictor\OBBPredictor.cpp" />
+    <ClCompile Include="Core\Predictor\SegmentationPredictor.cpp" />
     <!-- Core Utils Implementation -->
     <ClCompile Include="Core\Utils\Checkpoint.cpp" />
     <ClCompile Include="Core\Utils\CheckpointMetadata.cpp" />
