@@ -50,7 +50,8 @@ namespace WheelDL {
                 WheelDL::Data::Dataset::DataExample preprocessed;
                 preprocessed.data = batch.data.to(_device);
 
-                if (batch.targets.defined()) {
+                if (batch.targets.defined()) 
+                {
                     preprocessed.targets = batch.targets.to(_device);
                 }
 
@@ -65,9 +66,7 @@ namespace WheelDL {
                 return prediction[0];
             }
 
-            MetricsData ClassificationValidator::computeMetrics(
-                const torch::Tensor& pred,
-                const torch::Tensor& target)
+            MetricsData ClassificationValidator::computeMetrics(const torch::Tensor& pred, const torch::Tensor& target)
             {
                 _profiler.start("compute_metrics");
 
@@ -77,7 +76,7 @@ namespace WheelDL {
                 try
                 {
                     torch::Tensor predictions = pred;
-                    torch::Tensor labels = target;
+					torch::Tensor labels = target;
 
                     if (labels.dim() > 1) {
                         labels = labels.flatten();
@@ -124,6 +123,7 @@ namespace WheelDL {
                 _profiler.stop("compute_metrics");
                 return metrics;
             }
+
 
             float ClassificationValidator::computePrecisionRecallF1(
                 const torch::Tensor& pred,

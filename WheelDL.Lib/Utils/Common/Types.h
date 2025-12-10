@@ -53,8 +53,10 @@ namespace WheelDL {
 	/**
 	 * @brief Convert TrainingState to string
 	 */
-	inline const char* trainingStateToString(TrainingState state) {
-		switch (state) {
+	inline const char* trainingStateToString(TrainingState state)
+	{
+		switch (state)
+		{
 		case TrainingState::IDLE: return "Idle";
 		case TrainingState::INITIALIZING: return "Initializing";
 		case TrainingState::TRAINING: return "Training";
@@ -125,6 +127,17 @@ namespace WheelDL {
 	};
 
 	/**
+	 * @struct OBB
+	 * @brief Oriented Bounding Box with center, size, and rotation angle
+	 */
+	struct OBB {
+		float cx, cy;   // Center coordinates
+		float width;    // Width
+		float height;   // Height
+		float angle;    // Rotation angle in radians
+	};
+
+	/**
 	 * @struct Contour
 	 * @brief Contour points for segmentation
 	 */
@@ -138,6 +151,7 @@ namespace WheelDL {
 	 */
 	struct PredictionResult {
 		std::vector<BBox> boxes;                    // Detection bounding boxes
+		std::vector<OBB> orientedBoxes;             // Oriented bounding boxes (for OBB task)
 		std::vector<float> scores;                  // Confidence scores
 		std::vector<unsigned int> classIds;         // Class IDs
 		std::vector<Contour> contours;              // Segmentation contours (optional)

@@ -120,6 +120,8 @@ namespace WheelDL {
                 std::string getSaveDirectory() const;
 
 				void setCheckpoint(const std::string& checkpointPath) { _checkpointPath = checkpointPath; }
+                void setPretrainedPath(const std::string& checkpointPath) { _checkpointPath = checkpointPath; _usePretrained = true; }
+
             protected:
                 // ========== Hook Methods (Pure Virtual) ==========
 
@@ -379,6 +381,7 @@ namespace WheelDL {
                 std::unique_ptr<Optimizer::Scheduler::LRScheduler> _scheduler;
                 std::unique_ptr<Optimizer::EMA::ModelEMA> _ema;
                 std::unique_ptr<Optimizer::EarlyStopping::EarlyStopping> _earlyStopping;
+                bool _usePretrained = false;
 
                 // ========== Data Loaders ==========
                 using BatchIteratorFunc = std::function<void(std::function<void(const WheelDL::Data::Dataset::DataExample&, int)>)>;

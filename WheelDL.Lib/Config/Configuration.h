@@ -229,7 +229,7 @@ namespace WheelDL {
 
 			// ========== Augmentation Settings ==========
 
-			bool getImageNetNorm() const { return this->isImageNetNormalized; }
+			bool getImageNetNorm() const { return this->_isImageNetNormalized; }
 			/**
 			 * @brief Get HSV hue augmentation fraction
 			 * @return float HSV-H
@@ -374,7 +374,12 @@ namespace WheelDL {
 			void setEpochs(int epochs) { _epochs = epochs; }
 			void setWarmupEpochs(float warmupEpochs) { _warmupEpochs = warmupEpochs; }
 			void setBatchSize(int batchSize) { _batchSize = batchSize; }
-			void setImageNetNorm(bool val) { isImageNetNormalized = val; }
+			void setImageNetNorm(bool val) { _isImageNetNormalized = val; }
+			int getTopK() const { return _topK; }
+			size_t getNumDataSamples() const { return _numDataSamples; }
+			void setLearningRateFirst(float lr) { _lr0 = lr; }
+			void setMomentum(float momentum) { _momentum = momentum; }
+			void setOptimizer(const std::string& optimizer) { _optimizer = optimizer; }
 
 		private:
 			// Task type (inferred from model)
@@ -400,6 +405,7 @@ namespace WheelDL {
 			bool _bfloat16;
 			std::string _cache;
 			size_t _cacheSize;
+			size_t _numDataSamples;
 
 			// ========== Optimizer Settings ==========
 			float _lr0;
@@ -412,6 +418,7 @@ namespace WheelDL {
 			bool _amsgrad;
 			
 			// ========== Loss Gains ==========
+			int _topK;
 			float _boxGain;
 			float _clsGain;
 			float _dflGain;
@@ -433,7 +440,7 @@ namespace WheelDL {
 			int _blurKernelSize;
 			float _blurProbability;
 			int _fillBorder;
-			bool isImageNetNormalized;
+			bool _isImageNetNormalized;
 			bool _emaEnabled;
 
 			// ========== Validation Settings ==========

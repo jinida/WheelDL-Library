@@ -5,7 +5,6 @@
 #include "Utils/Error/WheelLibException.h"
 #include "Utils/Error/ErrorCodes.h"
 #include <yaml-cpp/yaml.h>
-#include <nlohmann/json.hpp>
 #include <fstream>
 
 namespace WheelDL {
@@ -55,7 +54,8 @@ Configuration::Configuration()
 	, _blurKernelSize(3)
 	, _blurProbability(0.01f)
 	, _fillBorder(0)
-	, isImageNetNormalized(false)
+	, _isImageNetNormalized(false)
+	, _topK(13)
 	, _iou(0.7f)
 	, _maxDet(300)
 	, _dropout(0.0f)
@@ -88,10 +88,8 @@ void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
 	// Training settings
 	_epochs = YamlParser::getInt(hyperParamConfig, "epochs", 100);
 	_patience = YamlParser::getInt(hyperParamConfig, "patience", 100);
-	// Try "batch" first, then "batch_size" for backwards compatibility
-	_batchSize = YamlParser::getInt(hyperParamConfig, "batch", YamlParser::getInt(hyperParamConfig, "batch_size", 16));
-	// Try "imgsz" first, then "image_size" for backwards compatibility
-	_imageSize = YamlParser::getInt(hyperParamConfig, "imgsz", YamlParser::getInt(hyperParamConfig, "image_size", 640));
+	_batchSize = YamlParser::getInt(hyperParamConfig, "batch_size", 16);
+	_imageSize = YamlParser::getInt(hyperParamConfig, "image_size", 640);
 	_workers = YamlParser::getInt(hyperParamConfig, "workers", 8);
 
 	// Device settings
@@ -132,8 +130,9 @@ void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
 	}
 
 	// Optimizer settings
-	const auto validOptimizer = { "SGD", "Adam", "AdamW", "auto" };
+	const auto validOptimizer = { "sgd", "adam", "adamw", "auto" };
 	_optimizer = YamlParser::getString(hyperParamConfig, "optimizer", "auto");
+	std::transform(_optimizer.begin(), _optimizer.end(), _optimizer.begin(), ::tolower);
 	if (std::find(validOptimizer.begin(), validOptimizer.end(), _optimizer) == validOptimizer.end())
 	{
 		_optimizer = "auto"; // Fallback to auto if invalid
@@ -200,9 +199,10 @@ void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
 	_blurKernelSize = YamlParser::getInt(hyperParamConfig, "blur_kernel_size", 3);
 	_blurProbability = (TaskType::ANOMALY == _taskType) ? 0.0f : YamlParser::getFloat(hyperParamConfig, "blur_probability", 0.01f);
 	_fillBorder = YamlParser::getInt(hyperParamConfig, "fill_border", 0);
-	isImageNetNormalized = YamlParser::getBool(hyperParamConfig, "imagenet_norm", false);
+	_isImageNetNormalized = YamlParser::getBool(hyperParamConfig, "imagenet_norm", false);
 
 	// Validation settings
+	_topK = YamlParser::getInt(hyperParamConfig, "top_k", 13);
 	_iou = YamlParser::getFloat(hyperParamConfig, "iou", 0.7f);
 	_maxDet = YamlParser::getInt(hyperParamConfig, "max_det", 300);
 
@@ -379,6 +379,9 @@ void Configuration::loadDatasetConfig(const nlohmann::json& datasetJson)
 				}
 			}
 		}
+
+		auto& annotations = datasetJson["annotations"];
+		_numDataSamples = annotations.size();
 	}
 
 	// Update number of classes
@@ -389,6 +392,11 @@ void Configuration::loadDatasetConfig(const nlohmann::json& datasetJson)
 	else
 	{
 		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "No class names found in dataset configuration.");
+	}
+	
+	if (_classNames.size() != static_cast<size_t>(_numClasses)) 
+	{
+		_numClasses = static_cast<int>(_classNames.size());
 	}
 }
 

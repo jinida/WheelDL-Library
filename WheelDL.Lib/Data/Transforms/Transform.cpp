@@ -44,7 +44,8 @@ namespace WheelDL
                 for (auto& transform : transforms_)
                 {
                     // Safety check for nullptr (should never happen, but defensive)
-                    if (transform) {
+                    if (transform) 
+                    {
                         transform->apply(image, annotations);
                     }
                 }

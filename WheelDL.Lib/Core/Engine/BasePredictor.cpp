@@ -242,7 +242,8 @@ namespace WheelDL {
                 _profiler.stop("postprocess");
 
                 _profiler.stop("predict");
-                result.inferenceTime = _profiler.getDuration("inference");
+                auto duration = _profiler.getDuration("inference");
+                result.inferenceTime = duration;
 
                 return result;
             }

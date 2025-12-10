@@ -48,11 +48,10 @@ namespace WheelDL {
 
                 std::vector<torch::Tensor> allPreds;
                 std::vector<torch::Tensor> allTargets;
-                float totalLoss = 0.0f;
                 int batchCount = 0;
-
-                // Iterate over validation batches
-                _batchIterator([this, &model, &allPreds, &allTargets, &totalLoss, &batchCount](
+				std::unordered_map<std::string, torch::Tensor> lossInfo;
+                
+                _batchIterator([this, &model, &allPreds, &allTargets, &lossInfo, &batchCount](
                     const WheelDL::Data::Dataset::DataExample& batch, int batchIdx) {
 
                     // Preprocess batch
@@ -62,19 +61,32 @@ namespace WheelDL {
                     auto inputData = processedBatch.data;
                     auto prediction = model.forward(inputData);
 					auto lossDict = model.loss(processedBatch, prediction);
-                    auto loss = lossDict["total"];
-
-                    totalLoss += loss.item<float>();
-                    batchCount++;
-
+                    for (const auto& [key, value] : lossDict)
+                    {
+						if (lossInfo.find(key) == lossInfo.end())
+                        {
+                            lossInfo[key] = value.detach().cpu();
+                        }
+                        else
+                        {
+                            lossInfo[key] += value.detach().cpu();
+                        }
+                    }
+                    
                     // Store predictions and targets for metrics computation
                     allPreds.push_back(postprocessBatch(prediction));
+                    if (this->_config->getTaskType() == TaskType::DETECTION || this->_config->getTaskType() == TaskType::OBB)
+                    {
+                        processedBatch.targets.select(1, 0).add_(batchCount * processedBatch.data.size(0));
+                    }
+                    
                     allTargets.push_back(processedBatch.targets.cpu());
+                    batchCount++;
                 });
 
-                // Compute average loss
+				float totalLoss = lossInfo["total"].item<float>();
                 float avgLoss = batchCount > 0 ? totalLoss / batchCount : 0.0f;
-
+				avgLoss /= static_cast<float>(_config->getBatchSize());
                 // Concatenate all predictions and targets
                 torch::Tensor allPredsTensor = torch::cat(allPreds, 0);
                 torch::Tensor allTargetsTensor = torch::cat(allTargets, 0);
@@ -82,9 +94,15 @@ namespace WheelDL {
                 // Compute metrics using derived class implementation
                 MetricsData metrics = computeMetrics(allPredsTensor, allTargetsTensor);
                 metrics.loss = avgLoss;
-
-                _logger->info("BaseValidator", "Validation epoch " + std::to_string(epoch + 1) +
-                             " completed | Loss: " + std::to_string(avgLoss));
+                
+                _logger->info("BaseValidator", "Validation epoch " + std::to_string(epoch + 1) + " completed");
+                for (const auto& [key, value] : lossInfo)
+                {
+                    if (key == "total")
+                        continue;
+					float lossValue = value.item<float>() / static_cast<float>(batchCount);
+                    _logger->info("BaseValidator", "  " + key + ": " + std::to_string(lossValue));
+				}
 
                 _profiler.stop("validation");
 

@@ -161,8 +161,6 @@ namespace WheelDL
             torch::Tensor DetectionDataset::getTargetTensor(size_t index, const Annotation& annotations)
             {
 				auto annotations_ = annotations.getAs(WheelDL::Data::LabelType::XYWH);
-                annotations_.denormalize(_config.getImageSize(), _config.getImageSize());
-
                 const auto& points = annotations_.getPoints();
 
                 if (points.empty())
@@ -180,7 +178,6 @@ namespace WheelDL
                     );
                 }
 
-                // Create tensor [num_objects, 5] (class, x, y, w, h)
                 int numObjects = static_cast<int>(classes.size());
                 torch::Tensor target = torch::zeros({numObjects, 4}, torch::kFloat32);
 

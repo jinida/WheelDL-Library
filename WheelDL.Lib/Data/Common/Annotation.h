@@ -118,7 +118,7 @@ namespace WheelDL
              *
              * @param imageWidth Image width in pixels
              * @param imageHeight Image height in pixels
-             * @param minAreaPixels Minimum area in pixels for object to be kept (default: 5.0)
+             * @param minAreaPixels Minimum area in pixels for object to be kept (default: 1.0)
              */
             void validateAndClip(int imageWidth, int imageHeight, float minAreaPixels = 5.0f);
 
@@ -135,7 +135,7 @@ namespace WheelDL
              * @param y1 Top boundary
              * @param x2 Right boundary
              * @param y2 Bottom boundary
-             * @param minAreaPixels Minimum area in pixels for object to be kept (default: 5.0)
+             * @param minAreaPixels Minimum area in pixels for object to be kept (default: 1.0)
              */
             void clipToBounds(float x1, float y1, float x2, float y2, float minAreaPixels = 5.0f);
 
@@ -215,7 +215,7 @@ namespace WheelDL
             void transform(cv::Mat& image,
                           const cv::Mat& transformMat,
                           const cv::Size& dsize = cv::Size(),
-                          const cv::Scalar& borderValue = cv::Scalar(114, 114, 114),
+                          const cv::Scalar& borderValue = cv::Scalar(0, 0, 0),
                           float minAreaPixels = 1.0f);
 
         private:

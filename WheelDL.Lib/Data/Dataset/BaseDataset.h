@@ -171,6 +171,12 @@ namespace WheelDL
 
                     // 4. Convert to tensor [C, H, W]
                     torch::Tensor imageTensor = imageToTensor(image);
+					annotations.validateAndClip(image.cols, image.rows);
+
+                    if (_config.getTaskType() != TaskType::SEGMENTATION)
+                    {
+                        annotations.normalize(image.cols, image.rows);
+                    }
 
                     // Get classes from annotations
                     const auto& classIds = annotations.getClasses();
@@ -181,12 +187,7 @@ namespace WheelDL
                     }
                     else
                     {
-                        classesTensor = torch::zeros({ 0 }, torch::kLong);
-                    }
-
-                    if (_config.getTaskType() != TaskType::SEGMENTATION)
-                    {
-                        annotations.normalize(image.cols, image.rows);
+						classesTensor = torch::empty({ 0 }, torch::kLong);
                     }
 
                     // Get target tensor from derived class

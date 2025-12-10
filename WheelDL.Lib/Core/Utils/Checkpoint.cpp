@@ -458,7 +458,14 @@ namespace WheelDL {
                             std::string modelKey = std::string(MODEL_KEY) + "." + param.key();
                             torch::Tensor loadedParam;
                             archive.read(modelKey, loadedParam);
-                            param.value().copy_(loadedParam);
+                            try
+                            {
+                                param.value().copy_(loadedParam);
+                            }
+                            catch (const std::exception& e)
+                            {
+                                logger->error("Checkpoint", "Failed to load parameter: " + param.key() + " - " + e.what());
+							}
                         }
                     }
 

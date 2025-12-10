@@ -345,7 +345,17 @@ namespace WheelDL
                         }
                     }
                     break;
+                case LabelType::XYXY:
+                    // [x1, y1, x2, y2] - flip y1 and y2
+                    if (coords.size() >= 4)
+                    {
+                        auto left = w - coords[2];
+						auto right = w - coords[0];
 
+                        coords[0] = left;
+                        coords[2] = right;
+                    }
+                    break;
                 default:
                     // XYXY, POLYGON, XYXYXYXY - flip all x coordinates
                     for (size_t i = 0; i < coords.size(); i += 2)
@@ -400,7 +410,15 @@ namespace WheelDL
                         }
                     }
                     break;
-
+                case LabelType::XYXY:
+                    // [x1, y1, x2, y2] - flip y1 and y2
+                    if (coords.size() >= 4)
+                    {
+                        auto top = h - coords[3];
+                        auto down = h - coords[1];
+						coords[1] = top; coords[3] = down;
+                    }
+					break;
                 default:
                     // XYXY, POLYGON, XYXYXYXY - flip all y coordinates
                     for (size_t i = 1; i < coords.size(); i += 2)
@@ -487,7 +505,7 @@ namespace WheelDL
 
         Annotation Annotation::getAs(LabelType targetType) const
         {
-            Annotation converted(targetType);
+            Annotation converted(targetType, _isNormalized);
             converted.classes_ = classes_;
 
             // Convert all points
@@ -959,12 +977,10 @@ namespace WheelDL
                         x2 = std::clamp(x2, 0.0f, static_cast<float>(imageWidth));
                         y2 = std::clamp(y2, 0.0f, static_cast<float>(imageHeight));
 
-                        // Check if clipped box is valid
                         if (x2 > x1 && y2 > y1)
                         {
                             hasValidPoints = true;
 
-                            // Convert back to XYWH
                             float newW = x2 - x1;
                             float newH = y2 - y1;
                             point[0] = x1 + newW / 2.0f;  // new cx
@@ -986,9 +1002,7 @@ namespace WheelDL
                         if (cx > 0 && cx < imageWidth && cy > 0 && cy < imageHeight)
                         {
                             hasValidPoints = true;
-                            // Don't clip - keep all values as is
                         }
-                        // If center is outside, mark as invalid (will be filtered out)
                     }
                 }
                 else if (labelType_ == LabelType::XYXYXYXY)
@@ -1004,7 +1018,6 @@ namespace WheelDL
                         if (cx > 0 && cx < imageWidth && cy > 0 && cy < imageHeight)
                         {
                             hasValidPoints = true;
-                            // Don't clip - keep all corner coordinates as is
                         }
                         else
                         {
@@ -1016,12 +1029,8 @@ namespace WheelDL
 
                                 x = std::max(0.0f, std::min(x, static_cast<float>(imageWidth)));
                                 y = std::max(0.0f, std::min(y, static_cast<float>(imageHeight)));
-
-                                if (x > 0 && x < imageWidth && y > 0 && y < imageHeight)
-                                {
-                                    hasValidPoints = true;
-                                }
                             }
+                            hasValidPoints = true;
                         }
 
                         // Normalize polygon order: clockwise, starting from point with smallest y
@@ -1042,20 +1051,16 @@ namespace WheelDL
                         // Clip to [0, imageWidth] x [0, imageHeight]
                         x = std::max(0.0f, std::min(x, static_cast<float>(imageWidth)));
                         y = std::max(0.0f, std::min(y, static_cast<float>(imageHeight)));
-
-                        // Check if at least one point is inside
-                        if (x > 0 && x < imageWidth && y > 0 && y < imageHeight)
-                        {
-                            hasValidPoints = true;
-                        }
                     }
+                    hasValidPoints = true;
                 }
 
                 // Calculate area and check validity
                 float area = calculateArea(point);
                 bool isValid = false;
 
-                if (area >= 0) {
+                if (area >= 0) 
+                {
                     // It's a bounding box - check area threshold
                     isValid = (area >= minAreaPixels) && hasValidPoints;
                 } else {

@@ -137,12 +137,14 @@ namespace WheelDL {
 
                         schedulerStep();
                         float currentFitness = calculateFitness(_currentMetrics);
+						_currentMetrics.fitness = currentFitness;
                         _epochMetrics.push_back(_currentMetrics);
 
                         // 4. Save Checkpoints
                         saveCheckpoint(epoch, false); // Save Last
 
-                        if (currentFitness > _bestFitness) {
+                        if (currentFitness > _bestFitness) 
+                        {
                             _bestFitness = currentFitness;
                             saveCheckpoint(epoch, true); // Save Best
                         }
@@ -308,7 +310,7 @@ namespace WheelDL {
                 if (_config->IsPatchCore())
                 {
                     _logger->info("BaseTrainer", "No optimizer configured, skipping optimizer setup");
-					return;
+                    return;
                 }
 
                 _profiler.start("setup_optimizer");
@@ -318,21 +320,9 @@ namespace WheelDL {
                         "Model must be initialized before optimizer");
                 }
 
-                auto allParams = _model->parameters();
-                std::vector<torch::Tensor> trainableParams;
-                trainableParams.reserve(allParams.size());
-
-                for (auto& p : allParams) 
-                {
-                    if (p.requires_grad()) 
-                    {
-                        trainableParams.push_back(p);
-                    }
-                }
-                
-                _optimizer = Optimizer::OptimizerFactory::createFromConfig(trainableParams, *_config);
-                _logger->info("BaseTrainer", "Optimizer created: " + _config->getOptimizer());
-                _logger->info("BaseTrainer", "Initial LR: " + std::to_string(_config->getLearningRate()));
+                // Create optimizer with parameter grouping (Python YOLO style)
+                _optimizer = Optimizer::OptimizerFactory::createFromConfig(*_model, *_config);
+				_logger->info("BaseTrainer", "Optimizer created: " + _config->getOptimizer());
                 _profiler.stop("setup_optimizer");
             }
 
@@ -655,6 +645,7 @@ namespace WheelDL {
                     fs::path logsDir = _workspace->getLogsDir();
                     std::string jsonPath = (logsDir / "best_metrics.json").string();
                     _bestFitness = calculateFitness(_currentMetrics);
+					_currentMetrics.fitness = _bestFitness;
                     Utils::Export::MetricsExporter::exportToJSON(
                         { _currentMetrics },
                         jsonPath,
@@ -687,7 +678,7 @@ namespace WheelDL {
                         return;
                     }
 
-                     auto predictor = setupPredictor(bestPath);
+                    auto predictor = setupPredictor(bestPath);
                     if (!predictor) 
                     {
                         throw Utils::WheelLibException(Utils::ErrorCode::PREDICTION_FAILED, "Failed to create predictor");
@@ -801,9 +792,11 @@ namespace WheelDL {
                     // Move model to configured device
                     _model->to(_device);
 
-                    // Update trainer state from metadata
-                    _currentEpoch = metadata.epoch;
-                    _bestFitness = metadata.bestFitness;
+                    if (!_usePretrained)
+                    {
+                        _currentEpoch = metadata.epoch;
+                        _bestFitness = metadata.bestFitness;
+                    }
 
                     _logger->info("BaseTrainer", "Checkpoint loaded successfully (epoch=" +
                         std::to_string(metadata.epoch) + ", fitness=" +
