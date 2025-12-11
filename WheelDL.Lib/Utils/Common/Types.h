@@ -145,25 +145,6 @@ namespace WheelDL {
 		std::vector<float> points;  // [x1, y1, x2, y2, ...] flattened coordinates
 	};
 
-	/**
-	 * @struct PredictionResult
-	 * @brief Prediction/inference result (no Torch dependency)
-	 */
-	struct PredictionResult {
-		std::vector<BBox> boxes;                    // Detection bounding boxes
-		std::vector<OBB> orientedBoxes;             // Oriented bounding boxes (for OBB task)
-		std::vector<float> scores;                  // Confidence scores
-		std::vector<unsigned int> classIds;         // Class IDs
-		std::vector<Contour> contours;              // Segmentation contours (optional)
-		cv::Mat anomalyMap;
-		// Original image shape (for coordinate scaling)
-		std::pair<int, int> originalShape;          // (height, width)
-
-		// Prediction metadata
-		double inferenceTime;                       // Inference time in milliseconds
-		int numDetections;                          // Number of detections
-	};
-
 	// Forward declaration for callbacks
 	struct ProgressData;
 	struct MetricsData;

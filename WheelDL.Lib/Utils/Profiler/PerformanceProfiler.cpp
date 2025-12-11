@@ -25,15 +25,19 @@ ScopedTimer::~ScopedTimer() {
 }
 
 // PerformanceProfiler implementation
+
+// ========== Factory Methods ==========
+
+std::unique_ptr<PerformanceProfiler> PerformanceProfiler::create() {
+    return std::unique_ptr<PerformanceProfiler>(new PerformanceProfiler());
+}
+
+// ========== Constructor ==========
+
 PerformanceProfiler::PerformanceProfiler()
     : _enabled(true)
     , _maxTimingsPerTimer(1000)  // Default: keep last 1000 timings
 {
-}
-
-PerformanceProfiler& PerformanceProfiler::getInstance() {
-    static PerformanceProfiler instance;
-    return instance;
 }
 
 void PerformanceProfiler::start(const std::string& name) {
@@ -291,6 +295,14 @@ void PerformanceProfiler::reset() {
 
 ScopedTimer PerformanceProfiler::createScopedTimer(const std::string& name) {
     return ScopedTimer(*this, name);
+}
+
+void PerformanceProfiler::exportReport(const std::string& outputDir) const {
+    std::filesystem::path dir(outputDir);
+    std::filesystem::create_directories(dir);
+
+    exportToJSON((dir / "profile.json").string());
+    exportToHTML((dir / "profile.html").string());
 }
 
 } // namespace Utils

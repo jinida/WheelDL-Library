@@ -13,11 +13,8 @@ namespace WheelDL {
 
         Workspace::Workspace(const std::string& baseDir, const std::string& prefix)
         {
-            auto logger = Logger::getInstance();
-
             // Validate base directory path
             if (!PathValidator::isValidPath(baseDir)) {
-                logger->error("Workspace", "Invalid base directory path: " + baseDir);
                 throw WheelLibException(
                     ErrorCode::INVALID_CONFIG,
                     "Invalid base directory path: " + baseDir
@@ -32,11 +29,8 @@ namespace WheelDL {
             oss << baseDir << "/" << prefix << "_" << _timestamp;
             _workspaceRoot = oss.str();
 
-            logger->info("Workspace", "Creating workspace: " + _workspaceRoot);
-
             // Create root directory using PathValidator
             if (!PathValidator::createDirectoryIfNotExists(_workspaceRoot)) {
-                logger->error("Workspace", "Failed to create workspace directory: " + _workspaceRoot);
                 throw WheelLibException(
                     ErrorCode::FILE_IO_ERROR,
                     "Failed to create workspace directory: " + _workspaceRoot
@@ -45,8 +39,6 @@ namespace WheelDL {
 
             // Create standard subdirectories
             createStandardDirectories();
-
-            logger->info("Workspace", "Workspace created successfully");
         }
 
         Workspace::Workspace(
@@ -54,11 +46,8 @@ namespace WheelDL {
             const std::string& customName,
             bool useTimestamp)
         {
-            auto logger = Logger::getInstance();
-
             // Validate base directory path
             if (!PathValidator::isValidPath(baseDir)) {
-                logger->error("Workspace", "Invalid base directory path: " + baseDir);
                 throw WheelLibException(
                     ErrorCode::INVALID_CONFIG,
                     "Invalid base directory path: " + baseDir
@@ -78,11 +67,8 @@ namespace WheelDL {
 
             _workspaceRoot = oss.str();
 
-            logger->info("Workspace", "Creating custom workspace: " + _workspaceRoot);
-
             // Create root directory using PathValidator
             if (!PathValidator::createDirectoryIfNotExists(_workspaceRoot)) {
-                logger->error("Workspace", "Failed to create workspace directory: " + _workspaceRoot);
                 throw WheelLibException(
                     ErrorCode::FILE_IO_ERROR,
                     "Failed to create workspace directory: " + _workspaceRoot
@@ -92,24 +78,20 @@ namespace WheelDL {
             // Create standard subdirectories
             createStandardDirectories();
 
-            logger->info("Workspace", "Custom workspace created successfully");
         }
 
         std::string Workspace::createSubDirectory(const std::string& subDirName)
         {
-            auto logger = Logger::getInstance();
             std::string subDirPath = _workspaceRoot + "/" + subDirName;
 
             // Use PathValidator to create directory
             if (!PathValidator::createDirectoryIfNotExists(subDirPath)) {
-                logger->error("Workspace", "Failed to create subdirectory: " + subDirPath);
                 throw WheelLibException(
                     ErrorCode::FILE_IO_ERROR,
                     "Failed to create subdirectory: " + subDirPath
                 );
             }
 
-            logger->debug("Workspace", "Created subdirectory: " + subDirPath);
             return subDirPath;
         }
 
@@ -137,50 +119,40 @@ namespace WheelDL {
 
         void Workspace::createStandardDirectories()
         {
-            auto logger = Logger::getInstance();
-
             // Create weights directory
             _weightsDir = _workspaceRoot + "/weights";
             if (!PathValidator::createDirectoryIfNotExists(_weightsDir)) {
-                logger->error("Workspace", "Failed to create weights directory: " + _weightsDir);
                 throw WheelLibException(
                     ErrorCode::FILE_IO_ERROR,
                     "Failed to create weights directory: " + _weightsDir
                 );
             }
-            logger->debug("Workspace", "Created weights directory: " + _weightsDir);
 
             // Create logs directory
             _logsDir = _workspaceRoot + "/logs";
             if (!PathValidator::createDirectoryIfNotExists(_logsDir)) {
-                logger->error("Workspace", "Failed to create logs directory: " + _logsDir);
                 throw WheelLibException(
                     ErrorCode::FILE_IO_ERROR,
                     "Failed to create logs directory: " + _logsDir
                 );
             }
-            logger->debug("Workspace", "Created logs directory: " + _logsDir);
 
             // Create profiler directory
             _profilerDir = _workspaceRoot + "/profiler";
             if (!PathValidator::createDirectoryIfNotExists(_profilerDir)) {
-                logger->error("Workspace", "Failed to create profiler directory: " + _profilerDir);
                 throw WheelLibException(
                     ErrorCode::FILE_IO_ERROR,
                     "Failed to create profiler directory: " + _profilerDir
                 );
             }
-            logger->debug("Workspace", "Created profiler directory: " + _profilerDir);
 
             _resultDir = _workspaceRoot + "/result";
             if (!PathValidator::createDirectoryIfNotExists(_resultDir)) {
-                logger->error("Workspace", "Failed to create result directory: " + _resultDir);
                 throw WheelLibException(
                     ErrorCode::FILE_IO_ERROR,
                     "Failed to create result directory: " + _resultDir
                 );
             }
-            logger->debug("Workspace", "Created result directory: " + _resultDir);
         }
 
     } // namespace Utils

@@ -13,8 +13,6 @@ namespace WheelDL {
             {
                 if (image.empty())
                 {
-                    auto logger = Logger::getInstance();
-                    logger->warn("ImageExporter", "Cannot save empty image");
                     return false;
                 }
 
@@ -28,23 +26,10 @@ namespace WheelDL {
 
                     // Save image
                     bool success = cv::imwrite(filepath, image);
-
-                    if (success)
-                    {
-                        auto logger = Logger::getInstance();
-                    }
-                    else
-                    {
-                        auto logger = Logger::getInstance();
-                        logger->error("ImageExporter", "Failed to save image: " + filepath);
-                    }
-
                     return success;
                 }
                 catch (const std::exception& e)
                 {
-                    auto logger = Logger::getInstance();
-                    logger->error("ImageExporter", "Exception while saving image: " + std::string(e.what()));
                     return false;
                 }
             }
@@ -57,15 +42,11 @@ namespace WheelDL {
             {
                 if (images.empty())
                 {
-                    auto logger = Logger::getInstance();
-                    logger->warn("ImageExporter", "No images to save");
                     return 0;
                 }
 
                 if (images.size() != imagePaths.size())
                 {
-                    auto logger = Logger::getInstance();
-                    logger->error("ImageExporter", "Images and image paths size mismatch");
                     return 0;
                 }
 
@@ -115,14 +96,10 @@ namespace WheelDL {
                         }
                     }
 
-                    auto logger = Logger::getInstance();
-
                     return successCount;
                 }
                 catch (const std::exception& e)
                 {
-                    auto logger = Logger::getInstance();
-                    logger->error("ImageExporter", "Failed to save batch: " + std::string(e.what()));
                     return 0;
                 }
             }
@@ -143,8 +120,6 @@ namespace WheelDL {
                 }
                 catch (const std::exception& e)
                 {
-                    auto logger = Logger::getInstance();
-                    logger->error("ImageExporter", "Failed to create directory: " + std::string(e.what()));
                     return false;
                 }
             }

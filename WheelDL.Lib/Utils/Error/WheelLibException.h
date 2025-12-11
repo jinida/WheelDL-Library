@@ -160,5 +160,56 @@ public:
         : WheelLibException(code, message, innerException) {}
 };
 
+/**
+ * @class TaskException
+ * @brief Exception for task management errors
+ *
+ * Used by TaskManager and Launcher for task lifecycle errors:
+ * - Task submission failures
+ * - Task state transitions
+ * - Resource availability issues
+ * - Task cancellation
+ */
+class TaskException : public WheelLibException {
+public:
+    TaskException(ErrorCode code, const std::string& message)
+        : WheelLibException(code, message), _taskId("") {}
+
+    TaskException(ErrorCode code, const std::string& message, const std::string& taskId)
+        : WheelLibException(code, message), _taskId(taskId) {}
+
+    TaskException(ErrorCode code, const std::string& message,
+                  std::exception_ptr innerException)
+        : WheelLibException(code, message, innerException), _taskId("") {}
+
+    TaskException(ErrorCode code, const std::string& message,
+                  const std::string& taskId, std::exception_ptr innerException)
+        : WheelLibException(code, message, innerException), _taskId(taskId) {}
+
+    /**
+     * @brief Get the task ID associated with this exception
+     * @return std::string Task ID (empty if not applicable)
+     */
+    std::string getTaskId() const noexcept { return _taskId; }
+
+private:
+    std::string _taskId;
+};
+
+/**
+ * @class StopRequestedException
+ * @brief Exception for stop request during training/validation/prediction
+ *
+ * Used for early exit from lambda callbacks where normal return is not possible.
+ * This is a lightweight exception that does not carry error codes or messages
+ * since it represents a normal user-initiated cancellation, not an error.
+ */
+class StopRequestedException : public std::exception {
+public:
+    const char* what() const noexcept override {
+        return "Operation stopped by user request";
+    }
+};
+
 } // namespace Utils
 } // namespace WheelDL

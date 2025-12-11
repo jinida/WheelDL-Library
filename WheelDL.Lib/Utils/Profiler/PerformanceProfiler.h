@@ -48,7 +48,7 @@ private:
 
 /**
  * @class PerformanceProfiler
- * @brief Singleton-based performance profiling system
+ * @brief Ownership-based performance profiling system using unique_ptr
  *
  * Measures execution time of code sections and generates reports.
  * - Manual start/stop timers
@@ -56,12 +56,23 @@ private:
  * - Statistical reporting (min/max/avg)
  * - Export to JSON/HTML
  *
- * @note Thread-safe Singleton implementation
+ * Design principles:
+ * - Created via factory as unique_ptr (PerformanceProfiler::create)
+ * - Automatic destruction when owner is destroyed (RAII)
+ * - Pass raw pointer for sharing (no ownership transfer)
+ * - Copy/move disabled (mutex thread-safety)
+ *
+ * @note Thread-safe implementation
  */
 class PerformanceProfiler {
 public:
-    // Get Singleton instance
-    static PerformanceProfiler& getInstance();
+    // ========== Factory ==========
+
+    /**
+     * @brief Create new PerformanceProfiler instance
+     * @return unique_ptr<PerformanceProfiler> owned Profiler
+     */
+    static std::unique_ptr<PerformanceProfiler> create();
 
     // Disable copy and move
     PerformanceProfiler(const PerformanceProfiler&) = delete;
@@ -157,10 +168,20 @@ public:
      */
     ScopedTimer createScopedTimer(const std::string& name);
 
-private:
-    // Private constructor (Singleton)
-    PerformanceProfiler();
+    /**
+     * @brief Export profiler data to directory
+     * @param outputDir Output directory path (creates profile.json and profile.html)
+     */
+    void exportReport(const std::string& outputDir) const;
+
+    /**
+     * @brief Destructor
+     */
     ~PerformanceProfiler() = default;
+
+private:
+    // Private constructor (Factory pattern)
+    PerformanceProfiler();
 
     // Helper function to calculate statistics from durations
     struct StatsResult {

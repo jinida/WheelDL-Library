@@ -70,6 +70,18 @@ enum class ErrorCode {
     RANK_MISMATCH = 6005,
     WORLD_SIZE_MISMATCH = 6006,
 
+    // Task management errors (7000-7999)
+    TASK_NOT_FOUND = 7000,
+    TASK_ALREADY_RUNNING = 7001,
+    TASK_ALREADY_COMPLETED = 7002,
+    TASK_CANCELLED = 7003,
+    TASK_TIMEOUT = 7004,
+    TASK_SUBMIT_FAILED = 7005,
+    TASK_INVALID_STATE = 7006,
+    TASK_DEPENDENCY_FAILED = 7007,
+    TASK_RESOURCE_UNAVAILABLE = 7008,
+    TASK_GPU_LIMIT_EXCEEDED = 7009,
+
     // General errors (9000-9999)
     UNKNOWN_ERROR = 9000,
     NOT_IMPLEMENTED = 9001,
@@ -142,6 +154,18 @@ inline const char* errorCodeToString(ErrorCode code) {
         case ErrorCode::DISTRIBUTED_TIMEOUT: return "DISTRIBUTED_TIMEOUT";
         case ErrorCode::RANK_MISMATCH: return "RANK_MISMATCH";
         case ErrorCode::WORLD_SIZE_MISMATCH: return "WORLD_SIZE_MISMATCH";
+
+        // Task management
+        case ErrorCode::TASK_NOT_FOUND: return "TASK_NOT_FOUND";
+        case ErrorCode::TASK_ALREADY_RUNNING: return "TASK_ALREADY_RUNNING";
+        case ErrorCode::TASK_ALREADY_COMPLETED: return "TASK_ALREADY_COMPLETED";
+        case ErrorCode::TASK_CANCELLED: return "TASK_CANCELLED";
+        case ErrorCode::TASK_TIMEOUT: return "TASK_TIMEOUT";
+        case ErrorCode::TASK_SUBMIT_FAILED: return "TASK_SUBMIT_FAILED";
+        case ErrorCode::TASK_INVALID_STATE: return "TASK_INVALID_STATE";
+        case ErrorCode::TASK_DEPENDENCY_FAILED: return "TASK_DEPENDENCY_FAILED";
+        case ErrorCode::TASK_RESOURCE_UNAVAILABLE: return "TASK_RESOURCE_UNAVAILABLE";
+        case ErrorCode::TASK_GPU_LIMIT_EXCEEDED: return "TASK_GPU_LIMIT_EXCEEDED";
 
         // General
         case ErrorCode::UNKNOWN_ERROR: return "UNKNOWN_ERROR";

@@ -17,8 +17,6 @@ namespace WheelDL {
             {
                 if (metrics.empty())
                 {
-                    auto logger = Logger::getInstance();
-                    logger->warn("MetricsExporter", "No metrics to export to JSON");
                     return false;
                 }
 
@@ -65,22 +63,16 @@ namespace WheelDL {
                     std::ofstream jsonFile(filepath);
                     if (!jsonFile.is_open())
                     {
-                        auto logger = Logger::getInstance();
-                        logger->error("MetricsExporter", "Failed to open JSON file: " + filepath);
                         return false;
                     }
 
                     jsonFile << std::setw(4) << rootJson << std::endl;
                     jsonFile.close();
 
-                    auto logger = Logger::getInstance();
-                    logger->info("MetricsExporter", "Metrics exported to JSON: " + filepath);
                     return true;
                 }
                 catch (const std::exception& e)
                 {
-                    auto logger = Logger::getInstance();
-                    logger->error("MetricsExporter", "Failed to export JSON: " + std::string(e.what()));
                     return false;
                 }
             }
@@ -91,8 +83,6 @@ namespace WheelDL {
             {
                 if (metrics.empty())
                 {
-                    auto logger = Logger::getInstance();
-                    logger->warn("MetricsExporter", "No metrics to export to CSV");
                     return false;
                 }
 
@@ -108,8 +98,6 @@ namespace WheelDL {
                     std::ofstream csvFile(filepath);
                     if (!csvFile.is_open())
                     {
-                        auto logger = Logger::getInstance();
-                        logger->error("MetricsExporter", "Failed to open CSV file: " + filepath);
                         return false;
                     }
 
@@ -135,14 +123,10 @@ namespace WheelDL {
 
                     csvFile.close();
 
-                    auto logger = Logger::getInstance();
-                    logger->info("MetricsExporter", "Metrics exported to CSV: " + filepath);
                     return true;
                 }
                 catch (const std::exception& e)
                 {
-                    auto logger = Logger::getInstance();
-                    logger->error("MetricsExporter", "Failed to export CSV: " + std::string(e.what()));
                     return false;
                 }
             }
@@ -156,8 +140,6 @@ namespace WheelDL {
             {
                 if (metrics.empty())
                 {
-                    auto logger = Logger::getInstance();
-                    logger->warn("MetricsExporter", "No metrics to export");
                     return false;
                 }
 
@@ -170,8 +152,6 @@ namespace WheelDL {
                     }
                     catch (const std::exception& e)
                     {
-                        auto logger = Logger::getInstance();
-                        logger->error("MetricsExporter", "Failed to create directory: " + std::string(e.what()));
                         return false;
                     }
                 }
@@ -204,8 +184,6 @@ namespace WheelDL {
                 }
                 catch (const std::exception& e)
                 {
-                    auto logger = Logger::getInstance();
-                    logger->error("MetricsExporter", "Failed to create directory: " + std::string(e.what()));
                     return false;
                 }
             }

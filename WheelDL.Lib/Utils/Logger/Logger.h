@@ -4,16 +4,11 @@
 #include <string>
 #include <unordered_map>
 #include <mutex>
-
-// Forward declaration for spdlog
-namespace spdlog {
-	class logger;
-}
+#include <spdlog/spdlog.h>
 
 namespace WheelDL {
 	namespace Utils {
 
-		// Log level enumeration
 		enum class LogLevel {
 			TRACE = 0,
 			DEBUG = 1,
@@ -26,107 +21,156 @@ namespace WheelDL {
 
 		/**
 		 * @class Logger
-		 * @brief Singleton-based logging system
+		 * @brief Ownership-based logging system using unique_ptr
 		 *
-		 * Logging system based on spdlog library with features:
-		 * - Global log level configuration
-		 * - Per-module log level configuration
-		 * - Log file rotation
-		 * - Rank-specific log files for distributed training
+		 * Design principles:
+		 * - Created via factory as unique_ptr (Logger::create)
+		 * - Automatic destruction when owner is destroyed (RAII)
+		 * - Pass raw pointer for sharing (no ownership transfer)
+		 * - Copy/move disabled (mutex thread-safety)
 		 *
-		 * @note Thread-safe Singleton implementation
+		 * Usage:
+		 * @code
+		 * // Create task-specific Logger (owned by Launcher)
+		 * auto logger = Logger::create("task_001");
+		 * logger->setLogFile("logs/task_001.log");
+		 * trainer->setLogger(logger.get());  // raw ptr
+		 *
+		 * // System default Logger
+		 * Logger::getDefault().info("System", "Starting...");
+		 * @endcode
 		 */
 		class Logger {
 		public:
-			// Get Singleton instance
-			static std::shared_ptr<Logger> getInstance();
+			// ========== Factory ==========
 
-			// Disable copy and move
+			/**
+			 * @brief Create new Logger instance
+			 * @param name Logger name (for output and identification)
+			 * @return unique_ptr<Logger> owned Logger
+			 */
+			static std::unique_ptr<Logger> create(const std::string& name);
+
+			/**
+			 * @brief Get system default Logger
+			 * @return Logger& reference to static lifetime default Logger
+			 */
+			static Logger& getDefault();
+
+			// ========== Non-copyable, Non-movable ==========
 			Logger(const Logger&) = delete;
 			Logger& operator=(const Logger&) = delete;
 			Logger(Logger&&) = delete;
 			Logger& operator=(Logger&&) = delete;
 
-			// Set global log level
-			void setGlobalLogLevel(LogLevel level);
+			~Logger();
 
-			// Set per-module log level
-			void setModuleLogLevel(const std::string& module, LogLevel level);
+			// ========== Configuration ==========
 
-			// Set log file path
 			void setLogFile(const std::string& filePath);
-
-			// Enable log rotation (maxFileSize: bytes, maxFiles: number of files)
+			void setGlobalLogLevel(LogLevel level);
+			void setModuleLogLevel(const std::string& module, LogLevel level);
 			void enableRotation(size_t maxFileSize, size_t maxFiles);
 
-			// Set rank-specific log file for distributed training
-			void setRankSpecificLog(int rank);
+			// ========== Logging (fmt style) ==========
 
-			// Log output functions
-			void trace(const std::string& message);
+			template<typename... Args>
+			void trace(const std::string& module, const std::string& fmt, Args&&... args);
+
+			template<typename... Args>
+			void debug(const std::string& module, const std::string& fmt, Args&&... args);
+
+			template<typename... Args>
+			void info(const std::string& module, const std::string& fmt, Args&&... args);
+
+			template<typename... Args>
+			void warn(const std::string& module, const std::string& fmt, Args&&... args);
+
+			template<typename... Args>
+			void error(const std::string& module, const std::string& fmt, Args&&... args);
+
+			template<typename... Args>
+			void fatal(const std::string& module, const std::string& fmt, Args&&... args);
+
+			// ========== Logging (simple string) ==========
+
 			void trace(const std::string& module, const std::string& message);
-
-			void debug(const std::string& message);
 			void debug(const std::string& module, const std::string& message);
-
-			void info(const std::string& message);
 			void info(const std::string& module, const std::string& message);
-
-			void warn(const std::string& message);
 			void warn(const std::string& module, const std::string& message);
-
-			void error(const std::string& message);
 			void error(const std::string& module, const std::string& message);
-
-			void fatal(const std::string& message);
 			void fatal(const std::string& module, const std::string& message);
 
-			// Get current global log level (thread-safe)
-			LogLevel getGlobalLogLevel() const {
-				std::lock_guard<std::recursive_mutex> lock(_mutex);
-				return _globalLogLevel;
-			}
+			// ========== Query ==========
 
-			// Reset logger to console-only mode (closes file handles)
+			std::string getName() const;
+			LogLevel getGlobalLogLevel() const;
+			bool isValid() const;
+
 			void reset();
 
-			// Public destructor (required for shared_ptr, construction still private)
-			~Logger() = default;
-
 		private:
-			// Private constructor (Singleton)
-			Logger();
+			explicit Logger(const std::string& name);
 
-			// spdlog logger instance
+			void initializeSpdlog();
+			void recreateLogger();
+			bool shouldLog(const std::string& module, LogLevel level) const;
+			void logImpl(LogLevel level, const std::string& module, const std::string& message);
+
+			std::string _name;
 			std::shared_ptr<spdlog::logger> _spdlogger;
-
-			// Global log level
 			LogLevel _globalLogLevel;
-
-			// Per-module log levels (module name -> log level)
 			std::unordered_map<std::string, LogLevel> _moduleLogLevels;
-
-			// Log file path
 			std::string _logFilePath;
-
-			// Rotation settings
 			size_t _rotationSize;
 			size_t _rotationFiles;
 			bool _rotationEnabled;
-
-			// Thread-safety (recursive to allow shouldLog to acquire lock within locked methods)
 			mutable std::recursive_mutex _mutex;
-
-			// Singleton instance
-			static std::shared_ptr<Logger> _instance;
-			static std::once_flag _initFlag;
-
-			// Helper functions
-			bool shouldLog(const std::string& module, LogLevel level) const;
-			void initializeSpdlog();
-			void recreateLogger();
-			void logMessage(LogLevel level, const std::string& module, const std::string& message);
 		};
+
+		// ========== Template Implementation ==========
+
+		template<typename... Args>
+		void Logger::trace(const std::string& module, const std::string& fmt, Args&&... args) {
+			std::lock_guard<std::recursive_mutex> lock(_mutex);
+			if (!_spdlogger || !shouldLog(module, LogLevel::TRACE)) return;
+			_spdlogger->trace("[{}] " + fmt, module, std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		void Logger::debug(const std::string& module, const std::string& fmt, Args&&... args) {
+			std::lock_guard<std::recursive_mutex> lock(_mutex);
+			if (!_spdlogger || !shouldLog(module, LogLevel::DEBUG)) return;
+			_spdlogger->debug("[{}] " + fmt, module, std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		void Logger::info(const std::string& module, const std::string& fmt, Args&&... args) {
+			std::lock_guard<std::recursive_mutex> lock(_mutex);
+			if (!_spdlogger || !shouldLog(module, LogLevel::INFO)) return;
+			_spdlogger->info("[{}] " + fmt, module, std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		void Logger::warn(const std::string& module, const std::string& fmt, Args&&... args) {
+			std::lock_guard<std::recursive_mutex> lock(_mutex);
+			if (!_spdlogger || !shouldLog(module, LogLevel::WARN)) return;
+			_spdlogger->warn("[{}] " + fmt, module, std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		void Logger::error(const std::string& module, const std::string& fmt, Args&&... args) {
+			std::lock_guard<std::recursive_mutex> lock(_mutex);
+			if (!_spdlogger || !shouldLog(module, LogLevel::ERR)) return;
+			_spdlogger->error("[{}] " + fmt, module, std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		void Logger::fatal(const std::string& module, const std::string& fmt, Args&&... args) {
+			std::lock_guard<std::recursive_mutex> lock(_mutex);
+			if (!_spdlogger || !shouldLog(module, LogLevel::FATAL)) return;
+			_spdlogger->critical("[{}] " + fmt, module, std::forward<Args>(args)...);
+		}
 
 	} // namespace Utils
 } // namespace WheelDL
