@@ -59,11 +59,7 @@ namespace WheelDL {
                         case Loss::AnomalyLoss::LossType::PatchCore:
                         {
                             auto patchCore = _anomalyModel->as<Modules::PatchCore>();
-                            auto logger = Utils::Logger::getInstance();
-                            logger->info("AnomalyModel", "Building memory bank for PatchCore...");
                             patchCore->buildMemoryBank(loader);
-                            logger->info("AnomalyModel", "Memory bank size after building: " +
-                                std::to_string(patchCore->getMemoryBankSize()));
                             break;
                         }
                         default:

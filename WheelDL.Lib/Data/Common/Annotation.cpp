@@ -633,24 +633,22 @@ namespace WheelDL
                 throw std::invalid_argument("XYXYXYXY must have 8 values");
             }
 
-            // Calculate center
-            float cx = (xyxyxyxy[0] + xyxyxyxy[2] + xyxyxyxy[4] + xyxyxyxy[6]) / 4.0f;
-            float cy = (xyxyxyxy[1] + xyxyxyxy[3] + xyxyxyxy[5] + xyxyxyxy[7]) / 4.0f;
+            std::vector<cv::Point2f> pts = {
+                {xyxyxyxy[0], xyxyxyxy[1]},
+                {xyxyxyxy[2], xyxyxyxy[3]},
+                {xyxyxyxy[4], xyxyxyxy[5]},
+                {xyxyxyxy[6], xyxyxyxy[7]}
+            };
 
-            // Calculate width (distance between first two points)
-            float dx1 = xyxyxyxy[2] - xyxyxyxy[0];
-            float dy1 = xyxyxyxy[3] - xyxyxyxy[1];
-            float w = std::sqrt(dx1 * dx1 + dy1 * dy1);
+            cv::RotatedRect rect = cv::minAreaRect(pts);
 
-            // Calculate height (distance between second and third points)
-            float dx2 = xyxyxyxy[4] - xyxyxyxy[2];
-            float dy2 = xyxyxyxy[5] - xyxyxyxy[3];
-            float h = std::sqrt(dx2 * dx2 + dy2 * dy2);
+            float cx = rect.center.x;
+            float cy = rect.center.y;
+            float w = rect.size.width;
+            float h = rect.size.height;
+			float angle = rect.angle / 180.0f * M_PI_F;
 
-            // Calculate rotation angle (from first edge)
-            float angle = std::atan2(dy1, dx1);
-
-            return {cx, cy, w, h, angle};
+            return { cx, cy, w, h, angle };
         }
 
         std::vector<float> Annotation::xywhrToXyxyxyxy(const std::vector<float>& xywhr)

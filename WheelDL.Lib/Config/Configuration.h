@@ -134,6 +134,12 @@ namespace WheelDL {
 			int getCloseMosaic() const { return _closeMosaic; }
 
 			/**
+			 * @brief Get number of layers to freeze from the beginning
+			 * @return int Number of layers to freeze (0 = no freezing)
+			 */
+			int getFreezeLayers() const { return _freezeLayers; }
+
+			/**
 			 * @brief Check if AMP (Automatic Mixed Precision) is enabled
 			 * @return bool True if AMP
 			 */
@@ -371,8 +377,16 @@ namespace WheelDL {
 			bool IsPatchCore() const { return _isPatchCore; }
 			void setIsEfficientAD(bool val) { _isEfficientAD = val; }
 			void setIsPatchCore(bool val) { _isPatchCore = val; }
-			void setEpochs(int epochs) { _epochs = epochs; }
-			void setWarmupEpochs(float warmupEpochs) { _warmupEpochs = warmupEpochs; }
+			void setEpochs(int epochs) 
+			{ 
+				_epochs = epochs; 
+				_warmupEpochs = std::min(_warmupEpochs, static_cast<float>(_epochs) * 0.03f);
+			}
+			void setWarmupEpochs(float warmupEpochs) 
+			{ 
+				_warmupEpochs = std::min(warmupEpochs, static_cast<float>(_epochs) * 0.03f);
+			}
+
 			void setBatchSize(int batchSize) { _batchSize = batchSize; }
 			void setImageNetNorm(bool val) { _isImageNetNormalized = val; }
 			int getTopK() const { return _topK; }
@@ -401,6 +415,7 @@ namespace WheelDL {
 			bool _cosLR;
 			bool _linearLR;
 			int _closeMosaic;
+			int _freezeLayers;
 			bool _amp;
 			bool _bfloat16;
 			std::string _cache;

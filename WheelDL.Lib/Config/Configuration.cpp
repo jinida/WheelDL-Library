@@ -24,6 +24,7 @@ Configuration::Configuration()
 	, _deterministic(false)
 	, _cosLR(false)
 	, _closeMosaic(0)
+	, _freezeLayers(0)
 	, _amp(true)
 	, _bfloat16(false)
 	, _cache("")
@@ -143,6 +144,7 @@ void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
 	_cosLR = YamlParser::getBool(hyperParamConfig, "cos_lr", false);
 	_linearLR = YamlParser::getBool(hyperParamConfig, "linear_lr", false);
 	_closeMosaic = YamlParser::getInt(hyperParamConfig, "close_mosaic", 10);
+	_freezeLayers = YamlParser::getInt(hyperParamConfig, "freeze", 0);
 	_amp = YamlParser::getBool(hyperParamConfig, "amp", true);
 	_bfloat16 = YamlParser::getBool(hyperParamConfig, "bfloat16", false);
 	_emaEnabled = YamlParser::getBool(hyperParamConfig, "ema", false);

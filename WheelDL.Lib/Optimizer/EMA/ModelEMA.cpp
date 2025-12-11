@@ -58,6 +58,7 @@ namespace WheelDL {
 
                 torch::NoGradGuard no_grad;
 
+                _updates++;
                 float decay = getDecay();
 
                 auto sourceModel = model.getModel();
@@ -65,10 +66,14 @@ namespace WheelDL {
                     return;
                 }
 
-                // Update EMA parameters
+                // Update EMA parameters (only floating point tensors)
                 for (const auto& param : sourceModel->named_parameters()) {
                     const std::string& name = param.key();
                     const torch::Tensor& currentTensor = param.value();
+
+                    if (!currentTensor.is_floating_point()) {
+                        continue;
+                    }
 
                     auto it = _emaParameters.find(name);
                     if (it != _emaParameters.end()) {
@@ -76,18 +81,22 @@ namespace WheelDL {
                     }
                 }
 
-                // Copy buffers directly (no EMA decay for buffers like BatchNorm stats)
+                // Update EMA buffers (only floating point, e.g., BatchNorm running stats)
                 for (const auto& buffer : sourceModel->named_buffers()) {
                     const std::string& name = buffer.key();
                     const torch::Tensor& currentTensor = buffer.value();
 
+                    // Only apply EMA to floating point tensors
+                    if (!currentTensor.is_floating_point()) 
+                    {
+                        continue;
+                    }
+
                     auto it = _emaBuffers.find(name);
                     if (it != _emaBuffers.end()) {
-                        it->second.copy_(currentTensor);
+                        updateParameter(it->second, currentTensor, decay);
                     }
                 }
-
-                _updates++;
             }
 
             void ModelEMA::applyToModel(Model::BaseModel& model)
@@ -140,7 +149,8 @@ namespace WheelDL {
                 }
 
                 // Restore original parameters
-                for (auto& param : targetModel->named_parameters()) {
+                for (auto& param : targetModel->named_parameters()) 
+                {
                     const std::string& name = param.key();
                     auto it = _backupParameters.find(name);
                     if (it != _backupParameters.end()) {
@@ -149,7 +159,8 @@ namespace WheelDL {
                 }
 
                 // Restore original buffers
-                for (auto& buffer : targetModel->named_buffers()) {
+                for (auto& buffer : targetModel->named_buffers()) 
+                {
                     const std::string& name = buffer.key();
                     auto it = _backupBuffers.find(name);
                     if (it != _backupBuffers.end()) {
@@ -165,10 +176,6 @@ namespace WheelDL {
             float ModelEMA::getDecay() const
             {
                 // Dynamic decay: max_decay * (1 - exp(-updates / decay_ramp))
-                // This ramps up the decay over time
-                if (_updates == 0) {
-                    return 0.0f;
-                }
                 return _maxDecay * (1.0f - std::exp(-static_cast<float>(_updates) / _decayRamp));
             }
 

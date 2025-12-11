@@ -155,7 +155,7 @@ namespace WheelDL {
 			PSABlockImpl::PSABlockImpl(int64_t c, double attnRatio, int64_t numHeads, bool shortcut) {
 				_attn = register_module("attn", Attention(c, numHeads, attnRatio));
 
-				// Sequential을 직접 등록할 수 없으므로 개별 모듈로 분리
+				// Cannot register Sequential directly, so split into individual modules
 				_ffn_cv1 = register_module("ffn_cv1", Conv(c, c * 2, 1));
 				_ffn_cv2 = register_module("ffn_cv2", Conv(c * 2, c, 1, 1, std::nullopt, 1, 1));
 
@@ -212,7 +212,7 @@ namespace WheelDL {
 
 				_attn = register_module("attn", Attention(_c, numHeads, 0.5));
 
-				// Sequential을 직접 등록할 수 없으므로 개별 모듈로 분리
+				// Cannot register Sequential directly, so split into individual modules
 				_ffn_cv1 = register_module("ffn_cv1", Conv(_c, _c * 2, 1));
 				_ffn_cv2 = register_module("ffn_cv2", Conv(_c * 2, _c, 1, 1, std::nullopt, 1, 1));
 			}

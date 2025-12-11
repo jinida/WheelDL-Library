@@ -654,7 +654,7 @@ namespace WheelDL
                             cv::Mat gray_1c;
                             cv::cvtColor(image, gray_1c, cv::COLOR_BGR2GRAY);
 
-                            // [최적화 2] gray_3c_buffer_ 재사용
+                            // Reuse gray_3c_buffer_
                             cv::cvtColor(gray_1c, gray_3c_buffer_, cv::COLOR_GRAY2BGR);
 
                             cv::addWeighted(image, s_factor, gray_3c_buffer_, 1.0f - s_factor, 0, image);
