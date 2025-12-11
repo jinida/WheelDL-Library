@@ -1,7 +1,7 @@
-﻿#ifndef PCH_H
+#ifndef PCH_H
 #define PCH_H
 
-// 여기에 미리 컴파일하려는 헤더 추가
+// Add headers to pre-compile here
 #include "framework.h"
 
 #endif //PCH_H

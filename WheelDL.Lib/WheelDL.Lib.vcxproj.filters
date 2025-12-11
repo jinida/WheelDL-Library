@@ -117,6 +117,12 @@
     <Filter Include="header\Core\Predictor">
       <UniqueIdentifier>{77C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
     </Filter>
+    <Filter Include="header\Core\Manager">
+      <UniqueIdentifier>{78C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\Core\Manager\Context">
+      <UniqueIdentifier>{79C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
     <!-- Source Files Filters -->
     <Filter Include="source">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2AA}</UniqueIdentifier>
@@ -232,6 +238,12 @@
     </Filter>
     <Filter Include="source\Core\Utils">
       <UniqueIdentifier>{87C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Core\Manager">
+      <UniqueIdentifier>{88C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Core\Manager\Context">
+      <UniqueIdentifier>{89C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
     </Filter>
     <!-- 3rd Party Filters -->
     <Filter Include="3rdparty">
@@ -567,6 +579,31 @@
     <ClInclude Include="Core\Utils\CheckpointMetadata.h">
       <Filter>header\Core\Utils</Filter>
     </ClInclude>
+    <!-- Core Manager Headers -->
+    <ClInclude Include="Core\Manager\Types.h">
+      <Filter>header\Core\Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Manager\Request.h">
+      <Filter>header\Core\Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Manager\Result.h">
+      <Filter>header\Core\Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Manager\TaskManager.h">
+      <Filter>header\Core\Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Manager\Context\BaseContext.h">
+      <Filter>header\Core\Manager\Context</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Manager\Context\TrainingContext.h">
+      <Filter>header\Core\Manager\Context</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Manager\Context\ValidateContext.h">
+      <Filter>header\Core\Manager\Context</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Manager\Context\PredictContext.h">
+      <Filter>header\Core\Manager\Context</Filter>
+    </ClInclude>
     <ClInclude Include="Interfaces.h">
       <Filter>header\Model\Modules</Filter>
     </ClInclude>
@@ -640,9 +677,6 @@
       <Filter>source\Utils\Export</Filter>
     </ClCompile>
     <ClCompile Include="Utils\Export\MetricsExporter.cpp">
-      <Filter>source\Utils\Export</Filter>
-    </ClCompile>
-    <ClCompile Include="Utils\Export\PredictionExporter.cpp">
       <Filter>source\Utils\Export</Filter>
     </ClCompile>
     <ClCompile Include="dllmain.cpp">
@@ -957,6 +991,22 @@
     </ClCompile>
     <ClCompile Include="Core\Utils\CheckpointMetadata.cpp">
       <Filter>source\Core\Utils</Filter>
+    </ClCompile>
+    <!-- Core Manager Sources -->
+    <ClCompile Include="Core\Manager\TaskManager.cpp">
+      <Filter>source\Core\Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Manager\Context\BaseContext.cpp">
+      <Filter>source\Core\Manager\Context</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Manager\Context\TrainingContext.cpp">
+      <Filter>source\Core\Manager\Context</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Manager\Context\ValidateContext.cpp">
+      <Filter>source\Core\Manager\Context</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Manager\Context\PredictContext.cpp">
+      <Filter>source\Core\Manager\Context</Filter>
     </ClCompile>
     <ClCompile Include="Model\Modules\Model.cpp">
       <Filter>source\Model\Modules</Filter>
