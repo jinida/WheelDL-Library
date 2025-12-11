@@ -7,7 +7,7 @@
 
 namespace WheelDL {
     namespace Core {
-        namespace Trainer {
+        namespace Utils {
 
             /**
              * @struct CheckpointMetadata
@@ -51,6 +51,6 @@ namespace WheelDL {
 
             };
 
-        } // namespace Trainer
+        } // namespace Utils
     } // namespace Core
 } // namespace WheelDL

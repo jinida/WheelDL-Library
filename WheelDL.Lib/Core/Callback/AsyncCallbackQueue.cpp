@@ -6,14 +6,15 @@ namespace WheelDL {
     namespace Core {
         namespace Callback {
 
-            AsyncCallbackQueue::AsyncCallbackQueue(ProgressCallback callback)
+            AsyncCallbackQueue::AsyncCallbackQueue(ProgressCallback callback, WheelDL::Utils::Logger* logger)
                 : _callback(callback)
+                , _logger(logger)
                 , _shouldStop(false)
                 , _isRunning(false)
             {
                 if (!_callback) {
-                    throw Utils::WheelLibException(
-                        Utils::ErrorCode::INVALID_ARGUMENT,
+                    throw WheelDL::Utils::WheelLibException(
+                        WheelDL::Utils::ErrorCode::INVALID_ARGUMENT,
                         "Callback function cannot be null"
                     );
                 }
@@ -111,16 +112,16 @@ namespace WheelDL {
                             _callback(data);
                         }
                         catch (const std::exception& e) {
-                            // Log error but continue processing
-                            auto logger = Utils::Logger::getInstance();
-                            logger->error("AsyncCallbackQueue",
-                                         "Callback exception: " + std::string(e.what()));
+                            if (_logger) {
+                                _logger->warn("AsyncCallbackQueue",
+                                    "Callback exception: " + std::string(e.what()));
+                            }
                         }
                         catch (...) {
-                            // Unknown exception, continue processing
-                            auto logger = Utils::Logger::getInstance();
-                            logger->error("AsyncCallbackQueue",
-                                         "Unknown callback exception");
+                            if (_logger) {
+                                _logger->warn("AsyncCallbackQueue",
+                                    "Callback threw unknown exception");
+                            }
                         }
                     }
                 }
@@ -131,8 +132,17 @@ namespace WheelDL {
                     try {
                         _callback(_dataQueue.front());
                     }
+                    catch (const std::exception& e) {
+                        if (_logger) {
+                            _logger->warn("AsyncCallbackQueue",
+                                "Callback exception during cleanup: " + std::string(e.what()));
+                        }
+                    }
                     catch (...) {
-                        // Ignore exceptions during cleanup
+                        if (_logger) {
+                            _logger->warn("AsyncCallbackQueue",
+                                "Callback threw unknown exception during cleanup");
+                        }
                     }
                     _dataQueue.pop();
                 }

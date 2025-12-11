@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "OBBValidator.h"
+#include "../../Model/Task/OBBModel.h"
 #include "../../Data/Dataset/OBBDataset.h"
 #include "../../Data/Transforms/Collation.h"
 #include "../../Utils/Error/WheelLibException.h"
@@ -11,10 +12,14 @@ namespace WheelDL {
     namespace Core {
         namespace Validator {
 
-            OBBValidator::OBBValidator(const std::shared_ptr<Config::Configuration> config)
-                : BaseValidator(config, torch::Device(torch::kCPU))
+            OBBValidator::OBBValidator(
+                std::shared_ptr<Config::Configuration> config,
+                WheelDL::Utils::Logger* logger,
+                WheelDL::Utils::PerformanceProfiler* profiler,
+                std::atomic<bool>* stopFlag)
+                : BaseValidator(config, logger, profiler, stopFlag)
                 , _numClasses(config->getNumClasses())
-                , _confThresh(0.5f)  // Low threshold for mAP calculation
+                , _confThresh(0.2f)  // Low threshold for mAP calculation
                 , _iouThresh(config->getIoU())
                 , _maxDet(config->getMaxDet())
             {
@@ -22,6 +27,12 @@ namespace WheelDL {
                     "OBB validator initialized with " +
                     std::to_string(_numClasses) + " classes, IoU threshold: " +
                     std::to_string(_iouThresh));
+            }
+
+            std::unique_ptr<Model::BaseModel> OBBValidator::setupModel()
+            {
+                _logger->info("OBBValidator", "Creating OBBModel");
+                return std::make_unique<Model::OBBModel>(_config);
             }
 
             void OBBValidator::setupDataLoader()
@@ -77,6 +88,7 @@ namespace WheelDL {
                 }
 
                 torch::Tensor pred = prediction[0]; 
+                
                 return pred;
             }
 
@@ -84,7 +96,7 @@ namespace WheelDL {
                 const torch::Tensor& pred,
                 const torch::Tensor& target)
             {
-                _profiler.start("compute_metrics");
+                _profiler->start("compute_metrics");
                 MetricsData metrics{};
 
                 try
@@ -97,13 +109,13 @@ namespace WheelDL {
 
                     if (totalTargets == 0) {
                         _logger->info("OBBValidator", "No ground truth targets");
-                        _profiler.stop("compute_metrics");
+                        _profiler->stop("compute_metrics");
                         return metrics;
                     }
 
                     if (pred.numel() == 0 || pred.size(0) == 0) {
                         _logger->info("OBBValidator", "No predictions");
-                        _profiler.stop("compute_metrics");
+                        _profiler->stop("compute_metrics");
                         return metrics;
                     }
 
@@ -112,7 +124,7 @@ namespace WheelDL {
 
                     if (numImages == 0) {
                         _logger->info("OBBValidator", "No predictions after NMS");
-                        _profiler.stop("compute_metrics");
+                        _profiler->stop("compute_metrics");
                         return metrics;
                     }
 
@@ -183,7 +195,7 @@ namespace WheelDL {
                     if (totalPreds == 0) {
                         _logger->info("OBBValidator",
                             "mAP@0.5:0.95: 0 | mAP@0.5: 0 | Precision: 0 | Recall: 0");
-                        _profiler.stop("compute_metrics");
+                        _profiler->stop("compute_metrics");
                         return metrics;
                     }
 
@@ -359,7 +371,7 @@ namespace WheelDL {
                     _logger->error("OBBValidator", "Failed to compute metrics: " + std::string(e.what()));
                 }
 
-                _profiler.stop("compute_metrics");
+                _profiler->stop("compute_metrics");
                 return metrics;
             }
         } // namespace Validator

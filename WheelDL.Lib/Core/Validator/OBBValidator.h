@@ -24,8 +24,15 @@ namespace WheelDL {
                 /**
                  * @brief Constructor
                  * @param config Configuration object containing validation settings
+                 * @param logger Logger instance (non-null, owned by Launcher)
+                 * @param profiler PerformanceProfiler instance (non-null, owned by Launcher)
+                 * @param stopFlag Atomic stop flag (optional, owned by Context)
                  */
-                explicit OBBValidator(const std::shared_ptr<Config::Configuration> config);
+                explicit OBBValidator(
+                    std::shared_ptr<Config::Configuration> config,
+                    WheelDL::Utils::Logger* logger,
+                    WheelDL::Utils::PerformanceProfiler* profiler,
+                    std::atomic<bool>* stopFlag = nullptr);
 
                 /**
                  * @brief Destructor
@@ -33,6 +40,12 @@ namespace WheelDL {
                 ~OBBValidator() override = default;
 
             protected:
+                /**
+                 * @brief Setup model for standalone validation
+                 * @return OBBModel instance
+                 */
+                std::unique_ptr<Model::BaseModel> setupModel() override;
+
                 /**
                  * @brief Setup validation DataLoader
                  *

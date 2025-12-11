@@ -39,6 +39,44 @@ namespace WheelDL {
         namespace Trainer {
 
             /**
+             * @class EMAGuard
+             * @brief RAII guard for EMA apply/restore pattern
+             *
+             * Automatically applies EMA weights on construction and restores original
+             * weights on destruction, ensuring exception-safe EMA operations.
+             */
+            class EMAGuard {
+            public:
+                EMAGuard(Optimizer::EMA::ModelEMA* ema, Model::BaseModel* model)
+                    : _ema(ema), _model(model), _applied(false)
+                {
+                    if (_ema && _model) {
+                        _ema->applyToModel(*_model);
+                        _applied = true;
+                    }
+                }
+
+                ~EMAGuard() {
+                    if (_applied && _ema && _model) {
+                        _ema->restoreOriginalParams(*_model);
+                    }
+                }
+
+                // Non-copyable, non-movable
+                EMAGuard(const EMAGuard&) = delete;
+                EMAGuard& operator=(const EMAGuard&) = delete;
+                EMAGuard(EMAGuard&&) = delete;
+                EMAGuard& operator=(EMAGuard&&) = delete;
+
+                bool isApplied() const { return _applied; }
+
+            private:
+                Optimizer::EMA::ModelEMA* _ema;
+                Model::BaseModel* _model;
+                bool _applied;
+            };
+
+            /**
              * @class BaseTrainer
              * @brief Template Method Pattern base class for training
              *
@@ -66,10 +104,21 @@ namespace WheelDL {
             class BaseTrainer {
             public:
                 /**
-                 * @brief Constructor
+                 * @brief Constructor with dependency injection
                  * @param config Configuration object containing all training settings
+                 * @param logger Logger instance (non-null, owned by Launcher)
+                 * @param workspace Workspace instance (non-null, owned by Launcher)
+                 * @param profiler PerformanceProfiler instance (non-null, owned by Launcher)
+                 * @param progressCallback Optional progress callback
+                 * @param stopFlag Atomic stop flag (optional, owned by Context)
                  */
-                explicit BaseTrainer(const std::shared_ptr<Config::Configuration> config);
+                explicit BaseTrainer(
+                    std::shared_ptr<Config::Configuration> config,
+                    WheelDL::Utils::Logger* logger,
+                    WheelDL::Utils::Workspace* workspace,
+                    WheelDL::Utils::PerformanceProfiler* profiler,
+                    ProgressCallback progressCallback = nullptr,
+                    std::atomic<bool>* stopFlag = nullptr);
 
                 /**
                  * @brief Virtual destructor
@@ -89,20 +138,12 @@ namespace WheelDL {
                 MetricsData train();
 
                 /**
-                 * @brief Set progress callback for training updates
-                 * @param callback Callback function to invoke on progress updates
+                 * @brief Check if stop has been requested
+                 * @return true if stop was requested, false otherwise
                  */
-                void setProgressCallback(ProgressCallback callback);
-
-                /**
-                 * @brief Stop training
-                 */
-                void stop();
-
-                /**
-                 * @brief Check if training is stopped
-                 */
-                bool isStopped() const { return _shouldStop.load(); }
+                bool isStopRequested() const {
+                    return _stopFlag && _stopFlag->load(std::memory_order_acquire);
+                }
 
                 /**
                  * @brief Get current epoch
@@ -279,15 +320,15 @@ namespace WheelDL {
                 /**
                  * @brief Perform final prediction with best model
                  *
-                 * Handles all common logic:
-                 * - Loading best.pt checkpoint
-                 * - Creating PredDataset and DataLoader
-                 * - Running prediction loop
-                 * - Calling task-specific export
+                 * Delegates all prediction logic to the Predictor:
+                 * - Creates predictor via setupPredictor()
+                 * - Calls predictor->predictAndExport()
                  *
-                 * Uses hook methods for task-specific operations:
-                 * - setupPredictor() for creating predictor
-                 * - exportPredictionResults() for saving results
+                 * The Predictor handles:
+                 * - PredDataset creation
+                 * - DataLoader iteration
+                 * - Batch inference
+                 * - Result export
                  */
                 void finalPrediction();
 
@@ -304,23 +345,6 @@ namespace WheelDL {
                  */
                 virtual std::unique_ptr<Predictor::BasePredictor> setupPredictor(
                     const std::string& checkpointPath) = 0;
-
-                /**
-                 * @brief Export prediction results (pure virtual hook)
-                 *
-                 * Derived classes must implement task-specific export logic.
-                 * For example:
-                 * - AnomalyTrainer: export JSON + save anomaly maps
-                 * - DetectionTrainer: export JSON with boxes
-                 * - SegmentationTrainer: export JSON with contours
-                 *
-                 * @param results Vector of prediction results
-                 * @param imagePaths Vector of image paths
-                 * @param resultsDir Directory to save results
-                 */
-                virtual void exportPredictionResults(
-                    const std::vector<PredictionResult>& results,
-                    const std::vector<std::string>& imagePaths) = 0;
 
                 /**
                  * @brief Optimizer step with gradient clipping
@@ -364,15 +388,16 @@ namespace WheelDL {
                  * - loadCheckpoint("path/to/best.pt") - Load model only (inference/validation)
                  * - loadCheckpoint("path/to/last.pt", true) - Load model + optimizer (resume training)
                  */
-                CheckpointMetadata loadCheckpoint(const std::string& checkpointPath, bool resumeTraining = false);
+                Utils::CheckpointMetadata loadCheckpoint(const std::string& checkpointPath, bool resumeTraining = false);
 
             protected:
                 // ========== Configuration & Core Components ==========
                 std::shared_ptr<Config::Configuration> _config;
-                std::shared_ptr<Utils::Logger> _logger;
-                Utils::PerformanceProfiler& _profiler;
-                Utils::MemoryManager& _memoryManager;
-                std::unique_ptr<Utils::Random> _random;
+                WheelDL::Utils::Logger* _logger;                      // Injected (owned by Context)
+                WheelDL::Utils::Workspace* _workspace;                // Injected (owned by Context)
+                WheelDL::Utils::PerformanceProfiler* _profiler;       // Injected (owned by Context)
+                WheelDL::Utils::MemoryManager& _memoryManager;
+                std::unique_ptr<WheelDL::Utils::Random> _random;
 
                 // ========== Model & Training Components ==========
                 std::unique_ptr<Model::BaseModel> _model;
@@ -408,17 +433,16 @@ namespace WheelDL {
                 MetricsData _currentMetrics;
 				std::vector<MetricsData> _epochMetrics;
 				std::string _checkpointPath;
-                std::unique_ptr<Utils::Workspace> _workspace;
 
                 // ========== Callback & Control ==========
                 ProgressCallback _progressCallback;
                 std::unique_ptr<Callback::AsyncCallbackQueue> _asyncCallbackQueue;
                 std::unique_ptr<Callback::CallbackThrottler> _callbackThrottler;
-                std::atomic<bool> _shouldStop;
+                std::atomic<bool>* _stopFlag;                         // Injected (owned by Context)
 
                 // ========== Timers ==========
-                std::unique_ptr<Utils::Timer> _epochTimer;
-                std::unique_ptr<Utils::Timer> _totalTimer;
+                std::unique_ptr<WheelDL::Utils::Timer> _epochTimer;
+                std::unique_ptr<WheelDL::Utils::Timer> _totalTimer;
             };
 
         } // namespace Trainer

@@ -2,6 +2,9 @@
 #include "ClassificationPredictor.h"
 #include "../../Utils/Error/WheelLibException.h"
 #include "../../Utils/Error/ErrorCodes.h"
+#include <fstream>
+#include <iomanip>
+#include <nlohmann/json.hpp>
 
 namespace WheelDL {
     namespace Core {
@@ -9,42 +12,23 @@ namespace WheelDL {
 
             ClassificationPredictor::ClassificationPredictor(
                 std::shared_ptr<Config::Configuration> config,
-                const std::string& checkpointPath)
-                : BasePredictor(config, checkpointPath)
+                const std::string& checkpointPath,
+                WheelDL::Utils::Logger* logger,
+                WheelDL::Utils::PerformanceProfiler* profiler,
+                std::atomic<bool>* stopFlag)
+                : BasePredictor(config, checkpointPath, logger, profiler, stopFlag)
                 , _numClasses(config->getNumClasses())
-                , _useImageNetNorm(config->getImageNetNorm())
             {
                 _logger->info("ClassificationPredictor", "Initializing classification predictor");
 
-                // Initialize normalization tensors
-                if (_useImageNetNorm) {
-                    _mean = torch::tensor({ 0.485f, 0.456f, 0.406f }, torch::kFloat32).view({ 1, 3, 1, 1 }).to(_device);
-                    _std = torch::tensor({ 0.229f, 0.224f, 0.225f }, torch::kFloat32).view({ 1, 3, 1, 1 }).to(_device);
-                }
-                else
-                {
-                    _mean = torch::tensor({ 0.0f, 0.0f, 0.0f }, torch::kFloat32).view({ 1, 3, 1, 1 }).to(_device);
-                    _std = torch::tensor({ 1.0f, 1.0f, 1.0f }, torch::kFloat32).view({ 1, 3, 1, 1 }).to(_device);
-                }
-
-                // Get model YAML path from configuration
-                _modelYamlPath = config->getModelPath();
-                if (_modelYamlPath.empty()) {
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::INVALID_CONFIG,
-                        "Model YAML path is not specified in configuration"
-                    );
-                }
-
                 // Verify task type
                 if (config->getTaskType() != TaskType::CLASSIFICATION) {
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::INVALID_CONFIG,
+                    throw WheelDL::Utils::ConfigurationException(
+                        WheelDL::Utils::ErrorCode::INVALID_CONFIG,
                         "Configuration task type must be CLASSIFICATION for ClassificationPredictor"
                     );
                 }
 
-                _logger->info("ClassificationPredictor", "Model YAML: " + _modelYamlPath);
                 _logger->info("ClassificationPredictor", "Number of classes: " + std::to_string(_numClasses));
 
                 // Setup model
@@ -60,7 +44,7 @@ namespace WheelDL {
 
             void ClassificationPredictor::setupModel()
             {
-                _profiler.start("setup_model");
+                _profiler->start("setup_model");
                 _logger->info("ClassificationPredictor", "Setting up classification model");
 
                 try {
@@ -68,82 +52,26 @@ namespace WheelDL {
                     _logger->info("ClassificationPredictor", "Model setup completed");
                 }
                 catch (const std::exception& e) {
-                    throw Utils::ModelException(
-                        Utils::ErrorCode::MODEL_LOAD_FAILED,
+                    throw WheelDL::Utils::ModelException(
+                        WheelDL::Utils::ErrorCode::MODEL_LOAD_FAILED,
                         "Failed to setup classification model: " + std::string(e.what())
                     );
                 }
 
-                _profiler.stop("setup_model");
+                _profiler->stop("setup_model");
             }
 
-            torch::Tensor ClassificationPredictor::preprocess(const torch::Tensor& input)
-            {
-                try {
-                    torch::Tensor preprocessed = input;
-
-                    // Ensure input is [C, H, W] or [1, C, H, W]
-                    if (preprocessed.dim() == 3) {
-                        preprocessed = preprocessed.unsqueeze(0);
-                    }
-                    else if (preprocessed.dim() != 4) {
-                        throw Utils::WheelLibException(
-                            Utils::ErrorCode::PREDICTION_FAILED,
-                            "Input tensor must be [C, H, W] or [1, C, H, W], got " +
-                            std::to_string(preprocessed.dim()) + "D"
-                        );
-                    }
-
-                    // If already float and normalized, return as-is
-                    if (preprocessed.dtype() == torch::kFloat32 &&
-                        preprocessed.max().item<float>() <= 1.0f) {
-                        return preprocessed;
-                    }
-
-                    int targetSize = _config->getImageSize();
-                    int origH = preprocessed.size(2);
-                    int origW = preprocessed.size(3);
-
-                    // Resize to target size
-                    if (origH != targetSize || origW != targetSize) {
-                        preprocessed = torch::nn::functional::interpolate(
-                            preprocessed.to(torch::kFloat32),
-                            torch::nn::functional::InterpolateFuncOptions()
-                                .size(std::vector<int64_t>{targetSize, targetSize})
-                                .mode(torch::kBilinear)
-                                .align_corners(false)
-                        );
-                    }
-                    else {
-                        preprocessed = preprocessed.to(torch::kFloat32);
-                    }
-
-                    // Normalize to [0, 1] if input is [0, 255]
-                    if (preprocessed.max().item<float>() > 1.0f) {
-                        preprocessed = preprocessed.mul(1.0f / 255.0f);
-                    }
-
-                    // Apply normalization
-                    preprocessed = preprocessed.sub(_mean).div(_std);
-
-                    return preprocessed;
-                }
-                catch (const std::exception& e) {
-                    throw Utils::WheelLibException(
-                        Utils::ErrorCode::PREDICTION_FAILED,
-                        "Preprocessing failed: " + std::string(e.what())
-                    );
-                }
-            }
-
-            PredictionResult ClassificationPredictor::postprocess(
+            void ClassificationPredictor::postprocess(
                 const std::vector<torch::Tensor>& output,
-                const std::tuple<int, int>& originalShape)
+                const std::tuple<int, int>& originalShape,
+                const std::string& imagePath)
             {
-                PredictionResult result;
-
-                try 
+                try
                 {
+                    if (output.empty()) {
+                        return;
+                    }
+
                     // output[0]: logits [1, num_classes]
                     const torch::Tensor& logits = output[0];
 
@@ -159,22 +87,74 @@ namespace WheelDL {
                     float confidence = maxScore.cpu().item<float>();
                     int64_t classId = maxIndex.cpu().item<int64_t>();
 
-                    result.scores.push_back(confidence);
-                    result.classIds.push_back(static_cast<unsigned int>(classId));
+                    // Store in internal container
+                    ClassificationResult result;
+                    result.imagePath = imagePath;
+                    result.score = confidence;
+                    result.classId = static_cast<int>(classId);
+                    result.originalShape = {std::get<0>(originalShape), std::get<1>(originalShape)};
+                    result.inferenceTimeMs = static_cast<float>(_profiler->getDuration("inference"));
 
-                    // Store original shape
-                    result.originalShape = {
-                        std::get<0>(originalShape),
-                        std::get<1>(originalShape)
-                    };
+                    _results.push_back(std::move(result));
                 }
                 catch (const std::exception& e) {
                     _logger->error("ClassificationPredictor", "Postprocessing failed: " + std::string(e.what()));
-                    result.scores.push_back(0.0f);
-                    result.classIds.push_back(0);
+                }
+            }
+
+            void ClassificationPredictor::exportResults(const std::string& outputDir)
+            {
+                namespace fs = std::filesystem;
+
+                _profiler->start("export_results");
+
+                fs::path resultsPath = fs::path(outputDir);
+                fs::create_directories(resultsPath);
+
+                nlohmann::json predictionsJson = nlohmann::json::array();
+                predictionsJson.get<nlohmann::json::array_t>().reserve(_results.size());
+                auto classNames = _config->getClassNames();
+
+                for (const auto& result : _results) {
+                    nlohmann::json predJson;
+                    predJson["image_path"] = result.imagePath;
+                    predJson["inference_time_ms"] = result.inferenceTimeMs;
+                    predJson["predicted_class"] = result.classId;
+                    predJson["label"] = classNames[result.classId];
+                    predJson["confidence"] = result.score;
+
+                    predictionsJson.push_back(predJson);
                 }
 
-                return result;
+                // Write to file
+                fs::path outPath = resultsPath / "predictions.json";
+
+                nlohmann::json rootJson;
+                rootJson["predictions"] = predictionsJson;
+                rootJson["total_predictions"] = _results.size();
+
+                std::ofstream file(outPath);
+                if (!file.is_open()) {
+                    _logger->error("ClassificationPredictor", "Failed to create predictions.json file");
+                    _profiler->stop("export_results");
+                    return;
+                }
+                file << std::setw(4) << rootJson << std::endl;
+                file.close();
+
+                if (file.fail()) {
+                    _logger->error("ClassificationPredictor", "Failed to write predictions.json file");
+                }
+
+                _logger->info("ClassificationPredictor", "Exported " +
+                    std::to_string(_results.size()) + " prediction results to " + outPath.string());
+
+                _profiler->stop("export_results");
+            }
+
+            void ClassificationPredictor::clearResults()
+            {
+                _results.clear();
             }
 
         } // namespace Predictor

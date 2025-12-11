@@ -8,7 +8,7 @@
 
 namespace WheelDL {
     namespace Core {
-        namespace Trainer {
+        namespace Utils {
 
             CheckpointMetadata CheckpointMetadata::fromConfiguration(
                 const Config::Configuration& config,
@@ -85,6 +85,6 @@ namespace WheelDL {
                 return metadata;
             }
 
-        } // namespace Trainer
+        } // namespace Utils
     } // namespace Core
 } // namespace WheelDL

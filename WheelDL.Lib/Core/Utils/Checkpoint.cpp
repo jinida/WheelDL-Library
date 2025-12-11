@@ -11,7 +11,7 @@
 
 namespace WheelDL {
     namespace Core {
-        namespace Trainer {
+        namespace Utils {
 
             std::string Checkpoint::getCurrentVersion()
             {
@@ -127,98 +127,99 @@ namespace WheelDL {
                 return metadata;
             }
 
+            void Checkpoint::saveCommon(
+                torch::serialize::OutputArchive& archive,
+                const std::string& path,
+                const Model::BaseModel& model,
+                const CheckpointMetadata& metadata)
+            {
+                // Create parent directory if it doesn't exist
+                std::filesystem::path checkpointPath(path);
+                if (checkpointPath.has_parent_path()) {
+                    std::string parentPath = checkpointPath.parent_path().string();
+                    if (!WheelDL::Utils::PathValidator::createDirectoryIfNotExists(parentPath)) {
+                        throw WheelDL::Utils::ConfigurationException(
+                            WheelDL::Utils::ErrorCode::FILE_IO_ERROR,
+                            "Failed to create checkpoint directory: " + parentPath
+                        );
+                    }
+                }
+
+                // Save metadata fields as individual tensors
+                auto saveString = [&archive](const std::string& key, const std::string& value) {
+                    std::vector<char> chars(value.begin(), value.end());
+                    torch::Tensor tensor = torch::from_blob(
+                        chars.data(),
+                        {static_cast<int64_t>(chars.size())},
+                        torch::kChar
+                    ).clone();
+                    archive.write(key, tensor);
+                };
+
+                saveString("meta.wheellib_version", metadata.wheelLibVersion);
+                saveString("meta.libtorch_version", metadata.libtorchVersion);
+                saveString("meta.task_type", taskTypeToString(metadata.taskType));
+                archive.write("meta.epoch", torch::tensor(metadata.epoch));
+                archive.write("meta.best_fitness", torch::tensor(metadata.bestFitness));
+                saveString("meta.timestamp", metadata.timestamp);
+                saveString("meta.device_type", metadata.deviceType);
+                archive.write("meta.gpu_count", torch::tensor(metadata.gpuCount));
+
+                // Save metrics data
+                archive.write("meta.metrics.loss", torch::tensor(metadata.loss));
+                archive.write("meta.metrics.accuracy", torch::tensor(metadata.accuracy));
+                archive.write("meta.metrics.precision", torch::tensor(metadata.precision));
+                archive.write("meta.metrics.recall", torch::tensor(metadata.recall));
+                archive.write("meta.metrics.f1Score", torch::tensor(metadata.f1Score));
+                archive.write("meta.metrics.mAP", torch::tensor(metadata.mAP));
+                archive.write("meta.metrics.threshold", torch::tensor(metadata.threshold));
+
+                // Save hyperparameters
+                for (const auto& [key, value] : metadata.hyperParams) {
+                    saveString("meta.hyper." + key, value);
+                }
+
+                // Save model state dict
+                auto modelState = model.getModel()->named_parameters();
+                for (const auto& param : modelState) {
+                    std::string modelKey = std::string(MODEL_KEY) + "." + param.key();
+                    archive.write(modelKey, param.value());
+                }
+
+                // Save model buffers (e.g., BatchNorm running stats, memory bank)
+                auto modelBuffers = model.getModel()->named_buffers();
+                for (const auto& buffer : modelBuffers) {
+                    std::string modelKey = std::string(MODEL_KEY) + ".buffer." + buffer.key();
+                    archive.write(modelKey, buffer.value());
+                }
+
+                // Save model stride
+                archive.write(std::string(MODEL_KEY) + ".stride", model.getStride());
+            }
+
             void Checkpoint::save(
                 const std::string& path,
                 const Model::BaseModel& model,
                 const torch::optim::Optimizer& optimizer,
                 const CheckpointMetadata& metadata)
             {
-                auto logger = Utils::Logger::getInstance();
-                logger->info("Checkpoint", "Saving checkpoint to: " + path);
-
                 try {
-                    // Create parent directory if it doesn't exist
-                    std::filesystem::path checkpointPath(path);
-                    if (checkpointPath.has_parent_path()) {
-                        std::string parentPath = checkpointPath.parent_path().string();
-                        if (!Utils::PathValidator::createDirectoryIfNotExists(parentPath)) {
-                            throw Utils::ConfigurationException(
-                                Utils::ErrorCode::FILE_IO_ERROR,
-                                "Failed to create checkpoint directory: " + parentPath
-                            );
-                        }
-                    }
-
-                    // Create a dictionary to hold all checkpoint data
                     torch::serialize::OutputArchive archive;
 
-                    // Save metadata fields as individual tensors
-                    auto saveString = [&archive](const std::string& key, const std::string& value) {
-                        std::vector<char> chars(value.begin(), value.end());
-                        torch::Tensor tensor = torch::from_blob(
-                            chars.data(),
-                            {static_cast<int64_t>(chars.size())},
-                            torch::kChar
-                        ).clone();
-                        archive.write(key, tensor);
-                    };
+                    // Save common data (metadata + model state)
+                    saveCommon(archive, path, model, metadata);
 
-                    saveString("meta.wheellib_version", metadata.wheelLibVersion);
-                    saveString("meta.libtorch_version", metadata.libtorchVersion);
-                    saveString("meta.task_type", taskTypeToString(metadata.taskType));
-                    archive.write("meta.epoch", torch::tensor(metadata.epoch));
-                    archive.write("meta.best_fitness", torch::tensor(metadata.bestFitness));
-                    saveString("meta.timestamp", metadata.timestamp);
-                    saveString("meta.device_type", metadata.deviceType);
-                    archive.write("meta.gpu_count", torch::tensor(metadata.gpuCount));
-
-                    // Save metrics data
-                    archive.write("meta.metrics.loss", torch::tensor(metadata.loss));
-                    archive.write("meta.metrics.accuracy", torch::tensor(metadata.accuracy));
-                    archive.write("meta.metrics.precision", torch::tensor(metadata.precision));
-                    archive.write("meta.metrics.recall", torch::tensor(metadata.recall));
-                    archive.write("meta.metrics.f1Score", torch::tensor(metadata.f1Score));
-                    archive.write("meta.metrics.mAP", torch::tensor(metadata.mAP));
-                    archive.write("meta.metrics.threshold", torch::tensor(metadata.threshold));
-
-                    // Save hyperparameters
-                    for (const auto& [key, value] : metadata.hyperParams) {
-                        saveString("meta.hyper." + key, value);
-                    }
-
-                    // Save model state dict
-                    auto modelState = model.getModel()->named_parameters();
-                    for (const auto& param : modelState) {
-                        std::string modelKey = std::string(MODEL_KEY) + "." + param.key();
-                        archive.write(modelKey, param.value());
-                    }
-
-                    // Save model buffers (e.g., BatchNorm running stats, memory bank)
-                    auto modelBuffers = model.getModel()->named_buffers();
-                    for (const auto& buffer : modelBuffers) {
-                        std::string modelKey = std::string(MODEL_KEY) + ".buffer." + buffer.key();
-                        archive.write(modelKey, buffer.value());
-                    }
-
-                    // Save model stride
-                    archive.write(std::string(MODEL_KEY) + ".stride", model.getStride());
-
-                    // Save optimizer state
+                    // Save optimizer state (save() only)
                     torch::serialize::OutputArchive optimizerArchive;
                     optimizer.save(optimizerArchive);
                     archive.write(OPTIMIZER_KEY, optimizerArchive);
 
                     // Write to file
                     archive.save_to(path);
-
-                    logger->info("Checkpoint", "Successfully saved checkpoint (epoch=" +
-                                std::to_string(metadata.epoch) + ", fitness=" +
-                                std::to_string(metadata.bestFitness) + ")");
                 }
                 catch (const std::exception& e) {
-                    logger->error("Checkpoint", "Failed to save checkpoint: " + std::string(e.what()));
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::FILE_IO_ERROR,
+                    throw WheelDL::Utils::ConfigurationException(
+                        WheelDL::Utils::ErrorCode::FILE_IO_ERROR,
                         "Failed to save checkpoint: " + std::string(e.what())
                     );
                 }
@@ -229,88 +230,20 @@ namespace WheelDL {
                 const Model::BaseModel& model,
                 const CheckpointMetadata& metadata)
             {
-                auto logger = Utils::Logger::getInstance();
-                logger->info("Checkpoint", "Saving model-only checkpoint to: " + path);
-
                 try {
-                    // Create parent directory if it doesn't exist
-                    std::filesystem::path checkpointPath(path);
-                    if (checkpointPath.has_parent_path()) {
-                        std::string parentPath = checkpointPath.parent_path().string();
-                        if (!Utils::PathValidator::createDirectoryIfNotExists(parentPath)) {
-                            throw Utils::ConfigurationException(
-                                Utils::ErrorCode::FILE_IO_ERROR,
-                                "Failed to create checkpoint directory: " + parentPath
-                            );
-                        }
-                    }
-
                     torch::serialize::OutputArchive archive;
 
-                    // Save metadata fields as individual tensors
-                    auto saveString = [&archive](const std::string& key, const std::string& value) {
-                        std::vector<char> chars(value.begin(), value.end());
-                        torch::Tensor tensor = torch::from_blob(
-                            chars.data(),
-                            {static_cast<int64_t>(chars.size())},
-                            torch::kChar
-                        ).clone();
-                        archive.write(key, tensor);
-                    };
-
-                    saveString("meta.wheellib_version", metadata.wheelLibVersion);
-                    saveString("meta.libtorch_version", metadata.libtorchVersion);
-                    saveString("meta.task_type", taskTypeToString(metadata.taskType));
-                    archive.write("meta.epoch", torch::tensor(metadata.epoch));
-                    archive.write("meta.best_fitness", torch::tensor(metadata.bestFitness));
-                    saveString("meta.timestamp", metadata.timestamp);
-                    saveString("meta.device_type", metadata.deviceType);
-                    archive.write("meta.gpu_count", torch::tensor(metadata.gpuCount));
-
-                    // Save metrics data
-                    archive.write("meta.metrics.loss", torch::tensor(metadata.loss));
-                    archive.write("meta.metrics.accuracy", torch::tensor(metadata.accuracy));
-                    archive.write("meta.metrics.precision", torch::tensor(metadata.precision));
-                    archive.write("meta.metrics.recall", torch::tensor(metadata.recall));
-                    archive.write("meta.metrics.f1Score", torch::tensor(metadata.f1Score));
-                    archive.write("meta.metrics.mAP", torch::tensor(metadata.mAP));
-                    archive.write("meta.metrics.threshold", torch::tensor(metadata.threshold));
-
-                    // Save hyperparameters
-                    for (const auto& [key, value] : metadata.hyperParams) {
-                        saveString("meta.hyper." + key, value);
-                    }
-
-                    // Save model state dict
-                    auto modelState = model.getModel()->named_parameters();
-                    for (const auto& param : modelState) {
-                        std::string modelKey = std::string(MODEL_KEY) + "." + param.key();
-                        archive.write(modelKey, param.value());
-                    }
-
-                    // Save model buffers (e.g., BatchNorm running stats, memory bank)
-                    auto modelBuffers = model.getModel()->named_buffers();
-                    for (const auto& buffer : modelBuffers) {
-                        std::string modelKey = std::string(MODEL_KEY) + ".buffer." + buffer.key();
-                        archive.write(modelKey, buffer.value());
-                    }
-
-                    // Save model stride
-                    archive.write(std::string(MODEL_KEY) + ".stride", model.getStride());
+                    // Save common data (metadata + model state)
+                    saveCommon(archive, path, model, metadata);
 
                     // Note: Optimizer state is NOT saved for model-only checkpoint
 
                     // Write to file
                     archive.save_to(path);
-
-                    logger->info("Checkpoint", "Successfully saved model-only checkpoint (epoch=" +
-                                std::to_string(metadata.epoch) + ", fitness=" +
-                                std::to_string(metadata.bestFitness) + ")");
                 }
                 catch (const std::exception& e) {
-                    logger->error("Checkpoint", "Failed to save model-only checkpoint: " + std::string(e.what()));
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::FILE_IO_ERROR,
+                    throw WheelDL::Utils::ConfigurationException(
+                        WheelDL::Utils::ErrorCode::FILE_IO_ERROR,
                         "Failed to save model-only checkpoint: " + std::string(e.what())
                     );
                 }
@@ -321,15 +254,11 @@ namespace WheelDL {
                 Model::BaseModel& model,
                 torch::optim::Optimizer& optimizer)
             {
-                auto logger = Utils::Logger::getInstance();
-                logger->info("Checkpoint", "Loading checkpoint from: " + path);
-
                 try {
                     // Check if file exists
-                    if (!Utils::PathValidator::fileExists(path)) {
-                        logger->error("Checkpoint", "Checkpoint file not found: " + path);
-                        throw Utils::ConfigurationException(
-                            Utils::ErrorCode::FILE_IO_ERROR,
+                    if (!WheelDL::Utils::PathValidator::fileExists(path)) {
+                        throw WheelDL::Utils::ConfigurationException(
+                            WheelDL::Utils::ErrorCode::FILE_IO_ERROR,
                             "Checkpoint file not found: " + path
                         );
                     }
@@ -343,8 +272,8 @@ namespace WheelDL {
 
                     // Check compatibility
                     if (!isCompatible(metadata)) {
-                        throw Utils::ConfigurationException(
-                            Utils::ErrorCode::INVALID_CONFIG,
+                        throw WheelDL::Utils::ConfigurationException(
+                            WheelDL::Utils::ErrorCode::INVALID_CONFIG,
                             "Checkpoint version incompatible. Checkpoint version: " +
                             metadata.wheelLibVersion + ", Current version: " + getCurrentVersion()
                         );
@@ -382,7 +311,6 @@ namespace WheelDL {
                                 sizeStr += std::to_string(loadedBuffer.size(i));
                             }
                             sizeStr += "]";
-                            logger->info("Checkpoint", "Loaded buffer: " + buffer.key() + " size=" + sizeStr);
                         }
                     }
 
@@ -390,27 +318,20 @@ namespace WheelDL {
                     torch::Tensor loadedStride;
                     if (archive.try_read(std::string(MODEL_KEY) + ".stride", loadedStride)) {
                         model.setStride(loadedStride);
-                        logger->info("Checkpoint", "Loaded stride from checkpoint");
                     }
 
                     // Load optimizer state
                     torch::serialize::InputArchive optimizerArchive;
                     archive.read(OPTIMIZER_KEY, optimizerArchive);
                     optimizer.load(optimizerArchive);
-
-                    logger->info("Checkpoint", "Successfully loaded checkpoint (epoch=" +
-                                std::to_string(metadata.epoch) + ", version=" +
-                                metadata.wheelLibVersion + ")");
-
                     return metadata;
                 }
-                catch (const Utils::WheelLibException&) {
+                catch (const WheelDL::Utils::WheelLibException&) {
                     throw;
                 }
                 catch (const std::exception& e) {
-                    logger->error("Checkpoint", "Failed to load checkpoint: " + std::string(e.what()));
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::FILE_IO_ERROR,
+                    throw WheelDL::Utils::ConfigurationException(
+                        WheelDL::Utils::ErrorCode::FILE_IO_ERROR,
                         "Failed to load checkpoint: " + std::string(e.what())
                     );
                 }
@@ -418,17 +339,14 @@ namespace WheelDL {
 
             CheckpointMetadata Checkpoint::loadModelOnly(
                 const std::string& path,
-                Model::BaseModel& model)
+                Model::BaseModel& model,
+                WheelDL::Utils::Logger* logger)
             {
-                auto logger = Utils::Logger::getInstance();
-                logger->info("Checkpoint", "Loading model from checkpoint: " + path);
-
                 try {
                     // Check if file exists
-                    if (!Utils::PathValidator::fileExists(path)) {
-                        logger->error("Checkpoint", "Checkpoint file not found: " + path);
-                        throw Utils::ConfigurationException(
-                            Utils::ErrorCode::FILE_IO_ERROR,
+                    if (!WheelDL::Utils::PathValidator::fileExists(path)) {
+                        throw WheelDL::Utils::ConfigurationException(
+                            WheelDL::Utils::ErrorCode::FILE_IO_ERROR,
                             "Checkpoint file not found: " + path
                         );
                     }
@@ -443,8 +361,8 @@ namespace WheelDL {
                     // Check compatibility
                     if (!isCompatible(metadata))
                     {
-                        throw Utils::ConfigurationException(
-                            Utils::ErrorCode::INVALID_CONFIG,
+                        throw WheelDL::Utils::ConfigurationException(
+                            WheelDL::Utils::ErrorCode::INVALID_CONFIG,
                             "Checkpoint version incompatible. Checkpoint version: " +
                             metadata.wheelLibVersion + ", Current version: " + getCurrentVersion()
                         );
@@ -464,8 +382,13 @@ namespace WheelDL {
                             }
                             catch (const std::exception& e)
                             {
-                                logger->error("Checkpoint", "Failed to load parameter: " + param.key() + " - " + e.what());
-							}
+                                // Log shape mismatch or other copy failures
+                                if (logger) {
+                                    logger->warn("Checkpoint",
+                                        "Failed to load parameter '" + param.key() +
+                                        "': " + std::string(e.what()) + " - Using default values");
+                                }
+                            }
                         }
                     }
 
@@ -486,24 +409,19 @@ namespace WheelDL {
 
                     // Load model stride (if exists)
                     torch::Tensor loadedStride;
-                    if (archive.try_read(std::string(MODEL_KEY) + ".stride", loadedStride)) {
+                    if (archive.try_read(std::string(MODEL_KEY) + ".stride", loadedStride))
+                    {
                         model.setStride(loadedStride);
-                        logger->info("Checkpoint", "Loaded stride from checkpoint");
                     }
-
-                    logger->info("Checkpoint", "Successfully loaded model (epoch=" +
-                                std::to_string(metadata.epoch) + ", version=" +
-                                metadata.wheelLibVersion + ")");
 
                     return metadata;
                 }
-                catch (const Utils::WheelLibException&) {
+                catch (const WheelDL::Utils::WheelLibException&) {
                     throw;
                 }
                 catch (const std::exception& e) {
-                    logger->error("Checkpoint", "Failed to load model: " + std::string(e.what()));
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::FILE_IO_ERROR,
+                    throw WheelDL::Utils::ConfigurationException(
+                        WheelDL::Utils::ErrorCode::FILE_IO_ERROR,
                         "Failed to load model: " + std::string(e.what())
                     );
                 }
@@ -540,9 +458,9 @@ namespace WheelDL {
             CheckpointMetadata Checkpoint::loadMetadata(const std::string& path)
             {
                 try {
-                    if (!Utils::PathValidator::fileExists(path)) {
-                        throw Utils::ConfigurationException(
-                            Utils::ErrorCode::FILE_IO_ERROR,
+                    if (!WheelDL::Utils::PathValidator::fileExists(path)) {
+                        throw WheelDL::Utils::ConfigurationException(
+                            WheelDL::Utils::ErrorCode::FILE_IO_ERROR,
                             "Checkpoint file not found: " + path
                         );
                     }
@@ -553,12 +471,12 @@ namespace WheelDL {
                     // Load metadata using helper function
                     return loadMetadataFromArchive(archive);
                 }
-                catch (const Utils::WheelLibException&) {
+                catch (const WheelDL::Utils::WheelLibException&) {
                     throw;
                 }
                 catch (const std::exception& e) {
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::FILE_IO_ERROR,
+                    throw WheelDL::Utils::ConfigurationException(
+                        WheelDL::Utils::ErrorCode::FILE_IO_ERROR,
                         "Failed to load metadata: " + std::string(e.what())
                     );
                 }
@@ -567,7 +485,7 @@ namespace WheelDL {
             bool Checkpoint::validate(const std::string& path)
             {
                 try {
-                    if (!Utils::PathValidator::fileExists(path)) {
+                    if (!WheelDL::Utils::PathValidator::fileExists(path)) {
                         return false;
                     }
 
@@ -580,6 +498,6 @@ namespace WheelDL {
                 }
             }
 
-        } // namespace Trainer
+        } // namespace Utils
     } // namespace Core
 } // namespace WheelDL

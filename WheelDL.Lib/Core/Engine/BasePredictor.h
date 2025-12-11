@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <atomic>
 #include "../../Config/Configuration.h"
 #include "../../Model/Task/BaseModel.h"
 #include "../../Utils/Logger/Logger.h"
@@ -21,32 +22,38 @@ namespace WheelDL {
              * @class BasePredictor
              * @brief Base class for model inference/prediction
              *
-             * Provides inference pipeline with hooks for task-specific customization.
-             * Supports single image, batch, and streaming inference.
+             * Provides batch inference pipeline with hooks for task-specific customization.
+             * Uses PredDataset for data loading and preprocessing.
              *
              * Key features:
              * - Configuration-driven inference
              * - Checkpoint loading with EMA support
              * - Comprehensive logging and profiling
-             * - Memory-efficient inference
+             * - Memory-efficient batch inference
              * - Template Method Pattern for customization
              *
              * Derived classes must implement:
              * - setupModel()
-             * - preprocess()
              * - postprocess()
+             * - exportResults()
+             * - clearResults()
              */
             class BasePredictor {
             public:
                 /**
-                 * @brief Constructor
+                 * @brief Constructor with dependency injection
                  * @param config Configuration object
                  * @param checkpointPath Path to checkpoint file (optional)
+                 * @param logger Logger instance (non-null, owned by Launcher)
+                 * @param profiler PerformanceProfiler instance (non-null, owned by Launcher)
+                 * @param stopFlag Atomic stop flag (optional, owned by Context)
                  */
                 explicit BasePredictor(
                     std::shared_ptr<Config::Configuration> config,
-                    const std::string& checkpointPath = ""
-                );
+                    const std::string& checkpointPath,
+                    WheelDL::Utils::Logger* logger,
+                    WheelDL::Utils::PerformanceProfiler* profiler,
+                    std::atomic<bool>* stopFlag = nullptr);
 
                 /**
                  * @brief Virtual destructor
@@ -60,14 +67,13 @@ namespace WheelDL {
                 BasePredictor& operator=(BasePredictor&&) = delete;
 
                 /**
-                 * @brief Predict on single input
-                 * @param input Input tensor (e.g., single image)
-                 * @return Prediction results
+                 * @brief Run batch prediction and export results
+                 * @param outputDir Output directory for results
+                 *
+                 * Creates PredDataset from config, runs inference on all images,
+                 * and exports results using task-specific exportResults().
                  */
-                PredictionResult predict(const std::string& filePath);
-                PredictionResult predict(const cv::Mat& input);
-                PredictionResult predict(const torch::Tensor& input);
-                PredictionResult predict(const torch::Tensor& input, const std::tuple<int, int>& originalShape);
+                void predictAndExport(const std::string& outputDir);
 
                 /**
                  * @brief Load model from checkpoint
@@ -98,21 +104,34 @@ namespace WheelDL {
                 virtual void setupModel() = 0;
 
                 /**
-                 * @brief Preprocess input tensor
-                 * @param input Raw input tensor
-                 * @return Preprocessed tensor ready for model
+                 * @brief Postprocess model output and store in internal container
+                 * @param output Raw model output
+                 * @param originalShape Original image shape (height, width)
+                 * @param imagePath Image file path for export
+                 *
+                 * Derived classes should process output and store results
+                 * in their internal container for later export.
                  */
-                virtual torch::Tensor preprocess(const torch::Tensor& input) = 0;
+                virtual void postprocess(
+                    const std::vector<torch::Tensor>& output,
+                    const std::tuple<int, int>& originalShape,
+                    const std::string& imagePath) = 0;
 
                 /**
-                 * @brief Postprocess model output
-                 * @param output Raw model output
-                 * @param originalInput Original input tensor (for dimensions, etc.)
-                 * @return Processed prediction result
+                 * @brief Export accumulated results to files
+                 * @param outputDir Output directory
+                 *
+                 * Derived classes should export their internal results
+                 * in task-specific format (e.g., JSON, images).
                  */
-                virtual PredictionResult postprocess(
-                    const std::vector<torch::Tensor>& output,
-                    const std::tuple<int, int>& originalShape) = 0;
+                virtual void exportResults(const std::string& outputDir) = 0;
+
+                /**
+                 * @brief Clear internal results container
+                 *
+                 * Called at the start of predictAndExport() to reset state.
+                 */
+                virtual void clearResults() = 0;
 
                 // ========== Common Methods ==========
 
@@ -124,11 +143,11 @@ namespace WheelDL {
                 void setupDevice();
 
                 /**
-                 * @brief Run inference on preprocessed input
-                 * @param preprocessedInput Preprocessed input tensor
+                 * @brief Run inference on input tensor
+                 * @param input Input tensor (already preprocessed by PredDataset)
                  * @return Raw model output
                  */
-                std::vector<torch::Tensor> inference(const torch::Tensor& preprocessedInput);
+                std::vector<torch::Tensor> inference(const torch::Tensor& input);
 
                 /**
                  * @brief Warmup model (run dummy inference)
@@ -139,11 +158,22 @@ namespace WheelDL {
                 void warmup();
 
             protected:
+                // ========== Stop Flag ==========
+
+                /**
+                 * @brief Check if stop has been requested
+                 * @return true if stop was requested, false otherwise
+                 */
+                bool isStopRequested() const {
+                    return _stopFlag && _stopFlag->load(std::memory_order_acquire);
+                }
+
                 // ========== Configuration & Core Components ==========
                 std::shared_ptr<Config::Configuration> _config;
-                std::shared_ptr<Utils::Logger> _logger;
-                Utils::PerformanceProfiler& _profiler;
-                Utils::MemoryManager& _memoryManager;
+                WheelDL::Utils::Logger* _logger;                      // Injected (owned by Context)
+                WheelDL::Utils::PerformanceProfiler* _profiler;       // Injected (owned by Context)
+                WheelDL::Utils::MemoryManager& _memoryManager;
+                std::atomic<bool>* _stopFlag;                         // Injected (owned by Context)
 
                 // ========== Model ==========
                 std::unique_ptr<Model::BaseModel> _model;
@@ -155,9 +185,9 @@ namespace WheelDL {
                 bool _isModelLoaded;
                 bool _isWarmedUp;
 
-				// ========== Checkpoint Path ==========
+                // ========== Checkpoint Path ==========
                 std::string _checkpointPath;
-				float _threshold;
+                float _threshold = 0.5f;
             };
 
         } // namespace Predictor

@@ -11,13 +11,23 @@ namespace WheelDL {
     namespace Core {
         namespace Validator {
 
-            SegmentationValidator::SegmentationValidator(const std::shared_ptr<Config::Configuration> config)
-                : BaseValidator(config, torch::Device(torch::kCPU))
+            SegmentationValidator::SegmentationValidator(
+                std::shared_ptr<Config::Configuration> config,
+                WheelDL::Utils::Logger* logger,
+                WheelDL::Utils::PerformanceProfiler* profiler,
+                std::atomic<bool>* stopFlag)
+                : BaseValidator(config, logger, profiler, stopFlag)
                 , _numClasses(config->getNumClasses())
             {
                 _logger->info("SegmentationValidator",
                     "Segmentation validator initialized with " +
                     std::to_string(_numClasses) + " classes");
+            }
+
+            std::unique_ptr<Model::BaseModel> SegmentationValidator::setupModel()
+            {
+                _logger->info("SegmentationValidator", "Creating SegmentationModel");
+                return std::make_unique<Model::SegmentationModel>(_config);
             }
 
             void SegmentationValidator::setupDataLoader()
@@ -80,14 +90,14 @@ namespace WheelDL {
                 const torch::Tensor& pred,
                 const torch::Tensor& target)
             {
-                _profiler.start("compute_metrics");
+                _profiler->start("compute_metrics");
 
                 MetricsData metrics{};
 
                 try
                 {
                     if (pred.dim() != 4 || target.dim() != 4) {
-                        _profiler.stop("compute_metrics");
+                        _profiler->stop("compute_metrics");
                         return metrics;
                     }
 
@@ -108,9 +118,9 @@ namespace WheelDL {
 
                     for (int64_t start = 0; start < totalBatch; start += chunkSize) {
                         int64_t end = std::min(start + chunkSize, totalBatch);
-            
-                        auto pc = pred.slice(0, start, end).cpu();
-                        auto tc = target.slice(0, start, end);
+
+                        auto pc = pred.slice(0, start, end).cpu().contiguous();
+                        auto tc = target.slice(0, start, end).cpu().contiguous();
 
                         if (pc.size(2) != tc.size(2) || pc.size(3) != tc.size(3)) {
                             pc = torch::nn::functional::interpolate(pc,
@@ -121,24 +131,27 @@ namespace WheelDL {
                         }
 
                         auto tb = tc.to(torch::kBool);
-                        auto targetSum = tb.sum({0, 2, 3}).cpu();
-            
+                        auto targetSumTensor = tb.sum({0, 2, 3});
+                        auto targetSumAccessor = targetSumTensor.accessor<int64_t, 1>();
+
                         for (int64_t c = 0; c < numClasses; ++c) {
-                            accTarget[c] += targetSum[c].item<float>();
+                            accTarget[c] += static_cast<double>(targetSumAccessor[c]);
                         }
-            
+
                         totalPixels += pc.numel();
 
                         for (int t = 0; t < NT; ++t) {
                             float thresh = THRESH_MIN + t * THRESH_STEP;
                             auto pb = (pc > thresh);
 
-                            auto tp = (pb & tb).sum({0, 2, 3}).cpu();
-                            auto predSum = pb.sum({0, 2, 3}).cpu();
+                            auto tpTensor = (pb & tb).sum({0, 2, 3});
+                            auto predSumTensor = pb.sum({0, 2, 3});
+                            auto tpAccessor = tpTensor.accessor<int64_t, 1>();
+                            auto predSumAccessor = predSumTensor.accessor<int64_t, 1>();
 
                             for (int64_t c = 0; c < numClasses; ++c) {
-                                accTP[t][c] += tp[c].item<double>();
-                                accPred[t][c] += predSum[c].item<double>();
+                                accTP[t][c] += static_cast<double>(tpAccessor[c]);
+                                accPred[t][c] += static_cast<double>(predSumAccessor[c]);
                             }
 
                             accCorrect[t] += pb.eq(tb).sum().item<int64_t>();
@@ -217,7 +230,7 @@ namespace WheelDL {
                     _logger->error("SegmentationValidator", std::string(e.what()));
                 }
 
-                _profiler.stop("compute_metrics");
+                _profiler->stop("compute_metrics");
                 return metrics;
             }
         } // namespace Validator

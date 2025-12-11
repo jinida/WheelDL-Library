@@ -12,12 +12,12 @@ namespace WheelDL {
              * @class AnomalyPredictor
              * @brief Predictor for anomaly detection tasks
              *
-             * Performs inference for anomaly detection models:
+             * Performs batch inference for anomaly detection models:
              * - EfficientAD: Student-Teacher distillation based detection
              * - PatchCore: Memory bank based detection
              * - SimpleNet: Simple feature-based detection
              *
-             * Output:
+             * Output (exported to JSON + anomaly map images):
              * - Anomaly score map (pixel-level)
              * - Image-level anomaly score
              * - Anomaly contours (segmentation of anomalous regions)
@@ -28,11 +28,16 @@ namespace WheelDL {
                  * @brief Constructor
                  * @param config Configuration object
                  * @param checkpointPath Path to trained model checkpoint
+                 * @param logger Logger instance (non-null, owned by Launcher)
+                 * @param profiler PerformanceProfiler instance (non-null, owned by Launcher)
+                 * @param stopFlag Atomic stop flag (optional, owned by Context)
                  */
                 explicit AnomalyPredictor(
                     std::shared_ptr<Config::Configuration> config,
-                    const std::string& checkpointPath = ""
-                );
+                    const std::string& checkpointPath,
+                    WheelDL::Utils::Logger* logger,
+                    WheelDL::Utils::PerformanceProfiler* profiler,
+                    std::atomic<bool>* stopFlag = nullptr);
 
                 /**
                  * @brief Destructor
@@ -66,40 +71,43 @@ namespace WheelDL {
                 void setupModel() override;
 
                 /**
-                 * @brief Preprocess input tensor
+                 * @brief Postprocess anomaly detection output and store results
                  *
-                 * Normalizes input and resizes to model input size.
-                 * Expected input: [C, H, W] or [1, C, H, W]
-                 *
-                 * @param input Raw input tensor
-                 * @return Preprocessed tensor [1, C, H, W]
-                 */
-                torch::Tensor preprocess(const torch::Tensor& input) override;
-
-                /**
-                 * @brief Postprocess anomaly detection output
-                 *
-                 * Converts anomaly score map to PredictionResult.
+                 * Converts anomaly score map to internal result container.
                  * Extracts contours for anomalous regions.
                  *
                  * @param output Anomaly score map [H, W] or [1, H, W]
-                 * @param originalInput Original input tensor (for dimensions)
-                 * @return PredictionResult with:
-                 *         - scores: [image-level anomaly score]
-                 *         - classIds: [0 or 1] (0=normal, 1=anomaly)
-                 *         - contours: anomaly region contours
+                 * @param originalShape Original image shape
+                 * @param imagePath Image file path
                  */
-                PredictionResult postprocess(
+                void postprocess(
                     const std::vector<torch::Tensor>& output,
-                    const std::tuple<int, int>& originalShape) override;
+                    const std::tuple<int, int>& originalShape,
+                    const std::string& imagePath) override;
+
+                /**
+                 * @brief Export anomaly detection results to JSON and images
+                 * @param outputDir Output directory
+                 */
+                void exportResults(const std::string& outputDir) override;
+
+                /**
+                 * @brief Clear internal results container
+                 */
+                void clearResults() override;
 
             private:
-                std::string _modelYamlPath;  /// Path to model YAML configuration
-                bool _isModelPrepared;       /// Whether model has been prepared
+                // Internal result container
+                struct AnomalyResult {
+                    std::string imagePath;
+                    float anomalyScore;
+                    int classId;  // 0=normal, 1=anomaly
+                    cv::Mat anomalyMap;
+                    std::pair<int, int> originalShape;
+                    float inferenceTimeMs;
+                };
 
-                // ImageNet normalization tensors
-                torch::Tensor _mean;
-                torch::Tensor _std;
+                std::vector<AnomalyResult> _results;
             };
 
         } // namespace Predictor

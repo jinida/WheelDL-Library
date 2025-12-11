@@ -11,8 +11,12 @@ namespace WheelDL {
     namespace Core {
         namespace Validator {
 
-            DetectionValidator::DetectionValidator(const std::shared_ptr<Config::Configuration> config)
-                : BaseValidator(config, torch::Device(torch::kCPU))
+            DetectionValidator::DetectionValidator(
+                std::shared_ptr<Config::Configuration> config,
+                WheelDL::Utils::Logger* logger,
+                WheelDL::Utils::PerformanceProfiler* profiler,
+                std::atomic<bool>* stopFlag)
+                : BaseValidator(config, logger, profiler, stopFlag)
                 , _numClasses(config->getNumClasses())
                 , _confThresh(0.5f)  // Low threshold for mAP calculation
                 , _iouThresh(config->getIoU())
@@ -22,6 +26,12 @@ namespace WheelDL {
                     "Detection validator initialized with " +
                     std::to_string(_numClasses) + " classes, IoU threshold: " +
                     std::to_string(_iouThresh));
+            }
+
+            std::unique_ptr<Model::BaseModel> DetectionValidator::setupModel()
+            {
+                _logger->info("DetectionValidator", "Creating DetectionModel");
+                return std::make_unique<Model::DetectionModel>(_config);
             }
 
             void DetectionValidator::setupDataLoader()
@@ -84,7 +94,7 @@ namespace WheelDL {
                 const torch::Tensor& pred,
                 const torch::Tensor& target)
             {
-                _profiler.start("compute_metrics");
+                _profiler->start("compute_metrics");
                 MetricsData metrics{};
                 try
                 {
@@ -294,7 +304,7 @@ namespace WheelDL {
                     _logger->error("DetectionValidator", "Failed to compute metrics: " + std::string(e.what()));
                 }
 
-                _profiler.stop("compute_metrics");
+                _profiler->stop("compute_metrics");
                 return metrics;
             }
         } // namespace Validator

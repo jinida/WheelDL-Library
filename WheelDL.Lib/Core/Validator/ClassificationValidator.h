@@ -23,8 +23,15 @@ namespace WheelDL {
                 /**
                  * @brief Constructor
                  * @param config Configuration object
+                 * @param logger Logger instance (non-null, owned by Launcher)
+                 * @param profiler PerformanceProfiler instance (non-null, owned by Launcher)
+                 * @param stopFlag Atomic stop flag (optional, owned by Context)
                  */
-                explicit ClassificationValidator(const std::shared_ptr<Config::Configuration> config);
+                explicit ClassificationValidator(
+                    std::shared_ptr<Config::Configuration> config,
+                    WheelDL::Utils::Logger* logger,
+                    WheelDL::Utils::PerformanceProfiler* profiler,
+                    std::atomic<bool>* stopFlag = nullptr);
 
                 /**
                  * @brief Destructor
@@ -33,6 +40,12 @@ namespace WheelDL {
 
             protected:
                 // ========== Hook Methods Implementation ==========
+
+                /**
+                 * @brief Setup model for standalone validation
+                 * @return ClassificationModel instance
+                 */
+                std::unique_ptr<Model::BaseModel> setupModel() override;
 
                 /**
                  * @brief Setup data loader (empty - uses dependency injection)

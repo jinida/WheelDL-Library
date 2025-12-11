@@ -5,41 +5,34 @@
 #include "../../Data/Transforms/Collation.h"
 #include "../../Utils/Error/WheelLibException.h"
 #include "../../Utils/Error/ErrorCodes.h"
-#include <nlohmann/json.hpp>
-#include <fstream>
 
 namespace WheelDL {
     namespace Core {
         namespace Trainer {
 
-            SegmentationTrainer::SegmentationTrainer(const std::shared_ptr<Config::Configuration> config)
-                : BaseTrainer(config)
+            SegmentationTrainer::SegmentationTrainer(
+                std::shared_ptr<Config::Configuration> config,
+                WheelDL::Utils::Logger* logger,
+                WheelDL::Utils::Workspace* workspace,
+                WheelDL::Utils::PerformanceProfiler* profiler,
+                ProgressCallback progressCallback,
+                std::atomic<bool>* stopFlag)
+                : BaseTrainer(config, logger, workspace, profiler, progressCallback, stopFlag)
             {
                 _logger->info("SegmentationTrainer", "Initializing segmentation trainer");
 
-                // Get model YAML path from configuration
-                _modelYamlPath = config->getModelPath();
-                if (_modelYamlPath.empty()) {
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::INVALID_CONFIG,
-                        "Model YAML path is not specified in configuration"
-                    );
-                }
-
                 // Verify task type
                 if (config->getTaskType() != TaskType::SEGMENTATION) {
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::INVALID_CONFIG,
+                    throw WheelDL::Utils::ConfigurationException(
+                        WheelDL::Utils::ErrorCode::INVALID_CONFIG,
                         "Configuration task type must be SEGMENTATION for SegmentationTrainer"
                     );
                 }
-
-                _logger->info("SegmentationTrainer", "Model YAML: " + _modelYamlPath);
             }
 
             void SegmentationTrainer::setupModel()
             {
-                _profiler.start("setup_model");
+                _profiler->start("setup_model");
                 _logger->info("SegmentationTrainer", "Setting up segmentation model");
 
                 try {
@@ -49,18 +42,18 @@ namespace WheelDL {
                     _logger->info("SegmentationTrainer", "Model setup completed");
                 }
                 catch (const std::exception& e) {
-                    throw Utils::ModelException(
-                        Utils::ErrorCode::MODEL_LOAD_FAILED,
+                    throw WheelDL::Utils::ModelException(
+                        WheelDL::Utils::ErrorCode::MODEL_LOAD_FAILED,
                         "Failed to setup segmentation model: " + std::string(e.what())
                     );
                 }
 
-                _profiler.stop("setup_model");
+                _profiler->stop("setup_model");
             }
 
             void SegmentationTrainer::setupDataLoaders()
             {
-                _profiler.start("setup_dataloaders");
+                _profiler->start("setup_dataloaders");
                 _logger->info("SegmentationTrainer", "Setting up data loaders");
 
                 try {
@@ -84,23 +77,23 @@ namespace WheelDL {
                     _logger->info("SegmentationTrainer", "Data loaders setup completed");
                 }
                 catch (const std::exception& e) {
-                    throw Utils::DataException(
-                        Utils::ErrorCode::DATA_LOAD_FAILED,
+                    throw WheelDL::Utils::DataException(
+                        WheelDL::Utils::ErrorCode::DATA_LOAD_FAILED,
                         "Failed to setup data loaders: " + std::string(e.what())
                     );
                 }
 
-                _profiler.stop("setup_dataloaders");
+                _profiler->stop("setup_dataloaders");
             }
 
             void SegmentationTrainer::setupValidator()
             {
-                _profiler.start("setup_validator");
+                _profiler->start("setup_validator");
                 _logger->info("SegmentationTrainer", "Setting up validator");
 
                 try
                 {
-                    _validator = std::make_unique<Validator::SegmentationValidator>(_config);
+                    _validator = std::make_unique<Validator::SegmentationValidator>(_config, _logger, _profiler, _stopFlag);
 
                     // Create validation dataset
                     auto valDataset = std::make_shared<Data::Dataset::SegmentationDataset>(*_config, false);
@@ -130,13 +123,13 @@ namespace WheelDL {
                     _validator.reset();
                 }
 
-                _profiler.stop("setup_validator");
+                _profiler->stop("setup_validator");
             }
 
             WheelDL::Data::Dataset::DataExample SegmentationTrainer::preprocessBatch(
                 const WheelDL::Data::Dataset::DataExample& batch)
             {
-                _profiler.start("preprocess_batch");
+                _profiler->start("preprocess_batch");
 
                 // Move data to device
                 WheelDL::Data::Dataset::DataExample preprocessed;
@@ -151,7 +144,7 @@ namespace WheelDL {
                     preprocessed.classes = batch.classes.to(_device);
                 }
 
-                _profiler.stop("preprocess_batch");
+                _profiler->stop("preprocess_batch");
                 return preprocessed;
             }
 
@@ -166,119 +159,14 @@ namespace WheelDL {
                 _logger->info("SegmentationTrainer", "Setting up segmentation predictor with checkpoint: " + checkpointPath);
 
                 try {
-                    auto predictor = std::make_unique<Predictor::SegmentationPredictor>(_config, checkpointPath);
+                    auto predictor = std::make_unique<Predictor::SegmentationPredictor>(_config, checkpointPath, _logger, _profiler);
                     _logger->info("SegmentationTrainer", "Segmentation predictor setup completed");
                     return predictor;
                 }
                 catch (const std::exception& e) {
-                    throw Utils::ModelException(
-                        Utils::ErrorCode::MODEL_LOAD_FAILED,
+                    throw WheelDL::Utils::ModelException(
+                        WheelDL::Utils::ErrorCode::MODEL_LOAD_FAILED,
                         "Failed to setup segmentation predictor: " + std::string(e.what())
-                    );
-                }
-            }
-
-            void SegmentationTrainer::exportPredictionResults(
-                const std::vector<PredictionResult>& results,
-                const std::vector<std::string>& imagePaths)
-            {
-                namespace fs = std::filesystem;
-
-                fs::path resultsPath = _workspace->getResultDir();
-                _logger->info("SegmentationTrainer", "Exporting segmentation prediction results to: " + resultsPath.string());
-
-                try {
-                    nlohmann::json predictionsJson = nlohmann::json::array();
-                    predictionsJson.get<nlohmann::json::array_t>().reserve(results.size());
-                    auto classNames = _config->getClassNames();
-
-                    for (size_t i = 0; i < results.size(); ++i)
-                    {
-                        const auto& result = results[i];
-                        const auto& imagePath = imagePaths[i];
-
-                        nlohmann::json predJson;
-                        predJson["image_path"] = imagePath;
-                        predJson["inference_time_ms"] = result.inferenceTime;
-                        predJson["num_segments"] = result.contours.size();
-
-                        // Export segmentation contours
-                        nlohmann::json segmentsJson = nlohmann::json::array();
-                        for (size_t j = 0; j < result.contours.size(); ++j)
-                        {
-                            nlohmann::json segJson;
-
-                            // Contour points
-                            const auto& contour = result.contours[j];
-                            nlohmann::json pointsJson = nlohmann::json::array();
-                            for (size_t k = 0; k + 1 < contour.points.size(); k += 2)
-                            {
-
-                                pointsJson.push_back(contour.points[k]);
-                                pointsJson.push_back(contour.points[k + 1]);
-                            }
-                            segJson["contour"] = pointsJson;
-
-                            // Class info
-                            if (j < result.classIds.size()) {
-                                int classId = static_cast<int>(result.classIds[j]);
-                                segJson["class_id"] = classId;
-
-                                auto it = classNames.find(classId);
-                                if (it != classNames.end()) {
-                                    segJson["class_name"] = it->second;
-                                }
-                            }
-
-                            // Confidence
-                            if (j < result.scores.size()) {
-                                segJson["confidence"] = result.scores[j];
-                            }
-
-                            segmentsJson.push_back(segJson);
-                        }
-
-                        predJson["segments"] = segmentsJson;
-                        predictionsJson.push_back(predJson);
-                    }
-
-                    fs::path predictionsPath = resultsPath / "predictions.json";
-                    std::ofstream jsonFile(predictionsPath);
-                    if (!jsonFile.is_open()) {
-                        throw Utils::DataException(
-                            Utils::ErrorCode::FILE_IO_ERROR,
-                            "Failed to create predictions.json file"
-                        );
-                    }
-
-                    nlohmann::json rootJson;
-                    rootJson["predictions"] = predictionsJson;
-                    rootJson["total_images"] = results.size();
-
-                    // Calculate total segments
-                    size_t totalSegments = 0;
-                    for (const auto& result : results) {
-                        totalSegments += result.contours.size();
-                    }
-                    rootJson["total_segments"] = totalSegments;
-
-                    jsonFile << std::setw(4) << rootJson << std::endl;
-                    jsonFile.close();
-
-                    if (jsonFile.fail()) {
-                        throw Utils::DataException(
-                            Utils::ErrorCode::FILE_IO_ERROR,
-                            "Failed to write predictions.json"
-                        );
-                    }
-                    _logger->info("SegmentationTrainer", "Exported " + std::to_string(results.size()) +
-                        " images with " + std::to_string(totalSegments) +
-                        " total segments to " + predictionsPath.string());
-                }
-                catch (const std::exception& e) {
-                    throw Utils::DataException(
-                        Utils::ErrorCode::FILE_IO_ERROR,
-                        "Failed to export segmentation prediction results: " + std::string(e.what())
                     );
                 }
             }

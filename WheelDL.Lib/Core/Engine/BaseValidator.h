@@ -3,9 +3,12 @@
 #include <torch/torch.h>
 #include <memory>
 #include <functional>
+#include <atomic>
 #include "../../Config/Configuration.h"
 #include "../../Model/Task/BaseModel.h"
 #include "../../Data/Dataset/BaseDataset.h"
+#include "../Utils/Checkpoint.h"
+#include "../Utils/CheckpointMetadata.h"
 #include "../../Utils/Logger/Logger.h"
 #include "../../Utils/Profiler/PerformanceProfiler.h"
 #include "../../Utils/Memory/GPUMemoryGuard.h"
@@ -23,6 +26,7 @@ namespace WheelDL {
              * Can be used with injected DataLoader or create its own.
              *
              * Derived classes must implement:
+             * - setupModel() - create task-specific model
              * - setupDataLoader() (if not using injected DataLoader)
              * - preprocessBatch()
              * - computeMetrics()
@@ -30,14 +34,17 @@ namespace WheelDL {
             class BaseValidator {
             public:
                 /**
-                 * @brief Constructor
+                 * @brief Constructor with dependency injection
                  * @param config Configuration object
-                 * @param device Device to run validation on
+                 * @param logger Logger instance (non-null, owned by Launcher)
+                 * @param profiler PerformanceProfiler instance (non-null, owned by Launcher)
+                 * @param stopFlag Atomic stop flag (optional, owned by Context)
                  */
                 explicit BaseValidator(
-                    const std::shared_ptr<Config::Configuration> config,
-                    const torch::Device& device
-                );
+                    std::shared_ptr<Config::Configuration> config,
+                    WheelDL::Utils::Logger* logger,
+                    WheelDL::Utils::PerformanceProfiler* profiler,
+                    std::atomic<bool>* stopFlag = nullptr);
 
                 /**
                  * @brief Virtual destructor
@@ -68,17 +75,30 @@ namespace WheelDL {
                 }
 
                 /**
-                 * @brief Run validation
+                 * @brief Run validation with existing model
                  * @param model Model to validate
                  * @param epoch Current epoch number
                  * @return Validation metrics
                  */
                 MetricsData validate(Model::BaseModel& model, int epoch = 0);
 
+                /**
+                 * @brief Run validation from checkpoint (standalone mode)
+                 * @param checkpointPath Path to model checkpoint
+                 * @return Validation metrics
+                 */
+                MetricsData validate(const std::string& checkpointPath);
+
                 void setupDevice();
                 
             protected:
                 // ========== Hook Methods (Pure Virtual) ==========
+
+                /**
+                 * @brief Setup model (must be implemented by derived class)
+                 * @return Task-specific model instance
+                 */
+                virtual std::unique_ptr<Model::BaseModel> setupModel() = 0;
 
                 /**
                  * @brief Setup data loader (must be implemented by derived class)
@@ -115,10 +135,21 @@ namespace WheelDL {
                     const torch::Tensor& target) = 0;
 
             protected:
+                // ========== Stop Flag ==========
+
+                /**
+                 * @brief Check if stop has been requested
+                 * @return true if stop was requested, false otherwise
+                 */
+                bool isStopRequested() const {
+                    return _stopFlag && _stopFlag->load(std::memory_order_acquire);
+                }
+
                 // ========== Configuration & Core Components ==========
                 std::shared_ptr<Config::Configuration> _config;
-                std::shared_ptr<Utils::Logger> _logger;
-                Utils::PerformanceProfiler& _profiler;
+                WheelDL::Utils::Logger* _logger;                      // Injected (owned by Context)
+                WheelDL::Utils::PerformanceProfiler* _profiler;       // Injected (owned by Context)
+                std::atomic<bool>* _stopFlag;                         // Injected (owned by Context)
 
                 // ========== Device ==========
                 torch::Device _device;

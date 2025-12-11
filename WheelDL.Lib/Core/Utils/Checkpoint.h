@@ -6,8 +6,15 @@
 #include "../../Model/Task/BaseModel.h"
 
 namespace WheelDL {
+    namespace Utils {
+        class Logger;  // Forward declaration for WheelDL::Utils::Logger
+    }
+
     namespace Core {
-        namespace Trainer {
+        namespace Utils {
+
+            // Forward declaration
+            class CheckpointMetadata;
 
             /**
              * @class Checkpoint
@@ -66,12 +73,14 @@ namespace WheelDL {
                  * @brief Load model only (without optimizer)
                  * @param path Checkpoint file path
                  * @param model Model to load state into
+                 * @param logger Optional logger for warnings (e.g., shape mismatch)
                  * @return CheckpointMetadata from the checkpoint
                  * @throws Utils::WheelLibException if load fails or incompatible
                  */
                 static CheckpointMetadata loadModelOnly(
                     const std::string& path,
-                    Model::BaseModel& model
+                    Model::BaseModel& model,
+                    WheelDL::Utils::Logger* logger = nullptr
                 );
 
                 /**
@@ -106,8 +115,24 @@ namespace WheelDL {
 
                 // Helper to load metadata from archive (eliminates code duplication)
                 static CheckpointMetadata loadMetadataFromArchive(torch::serialize::InputArchive& archive);
+
+                /**
+                 * @brief Save common checkpoint data (metadata + model state)
+                 * @param archive Output archive to write to
+                 * @param path Checkpoint file path (for directory creation)
+                 * @param model Model to save
+                 * @param metadata Metadata to include
+                 *
+                 * Used by both save() and saveModelOnly() to eliminate code duplication.
+                 */
+                static void saveCommon(
+                    torch::serialize::OutputArchive& archive,
+                    const std::string& path,
+                    const Model::BaseModel& model,
+                    const CheckpointMetadata& metadata
+                );
             };
 
-        } // namespace Trainer
+        } // namespace Utils
     } // namespace Core
 } // namespace WheelDL

@@ -2,6 +2,9 @@
 #include "OBBPredictor.h"
 #include "../../Utils/Error/WheelLibException.h"
 #include "../../Utils/Error/ErrorCodes.h"
+#include <fstream>
+#include <iomanip>
+#include <nlohmann/json.hpp>
 
 namespace WheelDL {
     namespace Core {
@@ -9,8 +12,11 @@ namespace WheelDL {
 
             OBBPredictor::OBBPredictor(
                 std::shared_ptr<Config::Configuration> config,
-                const std::string& checkpointPath)
-                : BasePredictor(config, checkpointPath)
+                const std::string& checkpointPath,
+                WheelDL::Utils::Logger* logger,
+                WheelDL::Utils::PerformanceProfiler* profiler,
+                std::atomic<bool>* stopFlag)
+                : BasePredictor(config, checkpointPath, logger, profiler, stopFlag)
                 , _numClasses(config->getNumClasses())
                 , _confThresh(0.25f)
                 , _iouThresh(config->getIoU())
@@ -18,27 +24,14 @@ namespace WheelDL {
             {
                 _logger->info("OBBPredictor", "Initializing OBB predictor");
 
-                _mean = torch::tensor({ 0.0f, 0.0f, 0.0f }, torch::kFloat32).view({ 1, 3, 1, 1 }).to(_device);
-                _std = torch::tensor({ 1.0f, 1.0f, 1.0f }, torch::kFloat32).view({ 1, 3, 1, 1 }).to(_device);
-
-                // Get model YAML path from configuration
-                _modelYamlPath = config->getModelPath();
-                if (_modelYamlPath.empty()) {
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::INVALID_CONFIG,
-                        "Model YAML path is not specified in configuration"
-                    );
-                }
-
                 // Verify task type
                 if (config->getTaskType() != TaskType::OBB) {
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::INVALID_CONFIG,
+                    throw WheelDL::Utils::ConfigurationException(
+                        WheelDL::Utils::ErrorCode::INVALID_CONFIG,
                         "Configuration task type must be OBB for OBBPredictor"
                     );
                 }
 
-                _logger->info("OBBPredictor", "Model YAML: " + _modelYamlPath);
                 _logger->info("OBBPredictor", "Number of classes: " + std::to_string(_numClasses));
                 _logger->info("OBBPredictor", "Confidence threshold: " + std::to_string(_confThresh));
                 _logger->info("OBBPredictor", "IoU threshold: " + std::to_string(_iouThresh));
@@ -56,7 +49,7 @@ namespace WheelDL {
 
             void OBBPredictor::setupModel()
             {
-                _profiler.start("setup_model");
+                _profiler->start("setup_model");
                 _logger->info("OBBPredictor", "Setting up OBB detection model");
 
                 try {
@@ -65,124 +58,34 @@ namespace WheelDL {
                     _logger->info("OBBPredictor", "Model setup completed");
                 }
                 catch (const std::exception& e) {
-                    throw Utils::ModelException(
-                        Utils::ErrorCode::MODEL_LOAD_FAILED,
+                    throw WheelDL::Utils::ModelException(
+                        WheelDL::Utils::ErrorCode::MODEL_LOAD_FAILED,
                         "Failed to setup OBB detection model: " + std::string(e.what())
                     );
                 }
 
-                _profiler.stop("setup_model");
+                _profiler->stop("setup_model");
             }
 
-            torch::Tensor OBBPredictor::preprocess(const torch::Tensor& input)
-            {
-                try {
-                    torch::Tensor preprocessed = input;
-
-                    // Ensure input is [C, H, W] or [1, C, H, W]
-                    if (preprocessed.dim() == 3) {
-                        preprocessed = preprocessed.unsqueeze(0);
-                    }
-                    else if (preprocessed.dim() != 4) {
-                        throw Utils::WheelLibException(
-                            Utils::ErrorCode::PREDICTION_FAILED,
-                            "Input tensor must be [C, H, W] or [1, C, H, W], got " +
-                            std::to_string(preprocessed.dim()) + "D"
-                        );
-                    }
-
-                    // If already float and normalized, return as-is
-                    if (preprocessed.dtype() == torch::kFloat32 && preprocessed.max().item<float>() <= 1.0f) 
-                    {
-                        return preprocessed;
-                    }
-
-                    int targetSize = _config->getImageSize();
-                    int origH = static_cast<int>(preprocessed.size(2));
-                    int origW = static_cast<int>(preprocessed.size(3));
-
-                    // LetterBox resize (maintain aspect ratio)
-                    float scale = std::min(
-                        static_cast<float>(targetSize) / origH,
-                        static_cast<float>(targetSize) / origW
-                    );
-
-                    int newH = static_cast<int>(origH * scale);
-                    int newW = static_cast<int>(origW * scale);
-
-                    // Resize
-                    preprocessed = torch::nn::functional::interpolate(
-                        preprocessed.to(torch::kFloat32),
-                        torch::nn::functional::InterpolateFuncOptions()
-                            .size(std::vector<int64_t>{newH, newW})
-                            .mode(torch::kBilinear)
-                            .align_corners(false)
-                    );
-
-                    // Pad to target size (center padding)
-                    int padH = targetSize - newH;
-                    int padW = targetSize - newW;
-                    int padTop = padH / 2;
-                    int padBottom = padH - padTop;
-                    int padLeft = padW / 2;
-                    int padRight = padW - padLeft;
-
-                    if (padH > 0 || padW > 0) {
-                        preprocessed = torch::nn::functional::pad(
-                            preprocessed,
-                            torch::nn::functional::PadFuncOptions({padLeft, padRight, padTop, padBottom})
-                                .mode(torch::kConstant)
-                                .value(0.0f)  // Gray padding
-                        );
-                    }
-
-                    // Normalize to [0, 1] if input is [0, 255]
-                    if (preprocessed.max().item<float>() > 1.0f) {
-                        preprocessed = preprocessed.mul(1.0f / 255.0f);
-                    }
-
-                    // Apply normalization (for YOLO, typically just [0,1])
-                    preprocessed = preprocessed.sub(_mean).div(_std);
-
-                    return preprocessed;
-                }
-                catch (const std::exception& e) {
-                    throw Utils::WheelLibException(
-                        Utils::ErrorCode::PREDICTION_FAILED,
-                        "Preprocessing failed: " + std::string(e.what())
-                    );
-                }
-            }
-
-            PredictionResult OBBPredictor::postprocess(
+            void OBBPredictor::postprocess(
                 const std::vector<torch::Tensor>& output,
-                const std::tuple<int, int>& originalShape)
+                const std::tuple<int, int>& originalShape,
+                const std::string& imagePath)
             {
-                PredictionResult result;
-                result.originalShape = {std::get<0>(originalShape), std::get<1>(originalShape)};
-                result.anomalyMap = cv::Mat();
                 try
                 {
                     if (output.empty())
                     {
-                        result.numDetections = 0;
-                        return result;
+                        return;
                     }
 
                     torch::Tensor pred = output[0];
 
                     auto detections = Model::Utils::nonMaxSuppressionOBB(pred, _confThresh, _iouThresh, _maxDet);
 
-                    if (detections.empty())
+                    if (detections.empty() || detections[0].size(0) == 0)
                     {
-                        result.numDetections = 0;
-                        return result;
-                    }
-
-                    if (detections[0].size(0) == 0)
-                    {
-                        result.numDetections = 0;
-                        return result;
+                        return;
                     }
 
                     // Scale OBBs to original image size
@@ -202,6 +105,12 @@ namespace WheelDL {
                     auto confAccessor = confCPU.accessor<float, 1>();
                     auto clsAccessor = clsCPU.accessor<int64_t, 1>();
 
+                    // Store in internal container
+                    OBBResult result;
+                    result.imagePath = imagePath;
+                    result.originalShape = {std::get<0>(originalShape), std::get<1>(originalShape)};
+                    result.inferenceTimeMs = static_cast<float>(_profiler->getDuration("inference"));
+
                     int numDet = static_cast<int>(obbsCPU.size(0));
                     result.orientedBoxes.reserve(numDet);
                     result.scores.reserve(numDet);
@@ -217,17 +126,101 @@ namespace WheelDL {
 
                         result.orientedBoxes.push_back(obb);
                         result.scores.push_back(confAccessor[i]);
-                        result.classIds.push_back(static_cast<unsigned int>(clsAccessor[i]));
+                        result.classIds.push_back(static_cast<int>(clsAccessor[i]));
                     }
 
-                    result.numDetections = numDet;
+                    _results.push_back(std::move(result));
                 }
                 catch (const std::exception& e) {
                     _logger->error("OBBPredictor", "Postprocessing failed: " + std::string(e.what()));
-                    result.numDetections = 0;
+                }
+            }
+
+            void OBBPredictor::exportResults(const std::string& outputDir)
+            {
+                _profiler->start("export_results");
+
+                nlohmann::json predictionsJson = nlohmann::json::array();
+                predictionsJson.get<nlohmann::json::array_t>().reserve(_results.size());
+                auto classNames = _config->getClassNames();
+
+                for (const auto& result : _results) {
+                    nlohmann::json predJson;
+                    predJson["image_path"] = result.imagePath;
+                    predJson["inference_time_ms"] = result.inferenceTimeMs;
+                    predJson["num_detections"] = result.orientedBoxes.size();
+
+                    nlohmann::json detectionsJson = nlohmann::json::array();
+                    for (size_t i = 0; i < result.orientedBoxes.size(); ++i) {
+                        nlohmann::json detJson;
+
+                        // Oriented Bounding Box
+                        const auto& obb = result.orientedBoxes[i];
+                        detJson["obb"] = {
+                            {"cx", obb.cx},
+                            {"cy", obb.cy},
+                            {"width", obb.width},
+                            {"height", obb.height},
+                            {"angle", obb.angle}
+                        };
+
+                        // Class info
+                        int classId = result.classIds[i];
+                        detJson["class_id"] = classId;
+
+                        auto it = classNames.find(classId);
+                        if (it != classNames.end()) {
+                            detJson["class_name"] = it->second;
+                        }
+
+                        // Confidence
+                        detJson["confidence"] = result.scores[i];
+
+                        detectionsJson.push_back(detJson);
+                    }
+
+                    predJson["detections"] = detectionsJson;
+                    predictionsJson.push_back(predJson);
                 }
 
-                return result;
+                // Write to file
+                std::filesystem::path outPath = std::filesystem::path(outputDir) / "predictions.json";
+                std::filesystem::create_directories(outputDir);
+
+                nlohmann::json rootJson;
+                rootJson["predictions"] = predictionsJson;
+                rootJson["total_images"] = _results.size();
+
+                // Calculate total detections
+                size_t totalDetections = 0;
+                for (const auto& result : _results) {
+                    totalDetections += result.orientedBoxes.size();
+                }
+                rootJson["total_detections"] = totalDetections;
+
+                std::ofstream file(outPath);
+                if (!file.is_open()) {
+                    _logger->error("OBBPredictor", "Failed to create predictions.json file");
+                    _profiler->stop("export_results");
+                    return;
+                }
+                file << std::setw(4) << rootJson << std::endl;
+                file.close();
+
+                if (file.fail()) {
+                    _logger->error("OBBPredictor", "Failed to write predictions.json file");
+                }
+
+                _logger->info("OBBPredictor", "Exported " +
+                    std::to_string(_results.size()) + " images with " +
+                    std::to_string(totalDetections) + " total OBB detections to " + outPath.string());
+
+                _profiler->stop("export_results");
+            }
+
+            void OBBPredictor::clearResults()
+            {
+                _results.clear();
             }
 
             torch::Tensor OBBPredictor::scaleOBBs(

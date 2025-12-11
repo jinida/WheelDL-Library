@@ -9,6 +9,10 @@
 #include "../../Utils/Error/WheelLibException.h"
 
 namespace WheelDL {
+    namespace Utils {
+        class Logger;  // Forward declaration
+    }
+
     namespace Core {
         namespace Callback {
 
@@ -25,8 +29,9 @@ namespace WheelDL {
                 /**
                  * @brief Constructor
                  * @param callback The callback function to invoke for each progress update
+                 * @param logger Optional logger for callback exceptions
                  */
-                explicit AsyncCallbackQueue(ProgressCallback callback);
+                explicit AsyncCallbackQueue(ProgressCallback callback, WheelDL::Utils::Logger* logger = nullptr);
 
                 /**
                  * @brief Destructor - stops the processing thread
@@ -68,6 +73,7 @@ namespace WheelDL {
                 void processingLoop();
 
                 ProgressCallback _callback;
+                WheelDL::Utils::Logger* _logger;  // Optional logger for exceptions
                 std::queue<ProgressData> _dataQueue;
                 std::thread _processingThread;
                 mutable std::mutex _mutex;

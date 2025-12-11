@@ -5,48 +5,37 @@
 #include "../Predictor/AnomalyPredictor.h"
 #include "../../Utils/Error/WheelLibException.h"
 #include "../../Utils/Error/ErrorCodes.h"
-#include "../../Utils/Export/PredictionExporter.h"
 #include "../../Utils/Export/ImageExporter.h"
 #include <opencv2/opencv.hpp>
-#include <fstream>
-#include <sstream>
-#include <nlohmann/json.hpp>
-#include <chrono>
-#include <algorithm>
 
 namespace WheelDL {
     namespace Core {
         namespace Trainer {
 
-            AnomalyTrainer::AnomalyTrainer(const std::shared_ptr<Config::Configuration> config)
-                : BaseTrainer(config)
+            AnomalyTrainer::AnomalyTrainer(
+                std::shared_ptr<Config::Configuration> config,
+                WheelDL::Utils::Logger* logger,
+                WheelDL::Utils::Workspace* workspace,
+                WheelDL::Utils::PerformanceProfiler* profiler,
+                ProgressCallback progressCallback,
+                std::atomic<bool>* stopFlag)
+                : BaseTrainer(config, logger, workspace, profiler, progressCallback, stopFlag)
                 , _isModelPrepared(false)
             {
                 _logger->info("AnomalyTrainer", "Initializing anomaly detection trainer");
 
-                // Get model YAML path from configuration
-                _modelYamlPath = config->getModelPath();
-                if (_modelYamlPath.empty()) {
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::INVALID_CONFIG,
-                        "Model YAML path is not specified in configuration"
-                    );
-                }
-
-                // Verify task type
                 if (config->getTaskType() != TaskType::ANOMALY) {
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::INVALID_CONFIG,
+                    throw WheelDL::Utils::ConfigurationException(
+                        WheelDL::Utils::ErrorCode::INVALID_CONFIG,
                         "Configuration task type must be ANOMALY for AnomalyTrainer"
                     );
                 }
                 _config->setImageNetNorm(true);
-                _logger->info("AnomalyTrainer", "Model YAML: " + _modelYamlPath);
             }
 
             void AnomalyTrainer::setupModel()
             {
-                _profiler.start("setup_model");
+                _profiler->start("setup_model");
                 _logger->info("AnomalyTrainer", "Setting up anomaly detection model");
 
                 try {
@@ -56,18 +45,18 @@ namespace WheelDL {
                     _logger->info("AnomalyTrainer", "Model setup completed");
                 }
                 catch (const std::exception& e) {
-                    throw Utils::ModelException(
-                        Utils::ErrorCode::MODEL_LOAD_FAILED,
+                    throw WheelDL::Utils::ModelException(
+                        WheelDL::Utils::ErrorCode::MODEL_LOAD_FAILED,
                         "Failed to setup anomaly model: " + std::string(e.what())
                     );
                 }
 
-                _profiler.stop("setup_model");
+                _profiler->stop("setup_model");
             }
 
             void AnomalyTrainer::setupDataLoaders()
             {
-                _profiler.start("setup_dataloaders");
+                _profiler->start("setup_dataloaders");
                 _logger->info("AnomalyTrainer", "Setting up data loaders");
 
                 try {
@@ -88,14 +77,14 @@ namespace WheelDL {
                     // Prepare model for training BEFORE moving the loader
                     // This computes teacher feature params (EfficientAD) or builds memory bank (PatchCore)
                     if (!_isModelPrepared) {
-                        _profiler.start("prepare_model_training");
+                        _profiler->start("prepare_model_training");
                         _logger->info("AnomalyTrainer", "Preparing model for training...");
 
                         try {
                             auto anomalyModel = dynamic_cast<Model::AnomalyModel*>(_model.get());
                             if (!anomalyModel) {
-                                throw Utils::ModelException(
-                                    Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
+                                throw WheelDL::Utils::ModelException(
+                                    WheelDL::Utils::ErrorCode::MODEL_INVALID_ARCHITECTURE,
                                     "Model is not an AnomalyModel"
                                 );
                             }
@@ -111,7 +100,7 @@ namespace WheelDL {
                             throw;
                         }
 
-                        _profiler.stop("prepare_model_training");
+                        _profiler->stop("prepare_model_training");
                     }
 
 					// Inject training DataLoader into trainer
@@ -159,23 +148,23 @@ namespace WheelDL {
                     _logger->info("AnomalyTrainer", "Data loaders setup completed");
                 }
                 catch (const std::exception& e) {
-                    throw Utils::DataException(
-                        Utils::ErrorCode::DATA_LOAD_FAILED,
+                    throw WheelDL::Utils::DataException(
+                        WheelDL::Utils::ErrorCode::DATA_LOAD_FAILED,
                         "Failed to setup data loaders: " + std::string(e.what())
                     );
                 }
 
-                _profiler.stop("setup_dataloaders");
+                _profiler->stop("setup_dataloaders");
             }
 
             void AnomalyTrainer::setupValidator()
             {
-                _profiler.start("setup_validator");
+                _profiler->start("setup_validator");
                 _logger->info("AnomalyTrainer", "Setting up validator");
 
                 try
                 {
-                    _validator = std::make_unique<Validator::AnomalyValidator>(_config);
+                    _validator = std::make_unique<Validator::AnomalyValidator>(_config, _logger, _profiler, _stopFlag);
 
                     // Create validation dataset
                     auto valDataset = std::make_shared<Data::Dataset::AnomalyDataset>(*_config, false);
@@ -206,13 +195,13 @@ namespace WheelDL {
                     _validator.reset();  // Clear validator on error
                 }
 
-                _profiler.stop("setup_validator");
+                _profiler->stop("setup_validator");
             }
 
             WheelDL::Data::Dataset::DataExample AnomalyTrainer::preprocessBatch(
                 const WheelDL::Data::Dataset::DataExample& batch)
             {
-                _profiler.start("preprocess_batch");
+                _profiler->start("preprocess_batch");
 
                 // Move data to device
                 WheelDL::Data::Dataset::DataExample preprocessed;
@@ -228,7 +217,7 @@ namespace WheelDL {
                 // Copy other fields
                 preprocessed.classes = batch.classes.to(_device);
 
-                _profiler.stop("preprocess_batch");
+                _profiler->stop("preprocess_batch");
                 return preprocessed;
             }
 
@@ -243,123 +232,15 @@ namespace WheelDL {
 
                 try {
                     // Create AnomalyPredictor with configuration and checkpoint path
-                    auto predictor = std::make_unique<Predictor::AnomalyPredictor>(_config, checkpointPath);
+                    auto predictor = std::make_unique<Predictor::AnomalyPredictor>(_config, checkpointPath, _logger, _profiler);
 
                     _logger->info("AnomalyTrainer", "Anomaly predictor setup completed");
                     return predictor;
                 }
                 catch (const std::exception& e) {
-                    throw Utils::ModelException(
-                        Utils::ErrorCode::MODEL_LOAD_FAILED,
+                    throw WheelDL::Utils::ModelException(
+                        WheelDL::Utils::ErrorCode::MODEL_LOAD_FAILED,
                         "Failed to setup anomaly predictor: " + std::string(e.what())
-                    );
-                }
-            }
-
-            void AnomalyTrainer::exportPredictionResults(
-                const std::vector<PredictionResult>& results,
-                const std::vector<std::string>& imagePaths)
-            {
-                namespace fs = std::filesystem;
-
-                fs::path resultsPath = _workspace->getResultDir();
-                _logger->info("AnomalyTrainer", "Exporting anomaly prediction results to: " + resultsPath.string());
-
-                try
-                {
-                    fs::path anomalyMapsDir = resultsPath / "anomaly_maps";
-                    if (!fs::exists(anomalyMapsDir))
-                    {
-                        fs::create_directories(anomalyMapsDir);
-                    }
-
-                    nlohmann::json predictionsJson = nlohmann::json::array();
-
-                    predictionsJson.get<nlohmann::json::array_t>().reserve(results.size());
-
-                    for (size_t i = 0; i < results.size(); ++i)
-                    {
-                        const auto& result = results[i];
-                        const auto& imagePath = imagePaths[i];
-
-                        nlohmann::json predJson;
-                        predJson["image_path"] = imagePath;
-                        predJson["inference_time_ms"] = result.inferenceTime;
-
-                        if (!result.scores.empty()) {
-                            predJson["anomaly_score"] = result.scores[0];
-                        }
-
-                        if (!result.classIds.empty()) {
-                            predJson["class_id"] = result.classIds[0];
-                            predJson["label"] = (result.classIds[0] == 0) ? "normal" : "anomaly";
-                        }
-
-                        if (!result.anomalyMap.empty()) {
-                            std::hash<std::string> hasher;
-                            size_t hashValue = hasher(imagePath);
-                            std::stringstream ss;
-                            ss << std::hex << hashValue;
-
-                            std::string filename = ss.str() + ".jpg";
-                            fs::path mapPath = anomalyMapsDir / filename;
-
-                            std::vector<uchar> buffer;
-                            std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, 80 };
-
-                            bool encoded = cv::imencode(".jpg", result.anomalyMap, buffer, params);
-
-                            if (encoded) {
-                                std::ofstream outFile(mapPath, std::ios::binary);
-                                if (outFile.is_open()) {
-                                    outFile.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-                                    outFile.close();
-
-                                    predJson["anomaly_map"] = "./anomaly_maps/" + filename;
-                                    _logger->debug("AnomalyTrainer", "Saved anomaly map: " + filename);
-                                }
-                                else {
-                                    _logger->warn("AnomalyTrainer", "Failed to save anomaly map to disk for: " + imagePath);
-                                }
-                            }
-                            else {
-                                _logger->warn("AnomalyTrainer", "Failed to encode anomaly map for: " + imagePath);
-                            }
-                        }
-
-                        predictionsJson.push_back(predJson);
-                    }
-
-                    fs::path predictionsPath = resultsPath / "predictions.json";
-                    std::ofstream jsonFile(predictionsPath);
-                    if (!jsonFile.is_open())
-                    {
-                        throw Utils::DataException(
-                            Utils::ErrorCode::FILE_IO_ERROR,
-                            "Failed to create predictions.json file"
-                        );
-                    }
-
-                    nlohmann::json rootJson;
-                    rootJson["predictions"] = predictionsJson;
-                    rootJson["total_predictions"] = results.size();
-                    jsonFile << std::setw(4) << rootJson << std::endl;
-                    jsonFile << std::setw(4) << rootJson << std::endl;
-                    jsonFile.close();
-
-                    if (jsonFile.fail()) {
-                        throw Utils::DataException(
-                            Utils::ErrorCode::FILE_IO_ERROR,
-                            "Failed to write predictions.json"
-                        );
-                    }
-                    _logger->info("AnomalyTrainer", "Exported " + std::to_string(results.size()) +
-                        " prediction results to " + predictionsPath.string());
-                }
-                catch (const std::exception& e) {
-                    throw Utils::DataException(
-                        Utils::ErrorCode::FILE_IO_ERROR,
-                        "Failed to export anomaly prediction results: " + std::string(e.what())
                     );
                 }
             }

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "BasePredictor.h"
 #include "../../Utils/Error/WheelLibException.h"
+#include "../../Data/Dataset/PredDataset.h"
 
 namespace WheelDL {
     namespace Core {
@@ -8,11 +9,15 @@ namespace WheelDL {
 
             BasePredictor::BasePredictor(
                 std::shared_ptr<Config::Configuration> config,
-                const std::string& checkpointPath)
+                const std::string& checkpointPath,
+                WheelDL::Utils::Logger* logger,
+                WheelDL::Utils::PerformanceProfiler* profiler,
+                std::atomic<bool>* stopFlag)
                 : _config(config)
-                , _logger(Utils::Logger::getInstance())
-                , _profiler(Utils::PerformanceProfiler::getInstance())
-                , _memoryManager(Utils::MemoryManager::getInstance())
+                , _logger(logger)
+                , _profiler(profiler)
+                , _memoryManager(WheelDL::Utils::MemoryManager::getInstance())
+                , _stopFlag(stopFlag)
                 , _device(torch::kCPU)
                 , _isModelLoaded(false)
                 , _isWarmedUp(false)
@@ -36,7 +41,7 @@ namespace WheelDL {
 
             void BasePredictor::setupDevice()
             {
-                _profiler.start("setup_device");
+                _profiler->start("setup_device");
 
                 std::string deviceStr = _config->getDevice();
 
@@ -62,7 +67,7 @@ namespace WheelDL {
                                  std::to_string(totalMem) + "MB");
                 }
 
-                _profiler.stop("setup_device");
+                _profiler->stop("setup_device");
             }
 
             void BasePredictor::setDevice(const torch::Device& device)
@@ -83,21 +88,21 @@ namespace WheelDL {
 
             void BasePredictor::loadCheckpoint(const std::string& checkpointPath)
             {
-                _profiler.start("load_checkpoint");
+                _profiler->start("load_checkpoint");
 
                 _logger->info("BasePredictor", "Loading checkpoint: " + checkpointPath);
 
                 if (!_model) {
-                    throw Utils::WheelLibException(Utils::ErrorCode::PREDICTION_FAILED,
+                    throw WheelDL::Utils::WheelLibException(WheelDL::Utils::ErrorCode::PREDICTION_FAILED,
                         "Model must be initialized before loading checkpoint");
                 }
 
-                try 
+                try
                 {
                     // Load checkpoint using Checkpoint utility (model only, no optimizer)
-                    auto metadata = Trainer::Checkpoint::loadModelOnly(checkpointPath, *_model);
-					_config->setImageSize(std::stoi(metadata.hyperParams.at("image_size")));
-					_threshold = metadata.threshold;
+                    auto metadata = Utils::Checkpoint::loadModelOnly(checkpointPath, *_model, _logger);
+                    _config->setImageSize(std::stoi(metadata.hyperParams.at("image_size")));
+                    _threshold = metadata.threshold;
 
                     _model->to(_device);
                     _model->eval();
@@ -110,163 +115,105 @@ namespace WheelDL {
                                  std::to_string(metadata.bestFitness) + ")");
                 }
                 catch (const std::exception& e) {
-                    throw Utils::WheelLibException(Utils::ErrorCode::PREDICTION_FAILED,
+                    throw WheelDL::Utils::WheelLibException(WheelDL::Utils::ErrorCode::PREDICTION_FAILED,
                         "Failed to load checkpoint: " + std::string(e.what()));
                 }
 
-                _profiler.stop("load_checkpoint");
+                _profiler->stop("load_checkpoint");
             }
 
-            PredictionResult BasePredictor::predict(const std::string& filePath)
+            void BasePredictor::predictAndExport(const std::string& outputDir)
             {
-                if (filePath.empty())
-                {
-                    throw Utils::WheelLibException(Utils::ErrorCode::INVALID_ARGUMENT,
-                        "Input file path is empty");
-				}
-				auto image = WheelDL::Data::Utils::ImageIO::loadImage(filePath);
-				return predict(image);
-            }
+                _profiler->start("predict_and_export");
+                _logger->info("BasePredictor", "========== Batch Prediction ==========");
 
-            PredictionResult BasePredictor::predict(const cv::Mat& input)
-            {
-                if (input.empty())
-                {
-                    throw Utils::WheelLibException(Utils::ErrorCode::INVALID_ARGUMENT,
-                        "Input image is empty");
-                }
-
-				// Convert to float
-				cv::Mat floatImage;
-				input.convertTo(floatImage, CV_32FC3);
-
-				// Ensure continuous memory for safe memcpy
-				if (!floatImage.isContinuous())
-				{
-					floatImage = floatImage.clone();
-				}
-
-				// Create tensor and copy data
-				torch::Tensor tensor = torch::empty(
-					{ floatImage.rows, floatImage.cols, 3 },
-					torch::kFloat32
-				);
-				std::memcpy(
-					tensor.data_ptr<float>(),
-					floatImage.data,
-					floatImage.total() * floatImage.elemSize()
-				);
-
-				// Permute from [H, W, C] to [C, H, W]
-				tensor = tensor.permute({ 2, 0, 1 });
-
-                Utils::GPUMemoryGuard gpuGuard;
-
-                _profiler.start("predict");
-
-                if (!_model || !_isModelLoaded) {
-                    throw Utils::WheelLibException(Utils::ErrorCode::PREDICTION_FAILED,
+                if (!_isModelLoaded) {
+                    throw WheelDL::Utils::WheelLibException(WheelDL::Utils::ErrorCode::PREDICTION_FAILED,
                         "Model not loaded. Call loadCheckpoint() first.");
                 }
 
-                // Warmup if not done yet
-                if (!_isWarmedUp && _device.is_cuda())
-                {
+                // Clear previous results
+                clearResults();
+
+                // Create PredDataset (handles image loading and preprocessing)
+                auto dataset = Data::Dataset::PredDataset(*_config);
+                auto dataSize = dataset.size();
+
+                if (!dataSize.has_value() || dataSize.value() == 0) {
+                    _logger->warn("BasePredictor", "No images found for prediction");
+                    _profiler->stop("predict_and_export");
+                    return;
+                }
+
+                _logger->info("BasePredictor", "Found " + std::to_string(dataSize.value()) + " images");
+
+                // Create DataLoader
+                auto dataLoader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
+                    std::move(dataset),
+                    torch::data::DataLoaderOptions()
+                        .batch_size(1)
+                        .workers(_config->getWorkers())
+                );
+
+                // Warmup if needed
+                if (!_isWarmedUp && _device.is_cuda()) {
                     warmup();
                 }
 
-                auto originalShape = std::make_tuple(
-                    static_cast<int>(input.rows),
-                    static_cast<int>(input.cols)
-				);
+                // Batch inference
+                int processedCount = 0;
+                for (auto& batch : *dataLoader) {
+                    // Check stop flag at iteration level
+                    if (isStopRequested()) {
+                        _logger->info("BasePredictor", "Stop requested, aborting prediction");
+                        clearResults();
+                        _profiler->stop("predict_and_export");
+                        return;
+                    }
 
-                _profiler.start("preprocess");
-                torch::Tensor preprocessedInput = preprocess(tensor.to(_device));
-                _profiler.stop("preprocess");
+                    if (batch.empty()) continue;
 
-                // Inference
-                _profiler.start("inference");
-                auto output = inference(preprocessedInput);
-                _profiler.stop("inference");
+                    const auto& sample = batch.front();
+                    auto input = sample.data.to(_device).unsqueeze(0);
 
+                    // Inference with timing
+                    _profiler->start("inference");
+                    auto output = inference(input);
+                    _profiler->stop("inference");
 
-                _profiler.start("postprocess");
-                PredictionResult result = postprocess(output, originalShape);
-                _profiler.stop("postprocess");
+                    // Postprocess and store in internal container
+                    postprocess(output, sample.originalShape[0], sample.imagePath[0]);
 
-                _profiler.stop("predict");
-                result.inferenceTime = _profiler.getDuration("inference");
-                return result;
+                    processedCount++;
 
-            }
-
-            PredictionResult BasePredictor::predict(const torch::Tensor& input)
-            {
-                return predict(input, std::make_tuple(
-                    static_cast<int>(input.size(-2)),
-                    static_cast<int>(input.size(-1))
-				));
-            }
-
-			PredictionResult BasePredictor::predict(const torch::Tensor& input, const std::tuple<int, int>& originalShape)
-            {
-                // RAII guard: automatically clears GPU cache when prediction ends
-                Utils::GPUMemoryGuard gpuGuard;
-
-                _profiler.start("predict");
-
-                if (!_model || !_isModelLoaded) {
-                    throw Utils::WheelLibException(Utils::ErrorCode::PREDICTION_FAILED,
-                        "Model not loaded. Call loadCheckpoint() first.");
+                    if (processedCount % 100 == 0) {
+                        _logger->info("BasePredictor", "Processed " +
+                            std::to_string(processedCount) + "/" +
+                            std::to_string(dataSize.value()) + " images");
+                    }
                 }
 
-                // Warmup if not done yet
-                if (!_isWarmedUp && _device.is_cuda())
-                {
-                    warmup();
-                }
+                _logger->info("BasePredictor", "Inference completed: " + std::to_string(processedCount) + " images");
 
-                // Preprocess
-                _profiler.start("preprocess");
-                torch::Tensor preprocessedInput = preprocess(input.to(_device));
-                _profiler.stop("preprocess");
+                // Export results
+                exportResults(outputDir);
 
-                // Inference
-                _profiler.start("inference");
-                auto output = inference(preprocessedInput);
-                _profiler.stop("inference");
-
-                // Postprocess
-                _profiler.start("postprocess");
-                PredictionResult result = postprocess(output, originalShape);
-                _profiler.stop("postprocess");
-
-                _profiler.stop("predict");
-                auto duration = _profiler.getDuration("inference");
-                result.inferenceTime = duration;
-
-                return result;
+                _profiler->stop("predict_and_export");
             }
 
-
-            std::vector<torch::Tensor> BasePredictor::inference(const torch::Tensor& preprocessedInput)
+            std::vector<torch::Tensor> BasePredictor::inference(const torch::Tensor& input)
             {
                 torch::NoGradGuard noGrad;  // Disable gradient computation
 
-                // Move input to device
-                torch::Tensor deviceInput = preprocessedInput;
-
                 // Forward pass
-                auto outputs = _model->predict(deviceInput);
+                auto outputs = _model->predict(input);
 
-                // Return first output (most models have single output)
-                // Multi-scale models can override this behavior
                 return outputs;
             }
 
             void BasePredictor::warmup()
             {
-                _profiler.start("warmup");
+                _profiler->start("warmup");
 
                 _logger->info("BasePredictor", "Warming up model...");
 
@@ -300,7 +247,7 @@ namespace WheelDL {
                     _logger->warn("BasePredictor", "Warmup failed: " + std::string(e.what()));
                 }
 
-                _profiler.stop("warmup");
+                _profiler->stop("warmup");
             }
 
         } // namespace Predictor

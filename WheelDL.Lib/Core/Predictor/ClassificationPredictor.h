@@ -12,12 +12,13 @@ namespace WheelDL {
              * @class ClassificationPredictor
              * @brief Predictor for image classification tasks
              *
-             * Performs inference for classification models:
+             * Performs batch inference for classification models:
              * - Multi-class classification with softmax
              *
-             * Output:
+             * Output (exported to JSON):
              * - Predicted class ID
              * - Confidence score
+             * - Class name (if available)
              */
             class ClassificationPredictor : public BasePredictor {
             public:
@@ -25,11 +26,16 @@ namespace WheelDL {
                  * @brief Constructor
                  * @param config Configuration object
                  * @param checkpointPath Path to trained model checkpoint
+                 * @param logger Logger instance (non-null, owned by Launcher)
+                 * @param profiler PerformanceProfiler instance (non-null, owned by Launcher)
+                 * @param stopFlag Atomic stop flag (optional, owned by Context)
                  */
                 explicit ClassificationPredictor(
                     std::shared_ptr<Config::Configuration> config,
-                    const std::string& checkpointPath = ""
-                );
+                    const std::string& checkpointPath,
+                    WheelDL::Utils::Logger* logger,
+                    WheelDL::Utils::PerformanceProfiler* profiler,
+                    std::atomic<bool>* stopFlag = nullptr);
 
                 /**
                  * @brief Destructor
@@ -48,39 +54,43 @@ namespace WheelDL {
                 void setupModel() override;
 
                 /**
-                 * @brief Preprocess input tensor
+                 * @brief Postprocess classification output and store results
                  *
-                 * Normalizes input and resizes to model input size.
-                 * Expected input: [C, H, W] or [1, C, H, W]
-                 *
-                 * @param input Raw input tensor
-                 * @return Preprocessed tensor [1, C, H, W]
-                 */
-                torch::Tensor preprocess(const torch::Tensor& input) override;
-
-                /**
-                 * @brief Postprocess classification output
-                 *
-                 * Converts logits to class prediction.
+                 * Converts logits to class prediction with softmax.
                  *
                  * @param output Model output logits [1, num_classes]
-                 * @param originalShape Original input shape (not used for classification)
-                 * @return PredictionResult with:
-                 *         - classIds[0]: Predicted class index
-                 *         - scores[0]: Confidence probability
+                 * @param originalShape Original input shape
+                 * @param imagePath Image file path
                  */
-                PredictionResult postprocess(
+                void postprocess(
                     const std::vector<torch::Tensor>& output,
-                    const std::tuple<int, int>& originalShape) override;
+                    const std::tuple<int, int>& originalShape,
+                    const std::string& imagePath) override;
+
+                /**
+                 * @brief Export classification results to JSON
+                 * @param outputDir Output directory
+                 */
+                void exportResults(const std::string& outputDir) override;
+
+                /**
+                 * @brief Clear internal results container
+                 */
+                void clearResults() override;
 
             private:
-                std::string _modelYamlPath;  ///< Path to model YAML configuration
-                int _numClasses;             ///< Number of classes
+                // Internal result container
+                struct ClassificationResult {
+                    std::string imagePath;
+                    float score;
+                    int classId;
+                    std::pair<int, int> originalShape;
+                    float inferenceTimeMs;
+                };
 
-                // Normalization tensors
-                torch::Tensor _mean;
-                torch::Tensor _std;
-                bool _useImageNetNorm;
+                std::vector<ClassificationResult> _results;
+
+                int _numClasses;  ///< Number of classes
             };
 
         } // namespace Predictor

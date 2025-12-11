@@ -10,8 +10,8 @@ namespace WheelDL {
                 , _timer()
             {
                 if (minIntervalMs < 0) {
-                    throw Utils::WheelLibException(
-                        Utils::ErrorCode::INVALID_ARGUMENT,
+                    throw WheelDL::Utils::WheelLibException(
+                        WheelDL::Utils::ErrorCode::INVALID_ARGUMENT,
                         "Minimum interval must be non-negative"
                     );
                 }
@@ -43,8 +43,8 @@ namespace WheelDL {
             void CallbackThrottler::setMinInterval(int ms)
             {
                 if (ms < 0) {
-                    throw Utils::WheelLibException(
-                        Utils::ErrorCode::INVALID_ARGUMENT,
+                    throw WheelDL::Utils::WheelLibException(
+                        WheelDL::Utils::ErrorCode::INVALID_ARGUMENT,
                         "Minimum interval must be non-negative"
                     );
                 }

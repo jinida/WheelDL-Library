@@ -2,6 +2,9 @@
 #include "SegmentationPredictor.h"
 #include "../../Utils/Error/WheelLibException.h"
 #include "../../Utils/Error/ErrorCodes.h"
+#include <fstream>
+#include <iomanip>
+#include <nlohmann/json.hpp>
 
 namespace WheelDL {
     namespace Core {
@@ -9,43 +12,24 @@ namespace WheelDL {
 
             SegmentationPredictor::SegmentationPredictor(
                 std::shared_ptr<Config::Configuration> config,
-                const std::string& checkpointPath)
-                : BasePredictor(config, checkpointPath)
+                const std::string& checkpointPath,
+                WheelDL::Utils::Logger* logger,
+                WheelDL::Utils::PerformanceProfiler* profiler,
+                std::atomic<bool>* stopFlag)
+                : BasePredictor(config, checkpointPath, logger, profiler, stopFlag)
                 , _numClasses(config->getNumClasses())
-                , _useImageNetNorm(config->getImageNetNorm())
+                , _minContourArea(5.0f)
             {
                 _logger->info("SegmentationPredictor", "Initializing segmentation predictor");
 
-                // Initialize normalization tensors
-                if (_useImageNetNorm) 
-                {
-                    _mean = torch::tensor({ 0.485f, 0.456f, 0.406f }, torch::kFloat32).view({ 1, 3, 1, 1 }).to(_device);
-                    _std = torch::tensor({ 0.229f, 0.224f, 0.225f }, torch::kFloat32).view({ 1, 3, 1, 1 }).to(_device);
-                }
-                else 
-                {
-                    _mean = torch::tensor({ 0.0f, 0.0f, 0.0f }, torch::kFloat32).view({ 1, 3, 1, 1 }).to(_device);
-                    _std = torch::tensor({ 1.0f, 1.0f, 1.0f }, torch::kFloat32).view({ 1, 3, 1, 1 }).to(_device);
-                }
-
-                // Get model YAML path from configuration
-                _modelYamlPath = config->getModelPath();
-                if (_modelYamlPath.empty()) {
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::INVALID_CONFIG,
-                        "Model YAML path is not specified in configuration"
-                    );
-                }
-
                 // Verify task type
                 if (config->getTaskType() != TaskType::SEGMENTATION) {
-                    throw Utils::ConfigurationException(
-                        Utils::ErrorCode::INVALID_CONFIG,
+                    throw WheelDL::Utils::ConfigurationException(
+                        WheelDL::Utils::ErrorCode::INVALID_CONFIG,
                         "Configuration task type must be SEGMENTATION for SegmentationPredictor"
                     );
                 }
 
-                _logger->info("SegmentationPredictor", "Model YAML: " + _modelYamlPath);
                 _logger->info("SegmentationPredictor", "Number of classes: " + std::to_string(_numClasses));
 
                 // Setup model
@@ -56,15 +40,13 @@ namespace WheelDL {
                     loadCheckpoint(checkpointPath);
                 }
 
-                _minContourArea = 5;
-
                 _logger->info("SegmentationPredictor", "Confidence threshold: " + std::to_string(_threshold));
                 _logger->info("SegmentationPredictor", "Segmentation predictor initialized");
             }
 
             void SegmentationPredictor::setupModel()
             {
-                _profiler.start("setup_model");
+                _profiler->start("setup_model");
                 _logger->info("SegmentationPredictor", "Setting up segmentation model");
 
                 try {
@@ -72,112 +54,22 @@ namespace WheelDL {
                     _logger->info("SegmentationPredictor", "Model setup completed");
                 }
                 catch (const std::exception& e) {
-                    throw Utils::ModelException(
-                        Utils::ErrorCode::MODEL_LOAD_FAILED,
+                    throw WheelDL::Utils::ModelException(
+                        WheelDL::Utils::ErrorCode::MODEL_LOAD_FAILED,
                         "Failed to setup segmentation model: " + std::string(e.what())
                     );
                 }
 
-                _profiler.stop("setup_model");
+                _profiler->stop("setup_model");
             }
 
-            torch::Tensor SegmentationPredictor::preprocess(const torch::Tensor& input)
-            {
-                try {
-                    torch::Tensor preprocessed = input;
-
-                    // Ensure input is [C, H, W] or [1, C, H, W]
-                    if (preprocessed.dim() == 3) 
-                    {
-                        preprocessed = preprocessed.unsqueeze(0);
-                    }
-                    else if (preprocessed.dim() != 4) {
-                        throw Utils::WheelLibException(
-                            Utils::ErrorCode::PREDICTION_FAILED,
-                            "Input tensor must be [C, H, W] or [1, C, H, W], got " +
-                            std::to_string(preprocessed.dim()) + "D"
-                        );
-                    }
-
-                    // Convert to float32 if needed
-                    if (preprocessed.dtype() != torch::kFloat32) {
-                        preprocessed = preprocessed.to(torch::kFloat32);
-                    }
-
-                    int targetSize = _config->getImageSize();
-                    int origH = static_cast<int>(preprocessed.size(2));
-                    int origW = static_cast<int>(preprocessed.size(3));
-
-                    // Check if resize is needed
-                    bool needsResize = (origH != targetSize || origW != targetSize);
-
-                    if (needsResize) {
-                        // LetterBox resize (maintain aspect ratio)
-                        float scale = std::min(
-                            static_cast<float>(targetSize) / origH,
-                            static_cast<float>(targetSize) / origW
-                        );
-
-                        int newH = static_cast<int>(origH * scale);
-                        int newW = static_cast<int>(origW * scale);
-
-                        // Resize
-                        preprocessed = torch::nn::functional::interpolate(
-                            preprocessed,
-                            torch::nn::functional::InterpolateFuncOptions()
-                                .size(std::vector<int64_t>{newH, newW})
-                                .mode(torch::kBilinear)
-                                .align_corners(false)
-                        );
-
-                        // Pad to target size (center padding)
-                        int padH = targetSize - newH;
-                        int padW = targetSize - newW;
-                        int padTop = padH / 2;
-                        int padBottom = padH - padTop;
-                        int padLeft = padW / 2;
-                        int padRight = padW - padLeft;
-
-                        if (padH > 0 || padW > 0) {
-                            preprocessed = torch::nn::functional::pad(
-                                preprocessed,
-                                torch::nn::functional::PadFuncOptions({padLeft, padRight, padTop, padBottom})
-                                    .mode(torch::kConstant)
-                                    .value(0.0f)
-                            );
-                        }
-                    }
-
-                    // Normalize to [0, 1] if input is [0, 255]
-                    if (preprocessed.max().item<float>() > 1.0f) {
-                        preprocessed = preprocessed.div(255.0f);
-                    }
-
-                    // Apply ImageNet normalization if enabled
-                    if (_useImageNetNorm) {
-                        preprocessed = preprocessed.sub(_mean).div(_std);
-                    }
-
-                    return preprocessed;
-                }
-                catch (const std::exception& e) {
-                    throw Utils::WheelLibException(
-                        Utils::ErrorCode::PREDICTION_FAILED,
-                        "Preprocessing failed: " + std::string(e.what())
-                    );
-                }
-            }
-
-            PredictionResult SegmentationPredictor::postprocess(
+            void SegmentationPredictor::postprocess(
                 const std::vector<torch::Tensor>& output,
-                const std::tuple<int, int>& originalShape)
+                const std::tuple<int, int>& originalShape,
+                const std::string& imagePath)
             {
-                PredictionResult result;
-                result.originalShape = { std::get<0>(originalShape), std::get<1>(originalShape) };
-
                 if (output.empty()) {
-                    result.numDetections = 0;
-                    return result;
+                    return;
                 }
 
                 try
@@ -208,6 +100,12 @@ namespace WheelDL {
 
                     const float* logitsPtr = rawOutput.data_ptr<float>();
 
+                    // Store in internal container
+                    SegmentationResult result;
+                    result.imagePath = imagePath;
+                    result.originalShape = {origH, origW};
+                    result.inferenceTimeMs = static_cast<float>(_profiler->getDuration("inference"));
+
                     cv::Mat maskMat;
                     std::vector<std::vector<cv::Point>> cvContours;
 
@@ -236,9 +134,9 @@ namespace WheelDL {
 
                             if (cvContour.size() > MAX_POINTS) {
                                 double perimeter = cv::arcLength(originalContour, true);
-                                double epsilon = perimeter * 0.005;
+                                double eps = perimeter * 0.005;
 
-                                cv::approxPolyDP(originalContour, cvContour, epsilon, true);
+                                cv::approxPolyDP(originalContour, cvContour, eps, true);
 
                                 if (cvContour.size() > MAX_POINTS) {
                                     int step = cvContour.size() / MAX_POINTS + 1;
@@ -284,20 +182,104 @@ namespace WheelDL {
                             }
 
                             result.contours.push_back(std::move(contour));
-                            result.classIds.push_back(static_cast<unsigned int>(c));
+                            result.classIds.push_back(c);
                             result.scores.push_back(count > 0 ? sumProb / count : 0.0f);
                         }
                     }
 
-                    result.numDetections = static_cast<int>(result.contours.size());
+                    _results.push_back(std::move(result));
                 }
                 catch (const std::exception& e) {
                     _logger->error("SegmentationPredictor", "Postprocessing failed: " + std::string(e.what()));
-                    result.numDetections = 0;
+                }
+            }
+
+            void SegmentationPredictor::exportResults(const std::string& outputDir)
+            {
+                _profiler->start("export_results");
+
+                nlohmann::json predictionsJson = nlohmann::json::array();
+                predictionsJson.get<nlohmann::json::array_t>().reserve(_results.size());
+                auto classNames = _config->getClassNames();
+
+                for (const auto& result : _results) {
+                    nlohmann::json predJson;
+                    predJson["image_path"] = result.imagePath;
+                    predJson["inference_time_ms"] = result.inferenceTimeMs;
+                    predJson["num_segments"] = result.contours.size();
+
+                    nlohmann::json segmentsJson = nlohmann::json::array();
+                    for (size_t i = 0; i < result.contours.size(); ++i) {
+                        nlohmann::json segJson;
+
+                        // Contour points
+                        const auto& contour = result.contours[i];
+                        nlohmann::json pointsJson = nlohmann::json::array();
+                        for (size_t k = 0; k + 1 < contour.points.size(); k += 2) {
+                            pointsJson.push_back(contour.points[k]);
+                            pointsJson.push_back(contour.points[k + 1]);
+                        }
+                        segJson["contour"] = pointsJson;
+
+                        // Class info
+                        int classId = result.classIds[i];
+                        segJson["class_id"] = classId;
+
+                        auto it = classNames.find(classId);
+                        if (it != classNames.end()) {
+                            segJson["class_name"] = it->second;
+                        }
+
+                        // Confidence
+                        segJson["confidence"] = result.scores[i];
+
+                        segmentsJson.push_back(segJson);
+                    }
+
+                    predJson["segments"] = segmentsJson;
+                    predictionsJson.push_back(predJson);
                 }
 
-                return result;
+                // Write to file
+                std::filesystem::path outPath = std::filesystem::path(outputDir) / "predictions.json";
+                std::filesystem::create_directories(outputDir);
+
+                nlohmann::json rootJson;
+                rootJson["predictions"] = predictionsJson;
+                rootJson["total_images"] = _results.size();
+
+                // Calculate total segments
+                size_t totalSegments = 0;
+                for (const auto& result : _results) {
+                    totalSegments += result.contours.size();
+                }
+                rootJson["total_segments"] = totalSegments;
+
+                std::ofstream file(outPath);
+                if (!file.is_open()) {
+                    _logger->error("SegmentationPredictor", "Failed to create predictions.json file");
+                    _profiler->stop("export_results");
+                    return;
+                }
+                file << std::setw(4) << rootJson << std::endl;
+                file.close();
+
+                if (file.fail()) {
+                    _logger->error("SegmentationPredictor", "Failed to write predictions.json file");
+                }
+
+                _logger->info("SegmentationPredictor", "Exported " +
+                    std::to_string(_results.size()) + " images with " +
+                    std::to_string(totalSegments) + " total segments to " + outPath.string());
+
+                _profiler->stop("export_results");
             }
+
+            void SegmentationPredictor::clearResults()
+            {
+                _results.clear();
+            }
+
         } // namespace Predictor
     } // namespace Core
 } // namespace WheelDL

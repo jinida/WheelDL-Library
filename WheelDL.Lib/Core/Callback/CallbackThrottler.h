@@ -61,7 +61,7 @@ namespace WheelDL {
 
             private:
                 int _minIntervalMs;
-                Utils::Timer _timer;
+                WheelDL::Utils::Timer _timer;
                 mutable std::mutex _mutex;
             };
 

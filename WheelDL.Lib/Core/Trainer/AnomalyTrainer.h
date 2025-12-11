@@ -26,10 +26,21 @@ namespace WheelDL {
             class AnomalyTrainer : public BaseTrainer {
             public:
                 /**
-                 * @brief Constructor
+                 * @brief Constructor with dependency injection
                  * @param config Configuration object with anomaly detection settings
+                 * @param logger Logger instance (non-null, owned by Launcher)
+                 * @param workspace Workspace instance (non-null, owned by Launcher)
+                 * @param profiler PerformanceProfiler instance (non-null, owned by Launcher)
+                 * @param progressCallback Optional progress callback
+                 * @param stopFlag Atomic stop flag (optional, owned by Context)
                  */
-                explicit AnomalyTrainer(const std::shared_ptr<Config::Configuration> config);
+                explicit AnomalyTrainer(
+                    std::shared_ptr<Config::Configuration> config,
+                    WheelDL::Utils::Logger* logger,
+                    WheelDL::Utils::Workspace* workspace,
+                    WheelDL::Utils::PerformanceProfiler* profiler,
+                    ProgressCallback progressCallback = nullptr,
+                    std::atomic<bool>* stopFlag = nullptr);
 
                 /**
                  * @brief Destructor
@@ -94,24 +105,6 @@ namespace WheelDL {
                     const std::string& checkpointPath) override;
 
                 /**
-                 * @brief Export anomaly prediction results
-                 *
-                 * Saves results as JSON file and anomaly maps.
-                 * Format includes:
-                 * - Image path
-                 * - Anomaly score
-                 * - Anomaly class (normal/anomaly)
-                 * - Anomaly map path (if saved)
-                 *
-                 * @param results Vector of prediction results
-                 * @param imagePaths Vector of image paths
-                 * @param resultsDir Directory to save results
-                 */
-                void exportPredictionResults(
-                    const std::vector<PredictionResult>& results,
-                    const std::vector<std::string>& imagePaths) override;
-
-                /**
                  * @brief Run validation with prepareValidation call
                  *
                  * Overrides BaseTrainer::runValidation to call prepareValidation
@@ -124,7 +117,6 @@ namespace WheelDL {
                 MetricsData runValidation(int epoch, bool useEmaIfAvailable) override;
 
             private:
-                std::string _modelYamlPath;  ///< Path to model YAML configuration
                 bool _isModelPrepared;       ///< Whether model has been prepared for training
 
                 /**

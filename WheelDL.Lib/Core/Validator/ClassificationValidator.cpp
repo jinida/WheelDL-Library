@@ -11,13 +11,23 @@ namespace WheelDL {
     namespace Core {
         namespace Validator {
 
-            ClassificationValidator::ClassificationValidator(const std::shared_ptr<Config::Configuration> config)
-                : BaseValidator(config, torch::Device(torch::kCPU))
+            ClassificationValidator::ClassificationValidator(
+                std::shared_ptr<Config::Configuration> config,
+                WheelDL::Utils::Logger* logger,
+                WheelDL::Utils::PerformanceProfiler* profiler,
+                std::atomic<bool>* stopFlag)
+                : BaseValidator(config, logger, profiler, stopFlag)
                 , _numClasses(config->getNumClasses())
             {
                 _logger->info("ClassificationValidator",
                     "Classification validator initialized with " +
                     std::to_string(_numClasses) + " classes");
+            }
+
+            std::unique_ptr<Model::BaseModel> ClassificationValidator::setupModel()
+            {
+                _logger->info("ClassificationValidator", "Creating ClassificationModel");
+                return std::make_unique<Model::ClassificationModel>(_config);
             }
 
             void ClassificationValidator::setupDataLoader()
@@ -68,7 +78,7 @@ namespace WheelDL {
 
             MetricsData ClassificationValidator::computeMetrics(const torch::Tensor& pred, const torch::Tensor& target)
             {
-                _profiler.start("compute_metrics");
+                _profiler->start("compute_metrics");
 
                 MetricsData metrics;
                 metrics.loss = 0.0f;
@@ -120,7 +130,7 @@ namespace WheelDL {
                     metrics.recall = 0.0f;
                 }
 
-                _profiler.stop("compute_metrics");
+                _profiler->stop("compute_metrics");
                 return metrics;
             }
 
@@ -161,7 +171,7 @@ namespace WheelDL {
 
                     auto precision = tp / precisionDenom;
                     auto recall = tp / recallDenom;
-                    auto f1 = 2.0f * tp / (precisionDenom + recallDenom);  // °£¼ÒÈ­µÈ F1 °ø½Ä
+                    auto f1 = 2.0f * tp / (precisionDenom + recallDenom);  // ï¿½ï¿½ï¿½ï¿½È­ï¿½ï¿½ F1 ï¿½ï¿½ï¿½ï¿½
 
                     auto supportMask = (tp + fn) > 0;
                     int64_t validClasses = supportMask.sum().item<int64_t>();

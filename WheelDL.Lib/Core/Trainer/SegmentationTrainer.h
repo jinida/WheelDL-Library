@@ -26,10 +26,21 @@ namespace WheelDL {
             class SegmentationTrainer : public BaseTrainer {
             public:
                 /**
-                 * @brief Constructor
+                 * @brief Constructor with dependency injection
                  * @param config Configuration object with segmentation settings
+                 * @param logger Logger instance (non-null, owned by Launcher)
+                 * @param workspace Workspace instance (non-null, owned by Launcher)
+                 * @param profiler PerformanceProfiler instance (non-null, owned by Launcher)
+                 * @param progressCallback Optional progress callback
+                 * @param stopFlag Atomic stop flag (optional, owned by Context)
                  */
-                explicit SegmentationTrainer(const std::shared_ptr<Config::Configuration> config);
+                explicit SegmentationTrainer(
+                    std::shared_ptr<Config::Configuration> config,
+                    WheelDL::Utils::Logger* logger,
+                    WheelDL::Utils::Workspace* workspace,
+                    WheelDL::Utils::PerformanceProfiler* profiler,
+                    ProgressCallback progressCallback = nullptr,
+                    std::atomic<bool>* stopFlag = nullptr);
 
                 /**
                  * @brief Destructor
@@ -90,26 +101,6 @@ namespace WheelDL {
                  */
                 std::unique_ptr<Predictor::BasePredictor> setupPredictor(
                     const std::string& checkpointPath) override;
-
-                /**
-                 * @brief Export segmentation prediction results
-                 *
-                 * Saves results as JSON file with contour data.
-                 * Format includes:
-                 * - Image path
-                 * - Segmentation contours per class
-                 * - Class IDs
-                 * - Inference time
-                 *
-                 * @param results Vector of prediction results
-                 * @param imagePaths Vector of image paths
-                 */
-                void exportPredictionResults(
-                    const std::vector<PredictionResult>& results,
-                    const std::vector<std::string>& imagePaths) override;
-
-            private:
-                std::string _modelYamlPath;  ///< Path to model YAML configuration
             };
 
         } // namespace Trainer

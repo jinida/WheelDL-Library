@@ -13,12 +13,12 @@ namespace WheelDL {
              * @class DetectionPredictor
              * @brief Predictor for object detection tasks
              *
-             * Performs inference for YOLO-style detection models:
+             * Performs batch inference for YOLO-style detection models:
              * - Multi-scale anchor-free detection
              * - Non-Maximum Suppression (NMS) via Model::Utils::nonMaxSuppression
              * - Box decoding and coordinate scaling
              *
-             * Output:
+             * Output (exported to JSON):
              * - Bounding boxes (x1, y1, x2, y2)
              * - Class IDs
              * - Confidence scores
@@ -29,11 +29,16 @@ namespace WheelDL {
                  * @brief Constructor
                  * @param config Configuration object
                  * @param checkpointPath Path to trained model checkpoint
+                 * @param logger Logger instance (non-null, owned by Launcher)
+                 * @param profiler PerformanceProfiler instance (non-null, owned by Launcher)
+                 * @param stopFlag Atomic stop flag (optional, owned by Context)
                  */
                 explicit DetectionPredictor(
                     std::shared_ptr<Config::Configuration> config,
-                    const std::string& checkpointPath = ""
-                );
+                    const std::string& checkpointPath,
+                    WheelDL::Utils::Logger* logger,
+                    WheelDL::Utils::PerformanceProfiler* profiler,
+                    std::atomic<bool>* stopFlag = nullptr);
 
                 /**
                  * @brief Destructor
@@ -52,31 +57,30 @@ namespace WheelDL {
                 void setupModel() override;
 
                 /**
-                 * @brief Preprocess input tensor
+                 * @brief Postprocess detection output and store results
                  *
-                 * Applies LetterBox resizing and normalization.
-                 * Expected input: [C, H, W] or [1, C, H, W]
+                 * Decodes model output, applies NMS, scales boxes,
+                 * and stores results in internal container.
                  *
-                 * @param input Raw input tensor
-                 * @return Preprocessed tensor [1, C, H, W]
+                 * @param output Model output tensors
+                 * @param originalShape Original input shape for coordinate scaling
+                 * @param imagePath Image file path
                  */
-                torch::Tensor preprocess(const torch::Tensor& input) override;
+                void postprocess(
+                    const std::vector<torch::Tensor>& output,
+                    const std::tuple<int, int>& originalShape,
+                    const std::string& imagePath) override;
 
                 /**
-                 * @brief Postprocess detection output
-                 *
-                 * Decodes model output and applies NMS using Model::Utils::nonMaxSuppression.
-                 *
-                 * @param output Model output tensors (multi-scale predictions)
-                 * @param originalShape Original input shape for coordinate scaling
-                 * @return PredictionResult with:
-                 *         - boxes: Bounding boxes in original image coordinates
-                 *         - classIds: Class indices
-                 *         - scores: Confidence scores
+                 * @brief Export detection results to JSON
+                 * @param outputDir Output directory
                  */
-                PredictionResult postprocess(
-                    const std::vector<torch::Tensor>& output,
-                    const std::tuple<int, int>& originalShape) override;
+                void exportResults(const std::string& outputDir) override;
+
+                /**
+                 * @brief Clear internal results container
+                 */
+                void clearResults() override;
 
             private:
                 /**
@@ -91,15 +95,22 @@ namespace WheelDL {
                     int inputSize,
                     const std::tuple<int, int>& originalShape);
 
-                std::string _modelYamlPath;  ///< Path to model YAML configuration
+                // Internal result container
+                struct DetectionResult {
+                    std::string imagePath;
+                    std::vector<BBox> boxes;
+                    std::vector<float> scores;
+                    std::vector<int> classIds;
+                    std::pair<int, int> originalShape;
+                    float inferenceTimeMs;
+                };
+
+                std::vector<DetectionResult> _results;
+
                 int _numClasses;             ///< Number of classes
                 float _confThresh;           ///< Confidence threshold
                 float _iouThresh;            ///< IoU threshold for NMS
                 int _maxDet;                 ///< Maximum detections per image
-
-                // Normalization tensors
-                torch::Tensor _mean;
-                torch::Tensor _std;
             };
 
         } // namespace Predictor

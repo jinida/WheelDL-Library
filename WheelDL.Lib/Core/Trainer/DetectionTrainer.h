@@ -26,17 +26,26 @@ namespace WheelDL {
             class DetectionTrainer : public BaseTrainer {
             public:
                 /**
-                 * @brief Constructor
+                 * @brief Constructor with dependency injection
                  * @param config Configuration object with detection settings
+                 * @param logger Logger instance (non-null, owned by Launcher)
+                 * @param workspace Workspace instance (non-null, owned by Launcher)
+                 * @param profiler PerformanceProfiler instance (non-null, owned by Launcher)
+                 * @param progressCallback Optional progress callback
+                 * @param stopFlag Atomic stop flag (optional, owned by Context)
                  */
-                explicit DetectionTrainer(const std::shared_ptr<Config::Configuration> config);
+                explicit DetectionTrainer(
+                    std::shared_ptr<Config::Configuration> config,
+                    WheelDL::Utils::Logger* logger,
+                    WheelDL::Utils::Workspace* workspace,
+                    WheelDL::Utils::PerformanceProfiler* profiler,
+                    ProgressCallback progressCallback = nullptr,
+                    std::atomic<bool>* stopFlag = nullptr);
 
                 /**
                  * @brief Destructor
                  */
                 ~DetectionTrainer() override = default;
-
-                void drawBBoxesOnBatch(const torch::Tensor& batchData, const torch::Tensor& batchIndices, const torch::Tensor& bboxes, const torch::Tensor& classes);
             protected:
                 // ========== Hook Methods Implementation ==========
 
@@ -91,28 +100,7 @@ namespace WheelDL {
                  */
                 std::unique_ptr<Predictor::BasePredictor> setupPredictor(
                     const std::string& checkpointPath) override;
-
-                /**
-                 * @brief Export detection prediction results
-                 *
-                 * Saves results as JSON file and optionally visualization images.
-                 * Format includes:
-                 * - Image path
-                 * - Bounding boxes (x1, y1, x2, y2)
-                 * - Class IDs and names
-                 * - Confidence scores
-                 *
-                 * @param results Vector of prediction results
-                 * @param imagePaths Vector of image paths
-                 */
-                void exportPredictionResults(
-                    const std::vector<PredictionResult>& results,
-                    const std::vector<std::string>& imagePaths) override;
-
-            private:
-                std::string _modelYamlPath;  ///< Path to model YAML configuration
             };
-
         } // namespace Trainer
     } // namespace Core
 } // namespace WheelDL

@@ -11,10 +11,20 @@ namespace WheelDL {
 	namespace Core {
 		namespace Validator {
 
-			AnomalyValidator::AnomalyValidator(const std::shared_ptr<Config::Configuration> config)
-				: BaseValidator(config, torch::Device(torch::kCPU))
+			AnomalyValidator::AnomalyValidator(
+				std::shared_ptr<Config::Configuration> config,
+				WheelDL::Utils::Logger* logger,
+				WheelDL::Utils::PerformanceProfiler* profiler,
+				std::atomic<bool>* stopFlag)
+				: BaseValidator(config, logger, profiler, stopFlag)
 			{
 				_logger->info("AnomalyValidator", "Anomaly detection validator initialized");
+			}
+
+			std::unique_ptr<Model::BaseModel> AnomalyValidator::setupModel()
+			{
+				_logger->info("AnomalyValidator", "Creating AnomalyModel");
+				return std::make_unique<Model::AnomalyModel>(_config);
 			}
 
 			void AnomalyValidator::setupDataLoader()
@@ -23,11 +33,10 @@ namespace WheelDL {
 					_logger->info("AnomalyValidator",
 						"Using injected DataLoader for validation");
 					return;
-
 				}
 
 				auto valDataset = std::make_shared<Data::Dataset::AnomalyDataset>(*_config, false);
-				_logger->info("AnomalyTrainer", "Validation dataset created with " +
+				_logger->info("AnomalyValidator", "Validation dataset created with " +
 					std::to_string(valDataset->size().value_or(0)) + " samples");
 
 				auto valLoader = torch::data::make_data_loader(
@@ -64,7 +73,7 @@ namespace WheelDL {
 				const torch::Tensor& pred,
 				const torch::Tensor& target)
 			{
-				_profiler.start("compute_metrics");
+				_profiler->start("compute_metrics");
 
 				MetricsData metrics;
 				metrics.loss = 0.0f;
@@ -124,7 +133,7 @@ namespace WheelDL {
 					metrics.f1Score = 0.0f;
 				}
 
-				_profiler.stop("compute_metrics");
+				_profiler->stop("compute_metrics");
 				return metrics;
 			}
 
