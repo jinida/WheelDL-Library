@@ -65,6 +65,13 @@ namespace WheelDL {
                 );
             }
 
+            if (lr <= 0.0f) {
+                throw Utils::ConfigurationException(
+                    Utils::ErrorCode::INVALID_CONFIG,
+                    "Learning rate must be positive, got: " + std::to_string(lr)
+                );
+            }
+
             torch::optim::SGDOptions options(lr);
             options.momentum(momentum);
             options.weight_decay(weightDecay);
@@ -90,6 +97,13 @@ namespace WheelDL {
                 );
             }
 
+            if (lr <= 0.0f) {
+                throw Utils::ConfigurationException(
+                    Utils::ErrorCode::INVALID_CONFIG,
+                    "Learning rate must be positive, got: " + std::to_string(lr)
+                );
+            }
+
             torch::optim::AdamOptions options(lr);
             options.betas(std::make_tuple(beta1, beta2));
             options.eps(eps);
@@ -112,6 +126,13 @@ namespace WheelDL {
                 throw Utils::ConfigurationException(
                     Utils::ErrorCode::INVALID_CONFIG,
                     "Cannot create optimizer: parameter list is empty"
+                );
+            }
+
+            if (lr <= 0.0f) {
+                throw Utils::ConfigurationException(
+                    Utils::ErrorCode::INVALID_CONFIG,
+                    "Learning rate must be positive, got: " + std::to_string(lr)
                 );
             }
 
