@@ -239,7 +239,6 @@
     <ClInclude Include="Utils\Memory\MemoryManager.h" />
     <ClInclude Include="Utils\Memory\GPUMemoryGuard.h" />
     <ClInclude Include="Utils\Memory\GPUMemoryPool.h" />
-    <ClInclude Include="Utils\Memory\DynamicBatchSizer.h" />
     <ClInclude Include="Data\Common\Annotation.h" />
     <ClInclude Include="Data\Cache\CacheManager.h" />
     <ClInclude Include="Data\Cache\RAMCache.h" />
@@ -360,7 +359,6 @@
     <ClCompile Include="Utils\Memory\MemoryManager.cpp" />
     <ClCompile Include="Utils\Memory\GPUMemoryGuard.cpp" />
     <ClCompile Include="Utils\Memory\GPUMemoryPool.cpp" />
-    <ClCompile Include="Utils\Memory\DynamicBatchSizer.cpp" />
     <ClCompile Include="Data\Common\Annotation.cpp" />
     <ClCompile Include="Data\Cache\CacheManager.cpp" />
     <ClCompile Include="Data\Cache\RAMCache.cpp" />

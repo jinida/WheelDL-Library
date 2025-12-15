@@ -318,9 +318,6 @@
     <ClInclude Include="Utils\Memory\GPUMemoryPool.h">
       <Filter>header\Utils\Memory</Filter>
     </ClInclude>
-    <ClInclude Include="Utils\Memory\DynamicBatchSizer.h">
-      <Filter>header\Utils\Memory</Filter>
-    </ClInclude>
     <!-- Workspace Headers -->
     <ClInclude Include="Utils\Workspace\Workspace.h">
       <Filter>header\Utils\Workspace</Filter>
@@ -664,9 +661,6 @@
       <Filter>source\Utils\Memory</Filter>
     </ClCompile>
     <ClCompile Include="Utils\Memory\GPUMemoryPool.cpp">
-      <Filter>source\Utils\Memory</Filter>
-    </ClCompile>
-    <ClCompile Include="Utils\Memory\DynamicBatchSizer.cpp">
       <Filter>source\Utils\Memory</Filter>
     </ClCompile>
     <!-- Workspace Sources -->

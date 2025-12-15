@@ -32,15 +32,19 @@
   <ImportGroup Label="Shared" />
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
+  <!-- Force enable Google Test for v145 toolset -->
+  <PropertyGroup>
+    <Force-Enable-Microsoft-googletest-v140-windesktop-msvcstl-dyn-rt-dyn>true</Force-Enable-Microsoft-googletest-v140-windesktop-msvcstl-dyn-rt-dyn>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ExecutablePath>$(ExecutablePath)</ExecutablePath>
     <IncludePath>$(MSBuildProjectDirectory);$(IncludePath)</IncludePath>
-    <LibraryPath>C:\opencv\install\x64\vc17\lib;C:\torchlib\debug\libtorch\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\lib\x64;$(LibraryPath)</LibraryPath>
+    <LibraryPath>C:\opencv\build\x64\vc16\lib;C:\torchlib\debug\libtorch\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ExecutablePath>$(ExecutablePath)</ExecutablePath>
     <IncludePath>$(MSBuildProjectDirectory);$(IncludePath)</IncludePath>
-    <LibraryPath>C:\opencv\install\x64\vc17\lib;C:\torchlib\release\libtorch\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\lib\x64;$(LibraryPath)</LibraryPath>
+    <LibraryPath>C:\opencv\build\x64\vc16\lib;C:\torchlib\release\libtorch\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -69,7 +73,7 @@
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\WheelDL.Lib;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;C:\opencv\install\include;C:\torchlib\$(Configuration)\libtorch\include;C:\torchlib\$(Configuration)\libtorch\include\torch\csrc\api\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\packages\Microsoft.googletest.v140.windesktop.msvcstl.dyn.rt-dyn.1.8.1.7\build\native\include;$(ProjectDir)..;$(ProjectDir)..\WheelDL.Lib;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;C:\opencv\build\include;C:\torchlib\$(Configuration)\libtorch\include;C:\torchlib\$(Configuration)\libtorch\include\torch\csrc\api\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
@@ -107,7 +111,7 @@
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\WheelDL.Lib;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;C:\opencv\install\include;C:\torchlib\$(Configuration)\libtorch\include;C:\torchlib\$(Configuration)\libtorch\include\torch\csrc\api\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\packages\Microsoft.googletest.v140.windesktop.msvcstl.dyn.rt-dyn.1.8.1.7\build\native\include;$(ProjectDir)..;$(ProjectDir)..\WheelDL.Lib;$(ProjectDir)..\3rdparty;$(ProjectDir)..\3rdparty\yaml-cpp-src\include;C:\opencv\build\include;C:\torchlib\$(Configuration)\libtorch\include;C:\torchlib\$(Configuration)\libtorch\include\torch\csrc\api\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
@@ -116,120 +120,106 @@
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <AdditionalDependencies>opencv_core4110.lib;opencv_imgproc4110.lib;opencv_imgcodecs4110.lib;c10.lib;c10_cuda.lib;torch.lib;torch_cpu.lib;torch_cuda.lib;cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opencv_world480.lib;c10.lib;c10_cuda.lib;torch.lib;torch_cpu.lib;torch_cuda.lib;cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>-INCLUDE:?warp_size@cuda@at@@YAHXZ %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
+  <!-- Header Files -->
   <ItemGroup>
     <ClInclude Include="pch.h" />
   </ItemGroup>
+  <!-- Source Files -->
   <ItemGroup>
-    <ClCompile Include="Integration\Phase1Integration.cpp" />
-    <ClCompile Include="Integration\Phase2IntegrationTest.cpp" />
-    <ClCompile Include="Integration\Phase3IntegrationTest.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Unit\Phase1\ConfigurationTest.cpp" />
-    <ClCompile Include="Unit\Phase1\DynamicBatchSizerTest.cpp" />
-    <ClCompile Include="Unit\Phase1\ErrorHandlerTest.cpp" />
-    <ClCompile Include="Unit\Phase1\GPUMemoryGuardTest.cpp" />
-    <ClCompile Include="Unit\Phase1\GPUMemoryPoolTest.cpp" />
-    <ClCompile Include="Unit\Phase1\LoggerTest.cpp" />
-    <ClCompile Include="Unit\Phase1\MemoryManagerTest.cpp" />
-    <ClCompile Include="Unit\Phase1\PathValidatorTest.cpp" />
-    <ClCompile Include="Unit\Phase1\PerformanceProfilerTest.cpp" />
-    <ClCompile Include="Unit\Phase1\RandomTest.cpp" />
-    <ClCompile Include="Unit\Phase1\ThreadPoolTest.cpp" />
-    <ClCompile Include="Unit\Phase1\TimerTest.cpp" />
-    <ClCompile Include="Unit\Phase1\WheelLibExceptionTest.cpp" />
-    <ClCompile Include="Unit\Phase1\YamlParserTest.cpp" />
-    <ClCompile Include="Unit\Phase2\AnnotationTest.cpp" />
-    <ClCompile Include="Unit\Phase2\AnnotationTransformTest.cpp" />
-    <ClCompile Include="Unit\Phase2\AnomalyDatasetTest.cpp" />
-    <ClCompile Include="Unit\Phase2\BatchGenerationTest.cpp" />
-    <ClCompile Include="Unit\Phase2\CacheComprehensiveTest.cpp" />
-    <ClCompile Include="Unit\Phase2\CacheManagerTest.cpp" />
-    <ClCompile Include="Unit\Phase2\CacheStressTest.cpp" />
-    <ClCompile Include="Unit\Phase2\ClassificationDatasetTest.cpp" />
-    <ClCompile Include="Unit\Phase2\ConfigTaskSpecificTest.cpp" />
-    <ClCompile Include="Unit\Phase2\ConfigurationVariationTest.cpp" />
-    <ClCompile Include="Unit\Phase2\DataAugmentationTest.cpp" />
-    <ClCompile Include="Unit\Phase2\DataLoaderCollationTest.cpp" />
-    <ClCompile Include="Unit\Phase2\DatasetStressTest.cpp" />
-    <ClCompile Include="Unit\Phase2\DetectionDatasetTest.cpp" />
-    <ClCompile Include="Unit\Phase2\EdgeCaseTest.cpp" />
-    <ClCompile Include="Unit\Phase2\ImageIOComprehensiveTest.cpp" />
-    <ClCompile Include="Unit\Phase2\ImageIOTest.cpp" />
-    <ClCompile Include="Unit\Phase2\ImageIOTestExtended.cpp" />
-    <ClCompile Include="Unit\Phase2\LibTorchDataLoaderTest.cpp" />
-    <ClCompile Include="Unit\Phase2\MosaicAugmentationTest.cpp" />
-    <ClCompile Include="Unit\Phase2\OBBDatasetTest.cpp" />
-    <ClCompile Include="Unit\Phase2\PerformanceTest.cpp" />
-    <ClCompile Include="Unit\Phase2\RAMCacheTest.cpp" />
-    <ClCompile Include="Unit\Phase2\RAMCacheTestComprehensive.cpp" />
-    <ClCompile Include="Unit\Phase2\RegressionTest.cpp" />
-    <ClCompile Include="Unit\Phase2\RobustnessTest.cpp" />
-    <ClCompile Include="Unit\Phase2\SegmentationDatasetTest.cpp" />
-    <ClCompile Include="Unit\Phase2\TransformComprehensiveTest.cpp" />
-    <ClCompile Include="Unit\Phase2\TransformPipelineTest.cpp" />
-    <ClCompile Include="Unit\Phase2\TransformStressTest.cpp" />
-    <ClCompile Include="Unit\Phase2\YamlParserEdgeCaseTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Builder\AttentionFactoryTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Builder\BlockFactoryTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Builder\ConvolutionFactoryTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Builder\HeadFactoryTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Builder\ModelBuilderTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Builder\ModuleFactoryRegistryTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Builder\YamlArgsParserTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Loss\AnomalyLossTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Loss\ClassificationLossTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Loss\DetectionLossTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Loss\OBBLossTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Loss\SegmentationLossTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Loss\SimpleLossesTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Models\AnomalyModelTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Models\BaseModelTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Models\ClassificationModelTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Models\DetectionModelTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Models\OBBModelTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Models\SegmentationModelTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Modules\ActivationModuleTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Modules\AttentionModuleTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Modules\BlockModuleTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Modules\ConvolutionModuleTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Modules\HeadModuleTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Modules\TransformerModuleTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Utils\BboxConversionTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Utils\IoUComputationTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Utils\ProbIoUTest.cpp" />
-    <ClCompile Include="Unit\Phase3\Utils\TaskAlignedAssignerTest.cpp" />
-    <ClCompile Include="Unit\Phase4\OptimizerFactoryTest.cpp" />
-    <ClCompile Include="Unit\Phase4\Scheduler\LinearLRTest.cpp" />
-    <ClCompile Include="Unit\Phase4\Scheduler\CosineAnnealingLRTest.cpp" />
-    <ClCompile Include="Unit\Phase4\EMA\ModelEMATest.cpp" />
-    <ClCompile Include="Unit\Phase4\EarlyStopping\EarlyStoppingTest.cpp" />
+    <ClCompile Include="Unit\Utils\Common\TypesTest.cpp" />
+    <ClCompile Include="Unit\Utils\Common\TimerTest.cpp" />
+    <ClCompile Include="Unit\Utils\Common\RandomTest.cpp" />
+    <ClCompile Include="Unit\Utils\Error\ErrorCodesTest.cpp" />
+    <ClCompile Include="Unit\Utils\Path\PathValidatorTest.cpp" />
+    <ClCompile Include="Unit\Utils\Error\WheelLibExceptionTest.cpp" />
+    <ClCompile Include="Unit\Utils\Error\ErrorHandlerTest.cpp" />
+    <ClCompile Include="Unit\Utils\ThreadPool\ThreadPoolTest.cpp" />
+    <ClCompile Include="Unit\Utils\Logger\LoggerTest.cpp" />
+    <ClCompile Include="Unit\Utils\Profiler\PerformanceProfilerTest.cpp" />
+    <ClCompile Include="Unit\Utils\Workspace\WorkspaceTest.cpp" />
+    <ClCompile Include="Unit\Utils\Memory\MemoryManagerTest.cpp" />
+    <ClCompile Include="Unit\Utils\Memory\GPUMemoryPoolTest.cpp" />
+    <ClCompile Include="Unit\Utils\Memory\GPUMemoryGuardTest.cpp" />
+    <ClCompile Include="Unit\Utils\Export\ImageExporterTest.cpp" />
+    <ClCompile Include="Unit\Utils\Export\MetricsExporterTest.cpp" />
+    <ClCompile Include="Unit\Config\YamlParserTest.cpp" />
+    <ClCompile Include="Unit\Config\JsonParserTest.cpp" />
+    <ClCompile Include="Unit\Config\ConfigurationTest.cpp" />
+    <ClCompile Include="Unit\Optimizer\EarlyStoppingTest.cpp" />
+    <ClCompile Include="Unit\Optimizer\OptimizerFactoryTest.cpp" />
+    <ClCompile Include="Unit\Optimizer\LRSchedulerTest.cpp" />
+    <ClCompile Include="Unit\Optimizer\ModelEMATest.cpp" />
+    <ClCompile Include="Unit\Data\Common\AnnotationTest.cpp" />
+    <ClCompile Include="Unit\Data\Utils\ImageIOTest.cpp" />
+    <ClCompile Include="Unit\Data\Cache\RAMCacheTest.cpp" />
+    <ClCompile Include="Unit\Data\Cache\CacheManagerTest.cpp" />
+    <ClCompile Include="Unit\Data\Transforms\TransformTest.cpp" />
+    <ClCompile Include="Unit\Data\Transforms\GeometricTransformsTest.cpp" />
+    <ClCompile Include="Unit\Data\Transforms\ColorTransformsTest.cpp" />
+    <ClCompile Include="Unit\Data\Augmentation\MosaicTest.cpp" />
+    <ClCompile Include="Unit\Data\Collation\CollationTest.cpp" />
+    <ClCompile Include="Unit\Data\Dataset\DataExampleTest.cpp" />
+    <ClCompile Include="Unit\Data\Dataset\BaseDatasetTest.cpp" />
+    <ClCompile Include="Unit\Data\Dataset\ClassificationDatasetTest.cpp" />
+    <ClCompile Include="Unit\Data\Dataset\DetectionDatasetTest.cpp" />
+    <ClCompile Include="Unit\Data\Dataset\OBBDatasetTest.cpp" />
+    <ClCompile Include="Unit\Data\Dataset\SegmentationDatasetTest.cpp" />
+    <ClCompile Include="Unit\Data\Dataset\AnomalyDatasetTest.cpp" />
+    <ClCompile Include="Unit\Data\Dataset\PredDatasetTest.cpp" />
+    <ClCompile Include="Unit\Data\Dataset\EdgeCaseTest.cpp" />
+    <ClCompile Include="Unit\Data\Dataset\PerformanceStressTest.cpp" />
+    <ClCompile Include="Unit\Model\Loss\BaseLossTest.cpp" />
+    <ClCompile Include="Unit\Model\Loss\ClassificationLossTest.cpp" />
+    <ClCompile Include="Unit\Model\Loss\DetectionLossTest.cpp" />
+    <ClCompile Include="Unit\Model\Loss\OBBLossTest.cpp" />
+    <ClCompile Include="Unit\Model\Loss\SegmentationLossTest.cpp" />
+    <ClCompile Include="Unit\Model\Loss\AnomalyLossTest.cpp" />
+    <ClCompile Include="Unit\Model\Utils\IoUTest.cpp" />
+    <ClCompile Include="Unit\Model\Utils\CoordinateConversionTest.cpp" />
+    <ClCompile Include="Unit\Model\Utils\MakeAnchorsTest.cpp" />
+    <ClCompile Include="Unit\Model\Utils\NMSTest.cpp" />
+    <ClCompile Include="Unit\Model\Utils\TaskAlignedAssignerTest.cpp" />
+    <ClCompile Include="Unit\Model\Utils\ExceptionHandlingTest.cpp" />
+    <ClCompile Include="Unit\Model\IntegrationTest.cpp" />
+    <!-- Model/Builder Tests -->
+    <ClCompile Include="Unit\Model\Builder\YamlArgsParserTest.cpp" />
+    <ClCompile Include="Unit\Model\Builder\ModuleFactoryRegistryTest.cpp" />
+    <ClCompile Include="Unit\Model\Builder\ConvolutionFactoryTest.cpp" />
+    <ClCompile Include="Unit\Model\Builder\BlockFactoryTest.cpp" />
+    <ClCompile Include="Unit\Model\Builder\AttentionFactoryTest.cpp" />
+    <ClCompile Include="Unit\Model\Builder\HeadFactoryTest.cpp" />
+    <ClCompile Include="Unit\Model\Builder\TransformerFactoryTest.cpp" />
+    <ClCompile Include="Unit\Model\Builder\UtilityFactoryTest.cpp" />
+    <ClCompile Include="Unit\Model\Builder\ModelBuilderTest.cpp" />
+    <!-- Model/Modules Tests -->
+    <ClCompile Include="Unit\Model\Modules\ActivationTest.cpp" />
+    <ClCompile Include="Unit\Model\Modules\ConvTest.cpp" />
+    <ClCompile Include="Unit\Model\Modules\BlockTest.cpp" />
+    <ClCompile Include="Unit\Model\Modules\AttentionTest.cpp" />
+    <ClCompile Include="Unit\Model\Modules\TransformerTest.cpp" />
+    <ClCompile Include="Unit\Model\Modules\HeadTest.cpp" />
+    <ClCompile Include="Unit\Model\Modules\UtilsTest.cpp" />
+    <!-- Integration Tests -->
+    <ClCompile Include="Unit\Model\Builder\IntegrationTest.cpp" />
   </ItemGroup>
+  <!-- Project Reference -->
   <ItemGroup>
     <ProjectReference Include="..\WheelDL.Lib\WheelDL.Lib.vcxproj">
       <Project>{589355e0-d39b-4e7a-8c77-a8237d983652}</Project>
     </ProjectReference>
   </ItemGroup>
+  <!-- Resource Files -->
   <ItemGroup>
-    <None Include="Data\Phase3TestConfigs\Integration\anomaly_pipeline.yaml" />
-    <None Include="Data\Phase3TestConfigs\Integration\classification_pipeline.yaml" />
-    <None Include="Data\Phase3TestConfigs\Integration\detection_pipeline.yaml" />
-    <None Include="Data\Phase3TestConfigs\Integration\obb_pipeline.yaml" />
-    <None Include="Data\Phase3TestConfigs\Integration\segmentation_pipeline.yaml" />
-    <None Include="Data\Phase3TestConfigs\Models\invalid_missing_head.yaml" />
-    <None Include="Data\Phase3TestConfigs\Models\minimal_anomaly.yaml" />
-    <None Include="Data\Phase3TestConfigs\Models\minimal_classification.yaml" />
-    <None Include="Data\Phase3TestConfigs\Models\minimal_detection.yaml" />
-    <None Include="Data\Phase3TestConfigs\Models\minimal_obb.yaml" />
-    <None Include="Data\Phase3TestConfigs\Models\minimal_segmentation.yaml" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
