@@ -43,14 +43,20 @@ A comprehensive C++ deep learning library built on PyTorch C++ (LibTorch) for co
 
 ### Training Infrastructure
 
+- **Core Engine**: Unified training/validation/prediction pipeline
+  - Task-specific Trainers, Validators, Predictors
+  - TaskManager for async task management
+  - Checkpoint save/load with metadata
 - **Multi-GPU Support**: CUDA 12.4 acceleration
-- **Dynamic Batch Sizing**: Automatic GPU memory management
+- **Optimizer Support**: SGD, Adam, AdamW with factory pattern
+- **LR Schedulers**: Cosine Annealing, Linear warmup
+- **Training Utilities**: EarlyStopping, Model EMA
 - **Loss Functions**:
   - Classification: CrossEntropy, BCE
   - Detection: DFL, CIOU, GIoU
   - Segmentation: BCE+Dice
   - Anomaly: EfficientAD, PatchCore
-- **Memory Optimization**: Gradient accumulation, mixed precision support
+- **Memory Optimization**: GPU memory pooling, gradient accumulation
 
 ## Technologies & Frameworks
 
@@ -75,39 +81,57 @@ A comprehensive C++ deep learning library built on PyTorch C++ (LibTorch) for co
 ## Project Structure
 
 ```
-WheelLib/
-├── WheelDL.Lib/                # Main library
-│   ├── Config/                 # Configuration management
-│   ├── Data/                   # Data loading and processing
-│   │   ├── Augmentation/       # Data augmentation
-│   │   ├── Cache/              # Caching mechanisms
-│   │   ├── Dataset/            # Dataset implementations
-│   │   ├── Transforms/         # Image transformations
-│   │   └── Utils/              # Data utilities
-│   ├── Model/                  # Neural network models
-│   │   ├── Builder/            # Model construction
-│   │   │   └── Factory/        # Factory patterns for modules
-│   │   ├── Loss/               # Loss functions
-│   │   ├── Modules/            # Network modules
-│   │   │   ├── Block.cpp       # Basic building blocks
-│   │   │   ├── Conv.cpp        # Convolution layers
-│   │   │   ├── Head.cpp        # Task-specific heads
-│   │   │   ├── Model.cpp       # Anomaly detection models
-│   │   │   └── Transformer.cpp # Transformer modules
-│   │   ├── Task/               # Task-specific models
-│   │   │   ├── ClassificationModel
-│   │   │   ├── DetectionModel
-│   │   │   ├── SegmentationModel
-│   │   │   └── AnomalyModel
-│   │   └── Utils/              # Model utilities
-│   └── Utils/                  # General utilities
-│       ├── Logger/             # Logging system (spdlog)
-│       ├── Memory/             # Memory management
-│       ├── Profiler/           # Performance profiling
-│       └── ThreadPool/         # Multi-threading support
-├── WheelDL.Lib.Tests/          # Unit and integration tests
-└── 3rdparty/                   # Third-party libraries
-    └── yaml-cpp-src/           # YAML parser
+WheelDL-Library/
+├── WheelDL.Lib/                    # Main library
+│   ├── Config/                     # Configuration management
+│   │   ├── Configuration           # Main config class
+│   │   ├── JsonParser              # JSON parsing
+│   │   └── YamlParser              # YAML parsing
+│   ├── Core/                       # Core training/inference engine
+│   │   ├── Callback/               # Async callback system
+│   │   ├── Engine/                 # Base trainer/validator/predictor
+│   │   ├── Manager/                # Task management & context
+│   │   ├── Predictor/              # Task-specific predictors
+│   │   ├── Trainer/                # Task-specific trainers
+│   │   ├── Utils/                  # Checkpoint utilities
+│   │   └── Validator/              # Task-specific validators
+│   ├── Data/                       # Data loading and processing
+│   │   ├── Augmentation/           # Mosaic, MixUp augmentation
+│   │   ├── Cache/                  # RAM/Disk caching
+│   │   ├── Common/                 # Annotation handling
+│   │   ├── Dataset/                # Dataset implementations
+│   │   ├── Transforms/             # Color/Geometric transforms
+│   │   └── Utils/                  # Image I/O utilities
+│   ├── Model/                      # Neural network models
+│   │   ├── Builder/                # Model construction
+│   │   │   └── Factory/            # Module factories (Conv, Block, Attention, etc.)
+│   │   ├── Loss/                   # Loss functions per task
+│   │   ├── Modules/                # Network modules (50+ types)
+│   │   ├── Task/                   # Task-specific model wrappers
+│   │   └── Utils/                  # IoU, NMS, TaskAlignedAssigner
+│   ├── Optimizer/                  # Optimization utilities
+│   │   ├── EarlyStopping/          # Early stopping callback
+│   │   ├── EMA/                    # Exponential moving average
+│   │   ├── Scheduler/              # LR schedulers (Cosine, Linear)
+│   │   └── OptimizerFactory        # Optimizer creation (SGD, Adam, AdamW)
+│   └── Utils/                      # General utilities
+│       ├── Common/                 # Types, Random, Timer, Constants
+│       ├── Error/                  # Exception handling
+│       ├── Export/                 # Image/Metrics exporters
+│       ├── Logger/                 # Logging system (spdlog)
+│       ├── Memory/                 # GPU memory management
+│       ├── Path/                   # Path validation
+│       ├── Profiler/               # Performance profiling
+│       ├── ThreadPool/             # Multi-threading support
+│       └── Workspace/              # Workspace management
+├── WheelDL.Lib.Tests/              # Unit tests
+│   └── Unit/                       # Component-based test structure
+│       ├── Config/                 # Configuration tests
+│       ├── Data/                   # Data pipeline tests
+│       ├── Model/                  # Model & module tests
+│       ├── Optimizer/              # Optimizer tests
+│       └── Utils/                  # Utility tests
+└── 3rdparty/                       # Third-party libraries
 ```
 
 ## Architecture Highlights
@@ -116,7 +140,7 @@ WheelLib/
 - Smart pointer usage (unique_ptr, shared_ptr)
 - RAII pattern for resource management
 - GPU memory pooling and guards
-- Dynamic batch sizing based on available memory
+- GPU memory monitoring and management
 - 5GB memory limit for PatchCore memory bank building
 
 ### Performance Optimizations
