@@ -1,4 +1,0 @@
-# Minimal hyperparameters (missing most optional fields)
-# Only essential fields, rest should use defaults
-epochs: 10
-batch_size: 16

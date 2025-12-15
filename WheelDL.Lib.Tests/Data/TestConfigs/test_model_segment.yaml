@@ -1,7 +1,0 @@
-# Test segmentation model
-num_classes: 20
-default_act: SiLU
-
-head:
-  - [-1, 1, Conv, [256, 1, 1]]
-  - [-1, 1, Segment, [num_classes]]

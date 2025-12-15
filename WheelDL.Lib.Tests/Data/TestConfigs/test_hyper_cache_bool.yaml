@@ -1,5 +1,0 @@
-# Test hyperparameters with cache as bool
-epochs: 10
-batch_size: 16
-cache: true
-lr0: 0.01

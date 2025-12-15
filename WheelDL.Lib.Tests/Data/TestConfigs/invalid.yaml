@@ -1,3 +1,0 @@
-# This is an intentionally invalid YAML for testing error handling
-invalid: yaml: content: [unclosed
-  another_line
