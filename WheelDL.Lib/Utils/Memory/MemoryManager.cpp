@@ -45,27 +45,35 @@ namespace WheelDL
 				return stats;
 			}
 
+			// First, get total GPU memory from CUDA (this is reliable)
 			try {
-				// Get allocated memory from PyTorch
-				auto device_stats = c10::cuda::CUDACachingAllocator::getDeviceStats(deviceIndex);
-#if TORCH_VERSION_MAJOR < 2
-				stats.allocated = device_stats.allocated_bytes[static_cast<size_t>(c10::cuda::CUDACachingAllocator::StatType::AGGREGATE)].current;
-#else
-				stats.allocated = device_stats.allocated_bytes[static_cast<size_t>(c10::CachingDeviceAllocator::StatType::AGGREGATE)].current;
-#endif
-				// Get total GPU memory
 				cudaDeviceProp deviceProp;
 				cudaError_t err = cudaGetDeviceProperties(&deviceProp, deviceIndex);
 				if (err != cudaSuccess) {
 					return stats;
 				}
 				stats.total = deviceProp.totalGlobalMem;
-				stats.valid = true;
-
-				return stats;
 			} catch (...) {
 				return stats;
 			}
+
+			// Then, try to get allocated memory from PyTorch CachingAllocator
+			// This may fail if CUDA context is not initialized yet
+			try {
+				auto device_stats = c10::cuda::CUDACachingAllocator::getDeviceStats(deviceIndex);
+#if TORCH_VERSION_MAJOR < 2
+				stats.allocated = device_stats.allocated_bytes[static_cast<size_t>(c10::cuda::CUDACachingAllocator::StatType::AGGREGATE)].current;
+#else
+				stats.allocated = device_stats.allocated_bytes[static_cast<size_t>(c10::CachingDeviceAllocator::StatType::AGGREGATE)].current;
+#endif
+			} catch (...) {
+				// CachingAllocator failed - assume 0 allocated (conservative estimate)
+				// This can happen if no PyTorch CUDA operations have been performed yet
+				stats.allocated = 0;
+			}
+
+			stats.valid = true;
+			return stats;
 		}
 #endif
 
