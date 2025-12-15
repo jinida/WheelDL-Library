@@ -23,6 +23,7 @@ Configuration::Configuration()
 	, _seed(0)
 	, _deterministic(false)
 	, _cosLR(false)
+	, _linearLR(false)
 	, _closeMosaic(0)
 	, _freezeLayers(0)
 	, _amp(true)
@@ -50,8 +51,6 @@ Configuration::Configuration()
 	, _flipud(0.0f)
 	, _fliplr(0.5f)
 	, _mosaic(0.0f)
-	, _mixup(0.0f)
-	, _cutmix(0.0f)
 	, _blurKernelSize(3)
 	, _blurProbability(0.01f)
 	, _fillBorder(0)
@@ -60,13 +59,13 @@ Configuration::Configuration()
 	, _iou(0.7f)
 	, _maxDet(300)
 	, _dropout(0.0f)
-	, _cacheSize(256)
+	, _cacheSize(0)
+	, _numDataSamples(0)
 	, _emaEnabled(false)
 {
 }
 
 Configuration::~Configuration() {
-
 }
 
 void Configuration::load(const std::string& modelPath, const std::string& hyperParamPath, const std::string& datasetPath)
@@ -75,14 +74,14 @@ void Configuration::load(const std::string& modelPath, const std::string& hyperP
 
 	_modelPath = modelPath;
 
-	// Load hyperparameters from YAML
-	YAML::Node hyperParamConfig = YamlParser::parseFrom(hyperParamPath);
-	loadHyperParams(hyperParamConfig);
-
 	// Load dataset configuration from JSON
 	_datasetPath = datasetPath;
 	nlohmann::json datasetJson = JsonParser::parseFrom(datasetPath);
 	loadDatasetConfig(datasetJson);
+
+	// Load hyperparameters from YAML
+	YAML::Node hyperParamConfig = YamlParser::parseFrom(hyperParamPath);
+	loadHyperParams(hyperParamConfig);
 }
 
 void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
@@ -143,7 +142,7 @@ void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
 	_deterministic = YamlParser::getBool(hyperParamConfig, "deterministic", false);
 	_cosLR = YamlParser::getBool(hyperParamConfig, "cos_lr", false);
 	_linearLR = YamlParser::getBool(hyperParamConfig, "linear_lr", false);
-	_closeMosaic = YamlParser::getInt(hyperParamConfig, "close_mosaic", 10);
+	_closeMosaic = YamlParser::getInt(hyperParamConfig, "close_mosaic", 0);
 	_freezeLayers = YamlParser::getInt(hyperParamConfig, "freeze", 0);
 	_amp = YamlParser::getBool(hyperParamConfig, "amp", true);
 	_bfloat16 = YamlParser::getBool(hyperParamConfig, "bfloat16", false);
@@ -170,7 +169,7 @@ void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
 	_lrf = YamlParser::getFloat(hyperParamConfig, "lrf", 0.01f);
 	_momentum = YamlParser::getFloat(hyperParamConfig, "momentum", 0.937f);
 	_weightDecay = YamlParser::getFloat(hyperParamConfig, "weight_decay", 0.0005f);
-	_warmupEpochs = YamlParser::getFloat(hyperParamConfig, "warmup_epochs", 3.0f);
+	_warmupEpochs = YamlParser::getFloat(hyperParamConfig, "warmup_epochs", 0.0f);
 	_warmupMomentum = YamlParser::getFloat(hyperParamConfig, "warmup_momentum", 0.8f);
 	_warmupBiasLR = YamlParser::getFloat(hyperParamConfig, "warmup_bias_lr", 0.1f);
 	_amsgrad = YamlParser::getBool(hyperParamConfig, "amsgrad", false);
@@ -195,9 +194,7 @@ void Configuration::loadHyperParams(const YAML::Node& hyperParamConfig) {
 	
 	_flipud = YamlParser::getFloat(hyperParamConfig, "flipud", 0.0f);
 	_fliplr = YamlParser::getFloat(hyperParamConfig, "fliplr", 0.5f);
-	_mosaic = YamlParser::getFloat(hyperParamConfig, "mosaic", 1.0f);
-	_mixup = YamlParser::getFloat(hyperParamConfig, "mixup", 0.0f);
-	_cutmix = YamlParser::getFloat(hyperParamConfig, "cutmix", 0.0f);
+	_mosaic = YamlParser::getFloat(hyperParamConfig, "mosaic", 0.0f);
 	_blurKernelSize = YamlParser::getInt(hyperParamConfig, "blur_kernel_size", 3);
 	_blurProbability = (TaskType::ANOMALY == _taskType) ? 0.0f : YamlParser::getFloat(hyperParamConfig, "blur_probability", 0.01f);
 	_fillBorder = YamlParser::getInt(hyperParamConfig, "fill_border", 0);
@@ -262,8 +259,6 @@ void Configuration::validateConfiguration()
 	validateProbability(_flipud, "flipud");
 	validateProbability(_fliplr, "fliplr");
 	validateProbability(_mosaic, "mosaic");
-	validateProbability(_mixup, "mixup");
-	validateProbability(_cutmix, "cutmix");
 	validateProbability(_blurProbability, "blur_probability");
 	validateProbability(_dropout, "dropout");
 	validateProbability(_iou, "iou");
@@ -376,14 +371,26 @@ void Configuration::loadDatasetConfig(const nlohmann::json& datasetJson)
 				// Use array index as class ID
 				for (size_t i = 0; i < categories.size(); ++i)
 				{
-					std::string className = categories[i].get<std::string>();
-					_classNames[static_cast<int>(i)] = className;
+					try
+					{
+						std::string className = categories[i].get<std::string>();
+						_classNames[static_cast<int>(i)] = className;
+					}
+					catch (const std::exception& e)
+					{
+						throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE,
+							"Invalid class name at index " + std::to_string(i) + " in dataset configuration: expected string");
+					}
 				}
 			}
 		}
 
-		auto& annotations = datasetJson["annotations"];
-		_numDataSamples = annotations.size();
+		// Safely access annotations - may not exist in all dataset files
+		if (datasetJson.contains("annotations")) {
+			_numDataSamples = datasetJson["annotations"].size();
+		} else {
+			_numDataSamples = 0;
+		}
 	}
 
 	// Update number of classes

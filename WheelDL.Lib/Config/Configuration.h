@@ -34,7 +34,6 @@ namespace WheelDL {
 			 * @brief Destructor
 			 */
 			~Configuration();
-
 			/**
 			 * @brief Load configuration from YAML files
 			 * @param modelPath Path to model YAML file
@@ -375,13 +374,35 @@ namespace WheelDL {
 			
 			bool IsEfficientAD() const { return _isEfficientAD; }
 			bool IsPatchCore() const { return _isPatchCore; }
-			void setIsEfficientAD(bool val) { _isEfficientAD = val; }
-			void setIsPatchCore(bool val) { _isPatchCore = val; }
+			
+			void setIsEfficientAD(bool val)
+			{ 
+				_isEfficientAD = val;
+				_imageSize = 256;
+				_warmupEpochs = 0.0f;
+			}
+
+			void setIsPatchCore(bool val)
+			{ 
+				_isPatchCore = val;
+				_epochs = 0;
+				_imageSize = 256;
+				_warmupEpochs = 0.0f;
+			}
+
 			void setEpochs(int epochs) 
 			{ 
-				_epochs = epochs; 
-				_warmupEpochs = std::min(_warmupEpochs, static_cast<float>(_epochs) * 0.03f);
+				if (epochs < 0)
+				{
+					_epochs = 0;
+				}
+				else
+				{
+					_epochs = epochs; 
+				}
+				_warmupEpochs = 0.0f;
 			}
+
 			void setWarmupEpochs(float warmupEpochs) 
 			{ 
 				_warmupEpochs = std::min(warmupEpochs, static_cast<float>(_epochs) * 0.03f);
@@ -391,9 +412,25 @@ namespace WheelDL {
 			void setImageNetNorm(bool val) { _isImageNetNormalized = val; }
 			int getTopK() const { return _topK; }
 			size_t getNumDataSamples() const { return _numDataSamples; }
-			void setLearningRateFirst(float lr) { _lr0 = lr; }
+			void setLearningRateFirst(float lr) 
+			{ 
+				if (lr < 1e-8f)
+				{
+					_lr0 = 1e-8f;
+				}
+				else
+				{
+					_lr0 = lr; 
+				}
+			}
 			void setMomentum(float momentum) { _momentum = momentum; }
 			void setOptimizer(const std::string& optimizer) { _optimizer = optimizer; }
+
+			/**
+			 * @brief Validate configuration values
+			 * @throws ConfigurationException if any value is out of valid range
+			 */
+			void validateConfiguration();
 
 		private:
 			// Task type (inferred from model)
@@ -450,8 +487,6 @@ namespace WheelDL {
 			float _flipud;
 			float _fliplr;
 			float _mosaic;
-			float _mixup;
-			float _cutmix;
 			int _blurKernelSize;
 			float _blurProbability;
 			int _fillBorder;
@@ -490,12 +525,6 @@ namespace WheelDL {
 			 * @param datasetConfig YAML node
 			 */
 			void loadDatasetConfig(const nlohmann::json& datasetJson);
-
-			/**
-			 * @brief Validate configuration values
-			 * @throws std::invalid_argument if any value is out of valid range
-			 */
-			void validateConfiguration();
 		};
 
 	} // namespace Config
