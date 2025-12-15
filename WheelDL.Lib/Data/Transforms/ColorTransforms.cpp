@@ -944,8 +944,8 @@ namespace WheelDL
             // ToGray
             // ========================================
 
-            ToGray::ToGray(bool keepChannels)
-                : keepChannels_(keepChannels)
+            ToGray::ToGray(bool keepChannels, float probability)
+				: keepChannels_(keepChannels), probability_(probability)
             {
             }
 

@@ -130,6 +130,13 @@ namespace WheelDL
                             polygon.push_back(obj[i].get<float>());
                         }
 
+                        // Validate: polygon must have even number of coordinates (x,y pairs)
+                        if (polygon.size() % 2 != 0)
+                        {
+                            std::cerr << "Polygon must have even number of coordinates (x,y pairs), got " + std::to_string(polygon.size()) << std::endl;
+                            continue;
+                        }
+
                         // Add polygon to annotation (pixel coordinates, not normalized)
                         if (!polygon.empty())
                         {

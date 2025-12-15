@@ -210,7 +210,7 @@ namespace WheelDL
                  * @brief Construct ToGray transform
                  * @param keepChannels If true, output 3-channel grayscale (same value in all channels)
                  */
-                explicit ToGray(bool keepChannels = false);
+                explicit ToGray(bool keepChannels = false, float probability = 0.01f);
 
                 void apply(cv::Mat& image, Annotation& annotations) override;
                 std::string getName() const override { return "ToGray"; }
@@ -218,7 +218,7 @@ namespace WheelDL
 
             private:
                 bool keepChannels_;
-				float probability_ = 0.01;
+                float probability_;
             };
 
             /**

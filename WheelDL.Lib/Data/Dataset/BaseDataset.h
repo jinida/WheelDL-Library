@@ -307,11 +307,12 @@ namespace WheelDL
 
                 /**
                  * @brief Check if Mosaic augmentation is currently enabled
-                 * @return bool True if enabled (Mosaic object exists)
+                 * @return bool True if enabled (Mosaic object exists and dataset has >= 4 images)
                  */
                 bool isMosaicEnabled() const
                 {
-                    return _mosaicTransform != nullptr;
+                    // Mosaic requires at least 4 images
+                    return _mosaicTransform != nullptr && _imagePaths.size() >= 4;
                 }
 
                 /**

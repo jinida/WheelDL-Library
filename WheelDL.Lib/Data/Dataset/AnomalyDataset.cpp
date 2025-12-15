@@ -57,54 +57,60 @@ namespace WheelDL
                         );
                     }
 
-                    // Get expected role: 0=train, 1=test
-                    int expectedRole = _train ? 0 : 1;
-
-                    // Process each annotation
+                    // Check if annotations array is empty - fall back to directory scan
                     const auto& annotations = annotationJson["annotations"];
-                    for (const auto& annot : annotations)
+                    if (annotations.empty())
                     {
-                        // Check role filter
-                        int role = JsonParser::getInt(annot, "role", -1);
-                        if (role != expectedRole)
+                        hasLabels = false;
+                    }
+                    else
+                    {
+                        // Get expected role: 0=train, 1=test
+                        int expectedRole = _train ? 0 : 1;
+
+                        // Process each annotation
+                        for (const auto& annot : annotations)
                         {
-                            continue;  // Skip annotations not matching current dataset role
+                            // Check role filter
+                            int role = JsonParser::getInt(annot, "role", -1);
+                            if (role != expectedRole)
+                            {
+                                continue;  // Skip annotations not matching current dataset role
+                            }
+
+                            // Get filename
+                            std::string filename = JsonParser::getString(annot, "filename", "");
+                            if (filename.empty())
+                            {
+                                continue;
+                            }
+
+                            // Build full image path
+                            std::filesystem::path imagePath = std::filesystem::path(_dataPath) / filename;
+                            if (!std::filesystem::exists(imagePath))
+                            {
+                                continue;
+                            }
+
+                            // Get anomaly label (0 = normal, 1 = anomaly)
+                            int label = JsonParser::getInt(annot, "label", -1);
+                            if (label < 0)
+                            {
+                                continue;
+                            }
+
+                            // Add to dataset
+                            std::string imagePathStr = imagePath.string();
+                            _imagePaths.push_back(imagePathStr);
+
+                            // Create annotation with anomaly label
+                            Annotation annotation = Annotation::forClassification(label);
+                            _annotations[imagePathStr] = annotation;
                         }
-
-                        // Get filename
-                        std::string filename = JsonParser::getString(annot, "filename", "");
-                        if (filename.empty())
-                        {
-                            std::cerr << "Warning: Annotation missing filename, skipping" << std::endl;
-                            continue;
-                        }
-
-                        // Build full image path
-                        std::filesystem::path imagePath = std::filesystem::path(_dataPath) / filename;
-                        if (!std::filesystem::exists(imagePath))
-                        {
-                            std::cerr << "Warning: Image file not found: " << imagePath << std::endl;
-                            continue;
-                        }
-
-                        // Get anomaly label (0 = normal, 1 = anomaly)
-                        int label = JsonParser::getInt(annot, "label", -1);
-                        if (label < 0)
-                        {
-                            std::cerr << "Warning: Invalid label for " << filename << std::endl;
-                            continue;
-                        }
-
-                        // Add to dataset
-                        std::string imagePathStr = imagePath.string();
-                        _imagePaths.push_back(imagePathStr);
-
-                        // Create annotation with anomaly label
-                        Annotation annotation = Annotation::forClassification(label);
-                        _annotations[imagePathStr] = annotation;
                     }
                 }
-                else
+
+                if (!hasLabels)
                 {
                     // No labels, load all images from directory (assumed normal for training)
                     for (const auto& entry : std::filesystem::directory_iterator(_dataPath))
@@ -177,7 +183,7 @@ namespace WheelDL
 
                 if (classes.empty())
                 {
-                    return torch::tensor({1}, torch::kLong);
+                    return torch::tensor({0}, torch::kLong);
                 }
 
                 int label = classes[0];

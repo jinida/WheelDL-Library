@@ -896,7 +896,7 @@ namespace WheelDL
                 else
                 {
                     // For XYXY, POLYGON, XYXYXYXY - transform coordinate pairs using perspective matrix
-                    for (size_t i = 0; i < point.size(); i += 2) {
+                    for (size_t i = 0; i + 1 < point.size(); i += 2) {
                         float x = point[i];
                         float y = point[i + 1];
 
@@ -1041,7 +1041,7 @@ namespace WheelDL
                 else
                 {
                     // XYXY, POLYGON - clip all coordinate pairs
-                    for (size_t j = 0; j < point.size(); j += 2)
+                    for (size_t j = 0; j + 1 < point.size(); j += 2)
                     {
                         float& x = point[j];
                         float& y = point[j + 1];

@@ -147,6 +147,13 @@ namespace WheelDL
                 // Deserialize points (vector<vector<float>>)
                 uint32_t numPoints;
                 readBinary(iss, numPoints);
+
+                // Validate points count (max 10 million to prevent memory exhaustion)
+                constexpr uint32_t MAX_POINTS_COUNT = 10 * 1000 * 1000;
+                if (numPoints > MAX_POINTS_COUNT) {
+                    throw std::runtime_error("Points count exceeds maximum allowed size");
+                }
+
                 annotations.points_.resize(numPoints);
                 for (uint32_t i = 0; i < numPoints; ++i) {
                     annotations.points_[i] = readVector<float>(iss);
