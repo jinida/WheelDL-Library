@@ -28,7 +28,7 @@
 .vscode
 __pycache__
 docs
-dataset
+/dataset
 python_src
 3rdparty
 packages
