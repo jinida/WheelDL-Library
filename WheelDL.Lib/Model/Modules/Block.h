@@ -767,28 +767,28 @@ namespace WheelDL {
 			/**
 			 * @brief CBFuse module
 			 */
-			class CBFuseImpl : public IBlockImpl {
-			public:
-				/**
-				 * @brief Construct a new CBFuse module
-				 *
-				 * @param idx Indices for feature selection
-				 */
-				explicit CBFuseImpl(std::vector<int64_t> idx);
+			//class CBFuseImpl : public IBlockImpl {
+			//public:
+			//	/**
+			//	 * @brief Construct a new CBFuse module
+			//	 *
+			//	 * @param idx Indices for feature selection
+			//	 */
+			//	explicit CBFuseImpl(std::vector<int64_t> idx);
 
-				/**
-				 * @brief Forward pass through CBFuse module
-				 *
-				 * @param xs List of input tensors
-				 * @return torch::Tensor Fused output tensor
-				 */
-				torch::Tensor forward(std::vector<torch::Tensor> xs);
+			//	/**
+			//	 * @brief Forward pass through CBFuse module
+			//	 *
+			//	 * @param xs List of input tensors
+			//	 * @return torch::Tensor Fused output tensor
+			//	 */
+			//	torch::Tensor forward(std::vector<torch::Tensor> xs);
 
-			private:
-				std::vector<int64_t> _idx;
-			};
+			//private:
+			//	std::vector<int64_t> _idx;
+			//};
 
-			TORCH_MODULE(CBFuse);
+			//TORCH_MODULE(CBFuse);
 
 			/**
 			 * @brief C3k module

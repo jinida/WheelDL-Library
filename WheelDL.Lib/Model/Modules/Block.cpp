@@ -662,17 +662,17 @@ namespace WheelDL {
             ELAN1Impl::ELAN1Impl(int64_t c1, int64_t c2, int64_t c3, int64_t c4)
                 : RepNCSPELAN4Impl(c1, c2, c3, c4, 1) {
                 _c = c3 / 2;
-                _cv1 = register_module("cv1", Conv(c1, c3, 1, 1));
+                _cv1 = Conv(c1, c3, 1, 1);
 
                 torch::nn::Sequential cv2;
                 cv2->push_back(Conv(c3 / 2, c4, 3, 1));
-                _cv2 = register_module("cv2", cv2);
+                _cv2 = cv2;
 
                 torch::nn::Sequential cv3;
                 cv3->push_back(Conv(c4, c4, 3, 1));
-                _cv3 = register_module("cv3", cv3);
+                _cv3 = cv3;
 
-                _cv4 = register_module("cv4", Conv(c3 + (2 * c4), c2, 1, 1));
+                _cv4 = Conv(c3 + (2 * c4), c2, 1, 1);
             }
 
             // ============================================================================
@@ -706,35 +706,35 @@ namespace WheelDL {
             // CBFuse Implementation
             // ============================================================================
 
-            CBFuseImpl::CBFuseImpl(std::vector<int64_t> idx)
-                : _idx(idx) {
-            }
+            //CBFuseImpl::CBFuseImpl(std::vector<int64_t> idx)
+            //    : _idx(idx) {
+            //}
 
-            torch::Tensor CBFuseImpl::forward(std::vector<torch::Tensor> xs) {
-                // Validate inputs
-                if (xs.empty()) {
-                    throw std::invalid_argument("CBFuseImpl::forward received empty xs vector");
-                }
-                if (_idx.size() < xs.size() - 1) {
-                    throw std::invalid_argument("_idx size (" + std::to_string(_idx.size()) +
-                        ") must be >= xs.size()-1 (" + std::to_string(xs.size() - 1) + ")");
-                }
+            //torch::Tensor CBFuseImpl::forward(std::vector<torch::Tensor> xs) {
+            //    // Validate inputs
+            //    if (xs.empty()) {
+            //        throw std::invalid_argument("CBFuseImpl::forward received empty xs vector");
+            //    }
+            //    if (_idx.size() < xs.size() - 1) {
+            //        throw std::invalid_argument("_idx size (" + std::to_string(_idx.size()) +
+            //            ") must be >= xs.size()-1 (" + std::to_string(xs.size() - 1) + ")");
+            //    }
 
-                auto targetSize = xs.back().sizes().slice(2);
-                std::vector<torch::Tensor> res;
+            //    auto targetSize = xs.back().sizes().slice(2);
+            //    std::vector<torch::Tensor> res;
 
-                for (size_t i = 0; i < xs.size() - 1; ++i) {
-                    auto interpolated = torch::nn::functional::interpolate(
-                        xs[i].index({ torch::indexing::Slice(), _idx[i] }),
-                        torch::nn::functional::InterpolateFuncOptions()
-                        .size(std::vector<int64_t>(targetSize.begin(), targetSize.end()))
-                        .mode(torch::kNearest));
-                    res.push_back(interpolated);
-                }
+            //    for (size_t i = 0; i < xs.size() - 1; ++i) {
+            //        auto interpolated = torch::nn::functional::interpolate(
+            //            xs[i].index({ torch::indexing::Slice(), _idx[i] }),
+            //            torch::nn::functional::InterpolateFuncOptions()
+            //            .size(std::vector<int64_t>(targetSize.begin(), targetSize.end()))
+            //            .mode(torch::kNearest));
+            //        res.push_back(interpolated);
+            //    }
 
-                res.push_back(xs.back());
-                return torch::sum(torch::stack(res), /*dim=*/0);
-            }
+            //    res.push_back(xs.back());
+            //    return torch::sum(torch::stack(res), /*dim=*/0);
+            //}
 
             // ============================================================================
             // C3k Implementation

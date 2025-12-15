@@ -66,8 +66,6 @@ namespace WheelDL {
                 setSaveIndices(builder.getSaveIndices());
 
                 determineLossType();
-                _config->setWarmupEpochs(0);
-                _config->setImageSize(256);
 
                 _criterion = initCriterion();
                 _isInitialized = true;
@@ -123,7 +121,6 @@ namespace WheelDL {
                     {
                         _lossType = AnomalyLoss::LossType::PatchCore;
 						_config->setIsPatchCore(true);
-                        _config->setEpochs(0);
                         return;
                     }
                     else if (modelType == "SimpleNet") {
