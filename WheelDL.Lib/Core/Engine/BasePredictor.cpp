@@ -23,6 +23,15 @@ namespace WheelDL {
                 , _isWarmedUp(false)
                 , _checkpointPath(checkpointPath)
             {
+                if (!_logger) {
+                    throw WheelDL::Utils::WheelLibException(WheelDL::Utils::ErrorCode::INVALID_ARGUMENT,
+                        "Logger cannot be null");
+                }
+                if (!_profiler) {
+                    throw WheelDL::Utils::WheelLibException(WheelDL::Utils::ErrorCode::INVALID_ARGUMENT,
+                        "Profiler cannot be null");
+                }
+
                 _logger->info("BasePredictor", "Initializing predictor");
 
                 // Setup device
@@ -216,6 +225,12 @@ namespace WheelDL {
                 _profiler->start("warmup");
 
                 _logger->info("BasePredictor", "Warming up model...");
+
+                if (!_model) {
+                    _logger->warn("BasePredictor", "Warmup skipped: model not initialized");
+                    _profiler->stop("warmup");
+                    return;
+                }
 
                 try {
                     // Get input size from config

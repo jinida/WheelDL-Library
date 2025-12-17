@@ -37,6 +37,9 @@ TaskResult TrainingContext::run() {
             _state = TrainingState::STOPPED;
             result.finalState = TrainingState::STOPPED;
             _logger->info("TrainingContext", "Cancelled before start");
+            result.endTime = std::chrono::system_clock::now();
+            result.totalTimeMs = std::chrono::duration<double, std::milli>(
+                result.endTime - result.startTime).count();
             return result;
         }
 
