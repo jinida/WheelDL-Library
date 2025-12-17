@@ -242,7 +242,7 @@ TEST_F(BuilderModulesIntegrationTest, Pipeline_Transformer_FactoryToForward) {
 TEST_F(BuilderModulesIntegrationTest, ModuleChain_ConvToBlockToAttention) {
     // Create Conv -> C2f -> CBAM chain
     Conv conv(64, 128, 3, 2);
-    C2f c2f(128, 128, 2, true, 0.5);
+    C2f c2f(128, 128, 2, true, 1, 0.5);
     CBAM cbam(128);
 
     auto input = createInput(1, 64, 64, 64);
@@ -258,9 +258,9 @@ TEST_F(BuilderModulesIntegrationTest, ModuleChain_ConvToBlockToAttention) {
 TEST_F(BuilderModulesIntegrationTest, ModuleChain_BackboneNeck) {
     // Simulate backbone -> neck architecture
     Conv stem(3, 64, 3, 2);
-    C2f stage1(64, 128, 2, true, 0.5);
+    C2f stage1(64, 128, 2, true, 1, 0.5);
     SPPF sppf(128, 128, 5);
-    C2f neck(128, 256, 2, true, 0.5);
+    C2f neck(128, 256, 2, true, 1, 0.5);
 
     auto input = torch::randn({1, 3, 640, 640});
     auto x = stem->forward(input);
@@ -276,7 +276,7 @@ TEST_F(BuilderModulesIntegrationTest, ModuleChain_BackboneNeck) {
 TEST_F(BuilderModulesIntegrationTest, ModuleChain_ClassificationHead) {
     // Classification pipeline
     Conv stem(3, 64, 3, 2);
-    C2f stage(64, 512, 4, true, 0.5);
+    C2f stage(64, 512, 4, true, 1, 0.5);
     Classify head(512, 1000);
 
     auto input = torch::randn({1, 3, 224, 224});
@@ -344,7 +344,7 @@ TEST_F(BuilderModulesIntegrationTest, GradientFlow_Conv) {
 }
 
 TEST_F(BuilderModulesIntegrationTest, GradientFlow_Block) {
-    C2f block(64, 128, 2, true, 0.5);
+    C2f block(64, 128, 2, true, 1, 0.5);
 
     auto input = torch::randn({1, 64, 32, 32}, torch::requires_grad(true));
     auto output = block->forward(input);
@@ -382,7 +382,7 @@ TEST_F(BuilderModulesIntegrationTest, GradientFlow_Transformer) {
 TEST_F(BuilderModulesIntegrationTest, GradientFlow_FullPipeline) {
     // Full pipeline gradient test
     Conv conv(64, 128, 3, 2);
-    C2f block(128, 128, 2, true, 0.5);
+    C2f block(128, 128, 2, true, 1, 0.5);
     Classify head(128, 10);
 
     auto input = torch::randn({1, 64, 64, 64}, torch::requires_grad(true));
@@ -407,7 +407,7 @@ TEST_F(BuilderModulesIntegrationTest, GradientFlow_FullPipeline) {
 
 TEST_F(BuilderModulesIntegrationTest, TrainingMode_Propagation) {
     Conv conv(64, 128, 3, 1);
-    C2f block(128, 128, 2, true, 0.5);
+    C2f block(128, 128, 2, true, 1, 0.5);
 
     // Set to training mode
     conv->train();
@@ -425,7 +425,7 @@ TEST_F(BuilderModulesIntegrationTest, TrainingMode_Propagation) {
 }
 
 TEST_F(BuilderModulesIntegrationTest, TrainingMode_OutputConsistency) {
-    C2f block(64, 64, 2, true, 0.5);
+    C2f block(64, 64, 2, true, 1, 0.5);
     block->eval();
 
     auto input = createInput(1, 64, 32, 32);
@@ -508,7 +508,7 @@ TEST_F(BuilderModulesIntegrationTest, BatchSize_Conv) {
 }
 
 TEST_F(BuilderModulesIntegrationTest, BatchSize_Block) {
-    C2f block(64, 128, 2, true, 0.5);
+    C2f block(64, 128, 2, true, 1, 0.5);
 
     for (int batch : {1, 2, 4, 8}) {
         auto input = createInput(batch, 64, 32, 32);

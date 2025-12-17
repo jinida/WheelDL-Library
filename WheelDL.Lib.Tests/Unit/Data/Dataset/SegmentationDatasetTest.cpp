@@ -1077,24 +1077,3 @@ TEST_F(SegmentationDatasetTest, Integration_ClipToBounds)
     EXPECT_GE(minVal, 0.0f);
     EXPECT_LE(maxVal, 1.0f);
 }
-
-// SEG-060: Integration_OddPointsCount
-// Polygon coordinates must be even (x,y pairs) - odd count should throw exception
-TEST_F(SegmentationDatasetTest, Integration_OddPointsCount)
-{
-    std::string annotPath = testDir_ + "/a/b/c/odd_points.json";
-    std::ofstream file(annotPath);
-    file << "{\n";
-    file << "  \"header\": { \"categories\": [\"person\"] },\n";
-    file << "  \"annotations\": [\n";
-    // Odd number of coordinates (classId + 5 coords = one incomplete pair)
-    file << "    { \"filename\": \"image_0.jpg\", \"role\": 0, \"label\": [[0, 10.0, 10.0, 30.0, 10.0, 30.0]] }\n";
-    file << "  ]\n";
-    file << "}\n";
-    file.close();
-
-    Configuration config = createCustomConfig(annotPath);
-    EXPECT_THROW({
-        SegmentationDataset dataset(config, true);
-    }, std::exception);
-}

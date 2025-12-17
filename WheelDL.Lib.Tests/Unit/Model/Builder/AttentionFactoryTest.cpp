@@ -25,6 +25,7 @@ class AttentionFactoryTest : public ::testing::Test {
 protected:
     void SetUp() override {
         registry_ = &ModuleFactoryRegistry::instance();
+        torch::set_num_threads(1);
     }
 
     ModuleBuildContext createContext(int64_t inputCh = 64, double widthMult = 1.0,
