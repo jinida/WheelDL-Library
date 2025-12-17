@@ -1,0 +1,7 @@
+{
+  "header": {
+    "type": "classification",
+    "categories": ["class0", "class1"]
+  },
+  "annotations": []
+}
