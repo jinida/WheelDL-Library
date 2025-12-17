@@ -255,6 +255,13 @@
     <Filter Include="3rdparty\yaml-cpp\contrib">
       <UniqueIdentifier>{00C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
     </Filter>
+    <!-- Export Layer Filters -->
+    <Filter Include="header\Export">
+      <UniqueIdentifier>{A1C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\Export">
+      <UniqueIdentifier>{A2C737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <!-- Header Files -->
   <ItemGroup>
@@ -609,6 +616,22 @@
     </ClInclude>
     <ClInclude Include="Data\Dataset\PredDataset.h">
       <Filter>header\Data\Dataset</Filter>
+    </ClInclude>
+    <!-- Export Layer Headers -->
+    <ClInclude Include="Export\ExportTypes.h">
+      <Filter>header\Export</Filter>
+    </ClInclude>
+    <ClInclude Include="Export\ExportMacros.h">
+      <Filter>header\Export</Filter>
+    </ClInclude>
+    <ClInclude Include="Export\HandleRegistry.h">
+      <Filter>header\Export</Filter>
+    </ClInclude>
+    <ClInclude Include="Export\CallbackBridge.h">
+      <Filter>header\Export</Filter>
+    </ClInclude>
+    <ClInclude Include="Export\WheelExport.h">
+      <Filter>header\Export</Filter>
     </ClInclude>
   </ItemGroup>
   <!-- Source Files -->
@@ -1004,6 +1027,13 @@
     </ClCompile>
     <ClCompile Include="Model\Modules\Model.cpp">
       <Filter>source\Model\Modules</Filter>
+    </ClCompile>
+    <!-- Export Layer Sources -->
+    <ClCompile Include="Export\CallbackBridge.cpp">
+      <Filter>source\Export</Filter>
+    </ClCompile>
+    <ClCompile Include="Export\WheelExport.cpp">
+      <Filter>source\Export</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

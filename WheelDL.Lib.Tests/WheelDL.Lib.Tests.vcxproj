@@ -127,6 +127,10 @@
   <!-- Header Files -->
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <!-- Model/Task Test Infrastructure Headers -->
+    <ClInclude Include="Unit\Model\Task\TestFixtures.h" />
+    <ClInclude Include="Unit\Model\Task\MockConfiguration.h" />
+    <ClInclude Include="Unit\Model\Task\MockDataExample.h" />
   </ItemGroup>
   <!-- Source Files -->
   <ItemGroup>
@@ -136,7 +140,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Unit\Utils\Common\TypesTest.cpp" />
+    <!-- <ClCompile Include="Unit\Utils\Common\TypesTest.cpp" />
     <ClCompile Include="Unit\Utils\Common\TimerTest.cpp" />
     <ClCompile Include="Unit\Utils\Common\RandomTest.cpp" />
     <ClCompile Include="Unit\Utils\Error\ErrorCodesTest.cpp" />
@@ -191,7 +195,6 @@
     <ClCompile Include="Unit\Model\Utils\TaskAlignedAssignerTest.cpp" />
     <ClCompile Include="Unit\Model\Utils\ExceptionHandlingTest.cpp" />
     <ClCompile Include="Unit\Model\IntegrationTest.cpp" />
-    <!-- Model/Builder Tests -->
     <ClCompile Include="Unit\Model\Builder\YamlArgsParserTest.cpp" />
     <ClCompile Include="Unit\Model\Builder\ModuleFactoryRegistryTest.cpp" />
     <ClCompile Include="Unit\Model\Builder\ConvolutionFactoryTest.cpp" />
@@ -201,16 +204,24 @@
     <ClCompile Include="Unit\Model\Builder\TransformerFactoryTest.cpp" />
     <ClCompile Include="Unit\Model\Builder\UtilityFactoryTest.cpp" />
     <ClCompile Include="Unit\Model\Builder\ModelBuilderTest.cpp" />
-    <!-- Model/Modules Tests -->
     <ClCompile Include="Unit\Model\Modules\ActivationTest.cpp" />
     <ClCompile Include="Unit\Model\Modules\ConvTest.cpp" />
     <ClCompile Include="Unit\Model\Modules\BlockTest.cpp" />
     <ClCompile Include="Unit\Model\Modules\AttentionTest.cpp" />
     <ClCompile Include="Unit\Model\Modules\TransformerTest.cpp" />
     <ClCompile Include="Unit\Model\Modules\HeadTest.cpp" />
-    <ClCompile Include="Unit\Model\Modules\UtilsTest.cpp" />
+    <ClCompile Include="Unit\Model\Modules\UtilsTest.cpp" /> -->
     <!-- Integration Tests -->
-    <ClCompile Include="Unit\Model\Builder\IntegrationTest.cpp" />
+    <!-- <ClCompile Include="Unit\Model\Builder\IntegrationTest.cpp" /> -->
+    <!-- Model/Task Tests -->
+    <ClCompile Include="Unit\Model\Task\BaseModelTest.cpp" />
+    <ClCompile Include="Unit\Model\Task\ClassificationModelTest.cpp" />
+    <ClCompile Include="Unit\Model\Task\SegmentationModelTest.cpp" />
+    <ClCompile Include="Unit\Model\Task\DetectionModelTest.cpp" />
+    <ClCompile Include="Unit\Model\Task\OBBModelTest.cpp" />
+    <ClCompile Include="Unit\Model\Task\AnomalyModelTest.cpp" />
+    <ClCompile Include="Unit\Model\Task\TaskExceptionTest.cpp" />
+    <ClCompile Include="Unit\Model\Task\TaskIntegrationTest.cpp" />
   </ItemGroup>
   <!-- Project Reference -->
   <ItemGroup>

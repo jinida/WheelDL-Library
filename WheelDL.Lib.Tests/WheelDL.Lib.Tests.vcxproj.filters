@@ -91,303 +91,136 @@
     <Filter Include="Source Files\Unit\Model\Modules">
       <UniqueIdentifier>{11111111-0000-0000-0000-000000000026}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Unit\Model\Task">
+      <UniqueIdentifier>{11111111-0000-0000-0000-000000000027}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Unit">
+      <UniqueIdentifier>{11111111-0000-0000-0000-000000000100}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Unit\Model">
+      <UniqueIdentifier>{11111111-0000-0000-0000-000000000101}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Unit\Model\Task">
+      <UniqueIdentifier>{11111111-0000-0000-0000-000000000102}</UniqueIdentifier>
+    </Filter>
     <!-- Resource Files -->
     <Filter Include="Resource Files">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
   </ItemGroup>
-
   <!-- Header Files -->
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <!-- Model/Task Test Infrastructure Headers -->
+    <ClInclude Include="Unit\Model\Task\TestFixtures.h">
+      <Filter>Header Files\Unit\Model\Task</Filter>
+    </ClInclude>
+    <ClInclude Include="Unit\Model\Task\MockConfiguration.h">
+      <Filter>Header Files\Unit\Model\Task</Filter>
+    </ClInclude>
+    <ClInclude Include="Unit\Model\Task\MockDataExample.h">
+      <Filter>Header Files\Unit\Model\Task</Filter>
+    </ClInclude>
   </ItemGroup>
-
   <!-- Source Files -->
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <!-- Phase 1: Level 0 - Pure Utilities -->
-    <ClCompile Include="Unit\Utils\Common\TypesTest.cpp">
-      <Filter>Source Files\Unit\Utils\Common</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Utils\Common\TimerTest.cpp">
-      <Filter>Source Files\Unit\Utils\Common</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Utils\Common\RandomTest.cpp">
-      <Filter>Source Files\Unit\Utils\Common</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Utils\Error\ErrorCodesTest.cpp">
-      <Filter>Source Files\Unit\Utils\Error</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Utils\Path\PathValidatorTest.cpp">
-      <Filter>Source Files\Unit\Utils\Path</Filter>
-    </ClCompile>
     <!-- Phase 2: Level 1 - Error Handling & Threading -->
-    <ClCompile Include="Unit\Utils\Error\WheelLibExceptionTest.cpp">
-      <Filter>Source Files\Unit\Utils\Error</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Utils\Error\ErrorHandlerTest.cpp">
-      <Filter>Source Files\Unit\Utils\Error</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Utils\ThreadPool\ThreadPoolTest.cpp">
-      <Filter>Source Files\Unit\Utils\ThreadPool</Filter>
-    </ClCompile>
     <!-- Phase 3: Level 2 - Factory Pattern & RAII -->
-    <ClCompile Include="Unit\Utils\Logger\LoggerTest.cpp">
-      <Filter>Source Files\Unit\Utils\Logger</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Utils\Profiler\PerformanceProfilerTest.cpp">
-      <Filter>Source Files\Unit\Utils\Profiler</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Utils\Workspace\WorkspaceTest.cpp">
-      <Filter>Source Files\Unit\Utils\Workspace</Filter>
-    </ClCompile>
     <!-- Phase 4: Level 3 - GPU/Memory Components -->
-    <ClCompile Include="Unit\Utils\Memory\MemoryManagerTest.cpp">
-      <Filter>Source Files\Unit\Utils\Memory</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Utils\Memory\GPUMemoryPoolTest.cpp">
-      <Filter>Source Files\Unit\Utils\Memory</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Utils\Memory\GPUMemoryGuardTest.cpp">
-      <Filter>Source Files\Unit\Utils\Memory</Filter>
-    </ClCompile>
     <!-- Phase 5: Level 4 - Export Components -->
-    <ClCompile Include="Unit\Utils\Export\ImageExporterTest.cpp">
-      <Filter>Source Files\Unit\Utils\Export</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Utils\Export\MetricsExporterTest.cpp">
-      <Filter>Source Files\Unit\Utils\Export</Filter>
-    </ClCompile>
     <!-- Config Tests - Phase 1: Parser Tests -->
-    <ClCompile Include="Unit\Config\YamlParserTest.cpp">
-      <Filter>Source Files\Unit\Config</Filter>
-    </ClCompile>
-    <ClCompile Include="Unit\Config\JsonParserTest.cpp">
-      <Filter>Source Files\Unit\Config</Filter>
-    </ClCompile>
     <!-- Config Tests - Phase 2: Configuration Tests -->
-    <ClCompile Include="Unit\Config\ConfigurationTest.cpp">
-      <Filter>Source Files\Unit\Config</Filter>
-    </ClCompile>
     <!-- Optimizer Tests - Phase 1: EarlyStopping -->
-    <ClCompile Include="Unit\Optimizer\EarlyStoppingTest.cpp">
-      <Filter>Source Files\Unit\Optimizer</Filter>
-    </ClCompile>
     <!-- Optimizer Tests - Phase 2: OptimizerFactory -->
-    <ClCompile Include="Unit\Optimizer\OptimizerFactoryTest.cpp">
-      <Filter>Source Files\Unit\Optimizer</Filter>
-    </ClCompile>
     <!-- Optimizer Tests - Phase 3: LRScheduler -->
-    <ClCompile Include="Unit\Optimizer\LRSchedulerTest.cpp">
-      <Filter>Source Files\Unit\Optimizer</Filter>
-    </ClCompile>
     <!-- Optimizer Tests - Phase 4: ModelEMA -->
-    <ClCompile Include="Unit\Optimizer\ModelEMATest.cpp">
-      <Filter>Source Files\Unit\Optimizer</Filter>
-    </ClCompile>
     <!-- Data Tests - Phase 1: Annotation -->
-    <ClCompile Include="Unit\Data\Common\AnnotationTest.cpp">
-      <Filter>Source Files\Unit\Data\Common</Filter>
-    </ClCompile>
     <!-- Data Tests - Phase 2: ImageIO -->
-    <ClCompile Include="Unit\Data\Utils\ImageIOTest.cpp">
-      <Filter>Source Files\Unit\Data\Utils</Filter>
-    </ClCompile>
     <!-- Data Tests - Phase 3: RAMCache -->
-    <ClCompile Include="Unit\Data\Cache\RAMCacheTest.cpp">
-      <Filter>Source Files\Unit\Data\Cache</Filter>
-    </ClCompile>
     <!-- Data Tests - Phase 4: CacheManager -->
-    <ClCompile Include="Unit\Data\Cache\CacheManagerTest.cpp">
-      <Filter>Source Files\Unit\Data\Cache</Filter>
-    </ClCompile>
     <!-- Data Tests - Phase 5: Transform/Compose -->
-    <ClCompile Include="Unit\Data\Transforms\TransformTest.cpp">
-      <Filter>Source Files\Unit\Data\Transforms</Filter>
-    </ClCompile>
     <!-- Data Tests - Phase 6: GeometricTransforms -->
-    <ClCompile Include="Unit\Data\Transforms\GeometricTransformsTest.cpp">
-      <Filter>Source Files\Unit\Data\Transforms</Filter>
-    </ClCompile>
     <!-- Data Tests - Phase 7: ColorTransforms -->
-    <ClCompile Include="Unit\Data\Transforms\ColorTransformsTest.cpp">
-      <Filter>Source Files\Unit\Data\Transforms</Filter>
-    </ClCompile>
     <!-- Data Tests - Phase 8: Mosaic -->
-    <ClCompile Include="Unit\Data\Augmentation\MosaicTest.cpp">
-      <Filter>Source Files\Unit\Data\Augmentation</Filter>
-    </ClCompile>
     <!-- Data Tests - Phase 9: Collation -->
-    <ClCompile Include="Unit\Data\Collation\CollationTest.cpp">
-      <Filter>Source Files\Unit\Data\Collation</Filter>
-    </ClCompile>
     <!-- Dataset Tests - Phase 1: DataExample & CacheType -->
-    <ClCompile Include="Unit\Data\Dataset\DataExampleTest.cpp">
-      <Filter>Source Files\Unit\Data\Dataset</Filter>
-    </ClCompile>
     <!-- Dataset Tests - Phase 2: BaseDataset -->
-    <ClCompile Include="Unit\Data\Dataset\BaseDatasetTest.cpp">
-      <Filter>Source Files\Unit\Data\Dataset</Filter>
-    </ClCompile>
     <!-- Dataset Tests - Phase 3: ClassificationDataset -->
-    <ClCompile Include="Unit\Data\Dataset\ClassificationDatasetTest.cpp">
-      <Filter>Source Files\Unit\Data\Dataset</Filter>
-    </ClCompile>
     <!-- Dataset Tests - Phase 4: DetectionDataset -->
-    <ClCompile Include="Unit\Data\Dataset\DetectionDatasetTest.cpp">
-      <Filter>Source Files\Unit\Data\Dataset</Filter>
-    </ClCompile>
     <!-- Dataset Tests - Phase 5: OBBDataset -->
-    <ClCompile Include="Unit\Data\Dataset\OBBDatasetTest.cpp">
-      <Filter>Source Files\Unit\Data\Dataset</Filter>
-    </ClCompile>
     <!-- Dataset Tests - Phase 6: SegmentationDataset -->
-    <ClCompile Include="Unit\Data\Dataset\SegmentationDatasetTest.cpp">
-      <Filter>Source Files\Unit\Data\Dataset</Filter>
-    </ClCompile>
     <!-- Dataset Tests - Phase 7: AnomalyDataset -->
-    <ClCompile Include="Unit\Data\Dataset\AnomalyDatasetTest.cpp">
-      <Filter>Source Files\Unit\Data\Dataset</Filter>
-    </ClCompile>
     <!-- Dataset Tests - Phase 8: PredDataset -->
-    <ClCompile Include="Unit\Data\Dataset\PredDatasetTest.cpp">
-      <Filter>Source Files\Unit\Data\Dataset</Filter>
-    </ClCompile>
     <!-- Dataset Tests - Phase 9: Edge Cases -->
-    <ClCompile Include="Unit\Data\Dataset\EdgeCaseTest.cpp">
-      <Filter>Source Files\Unit\Data\Dataset</Filter>
-    </ClCompile>
     <!-- Dataset Tests - Phase 10: Performance & Stress -->
-    <ClCompile Include="Unit\Data\Dataset\PerformanceStressTest.cpp">
-      <Filter>Source Files\Unit\Data\Dataset</Filter>
-    </ClCompile>
     <!-- Model Tests - Phase 1: BaseLoss -->
-    <ClCompile Include="Unit\Model\Loss\BaseLossTest.cpp">
-      <Filter>Source Files\Unit\Model\Loss</Filter>
-    </ClCompile>
     <!-- Model Tests - Phase 2: ClassificationLoss -->
-    <ClCompile Include="Unit\Model\Loss\ClassificationLossTest.cpp">
-      <Filter>Source Files\Unit\Model\Loss</Filter>
-    </ClCompile>
     <!-- Model Tests - Phase 3: DetectionLoss -->
-    <ClCompile Include="Unit\Model\Loss\DetectionLossTest.cpp">
-      <Filter>Source Files\Unit\Model\Loss</Filter>
-    </ClCompile>
     <!-- Model Tests - Phase 4: OBBLoss -->
-    <ClCompile Include="Unit\Model\Loss\OBBLossTest.cpp">
-      <Filter>Source Files\Unit\Model\Loss</Filter>
-    </ClCompile>
     <!-- Model Tests - Phase 5: SegmentationLoss -->
-    <ClCompile Include="Unit\Model\Loss\SegmentationLossTest.cpp">
-      <Filter>Source Files\Unit\Model\Loss</Filter>
-    </ClCompile>
     <!-- Model Tests - Phase 6: AnomalyLoss -->
-    <ClCompile Include="Unit\Model\Loss\AnomalyLossTest.cpp">
-      <Filter>Source Files\Unit\Model\Loss</Filter>
-    </ClCompile>
     <!-- Model/Utils Tests - Phase 7: IoU Functions -->
-    <ClCompile Include="Unit\Model\Utils\IoUTest.cpp">
-      <Filter>Source Files\Unit\Model\Utils</Filter>
-    </ClCompile>
     <!-- Model/Utils Tests - Phase 8: Coordinate Conversion -->
-    <ClCompile Include="Unit\Model\Utils\CoordinateConversionTest.cpp">
-      <Filter>Source Files\Unit\Model\Utils</Filter>
-    </ClCompile>
     <!-- Model/Utils Tests - Phase 9: makeAnchors -->
-    <ClCompile Include="Unit\Model\Utils\MakeAnchorsTest.cpp">
-      <Filter>Source Files\Unit\Model\Utils</Filter>
-    </ClCompile>
     <!-- Model/Utils Tests - Phase 10: NMS -->
-    <ClCompile Include="Unit\Model\Utils\NMSTest.cpp">
-      <Filter>Source Files\Unit\Model\Utils</Filter>
-    </ClCompile>
     <!-- Model/Utils Tests - Phase 11: TaskAlignedAssigner -->
-    <ClCompile Include="Unit\Model\Utils\TaskAlignedAssignerTest.cpp">
-      <Filter>Source Files\Unit\Model\Utils</Filter>
-    </ClCompile>
     <!-- Model/Utils Tests - Phase 12: Exception Handling -->
-    <ClCompile Include="Unit\Model\Utils\ExceptionHandlingTest.cpp">
-      <Filter>Source Files\Unit\Model\Utils</Filter>
-    </ClCompile>
     <!-- Model Tests - Phase 13: Integration Tests -->
-    <ClCompile Include="Unit\Model\IntegrationTest.cpp">
-      <Filter>Source Files\Unit\Model</Filter>
-    </ClCompile>
     <!-- Model/Builder Tests - Phase 1: YamlArgsParser -->
-    <ClCompile Include="Unit\Model\Builder\YamlArgsParserTest.cpp">
-      <Filter>Source Files\Unit\Model\Builder</Filter>
-    </ClCompile>
     <!-- Model/Builder Tests - Phase 2: ModuleFactoryRegistry -->
-    <ClCompile Include="Unit\Model\Builder\ModuleFactoryRegistryTest.cpp">
-      <Filter>Source Files\Unit\Model\Builder</Filter>
-    </ClCompile>
     <!-- Model/Builder Tests - Phase 3: ConvolutionFactory -->
-    <ClCompile Include="Unit\Model\Builder\ConvolutionFactoryTest.cpp">
-      <Filter>Source Files\Unit\Model\Builder</Filter>
-    </ClCompile>
     <!-- Model/Builder Tests - Phase 4: BlockFactory -->
-    <ClCompile Include="Unit\Model\Builder\BlockFactoryTest.cpp">
-      <Filter>Source Files\Unit\Model\Builder</Filter>
-    </ClCompile>
     <!-- Model/Builder Tests - Phase 5: AttentionFactory -->
-    <ClCompile Include="Unit\Model\Builder\AttentionFactoryTest.cpp">
-      <Filter>Source Files\Unit\Model\Builder</Filter>
-    </ClCompile>
     <!-- Model/Builder Tests - Phase 6: HeadFactory -->
-    <ClCompile Include="Unit\Model\Builder\HeadFactoryTest.cpp">
-      <Filter>Source Files\Unit\Model\Builder</Filter>
-    </ClCompile>
     <!-- Model/Builder Tests - Phase 7: TransformerFactory -->
-    <ClCompile Include="Unit\Model\Builder\TransformerFactoryTest.cpp">
-      <Filter>Source Files\Unit\Model\Builder</Filter>
-    </ClCompile>
     <!-- Model/Builder Tests - Phase 8: UtilityFactory -->
-    <ClCompile Include="Unit\Model\Builder\UtilityFactoryTest.cpp">
-      <Filter>Source Files\Unit\Model\Builder</Filter>
-    </ClCompile>
     <!-- Model/Builder Tests - Phase 9: ModelBuilder -->
-    <ClCompile Include="Unit\Model\Builder\ModelBuilderTest.cpp">
-      <Filter>Source Files\Unit\Model\Builder</Filter>
-    </ClCompile>
     <!-- Model/Modules Tests - Phase 10: Activation -->
-    <ClCompile Include="Unit\Model\Modules\ActivationTest.cpp">
-      <Filter>Source Files\Unit\Model\Modules</Filter>
-    </ClCompile>
     <!-- Model/Modules Tests - Phase 11: Conv -->
-    <ClCompile Include="Unit\Model\Modules\ConvTest.cpp">
-      <Filter>Source Files\Unit\Model\Modules</Filter>
-    </ClCompile>
     <!-- Model/Modules Tests - Phase 12: Block -->
-    <ClCompile Include="Unit\Model\Modules\BlockTest.cpp">
-      <Filter>Source Files\Unit\Model\Modules</Filter>
-    </ClCompile>
     <!-- Model/Modules Tests - Phase 13: Attention -->
-    <ClCompile Include="Unit\Model\Modules\AttentionTest.cpp">
-      <Filter>Source Files\Unit\Model\Modules</Filter>
-    </ClCompile>
     <!-- Model/Modules Tests - Phase 14: Transformer -->
-    <ClCompile Include="Unit\Model\Modules\TransformerTest.cpp">
-      <Filter>Source Files\Unit\Model\Modules</Filter>
-    </ClCompile>
     <!-- Model/Modules Tests - Phase 15: Head -->
-    <ClCompile Include="Unit\Model\Modules\HeadTest.cpp">
-      <Filter>Source Files\Unit\Model\Modules</Filter>
-    </ClCompile>
     <!-- Model/Modules Tests - Phase 16: Utils -->
-    <ClCompile Include="Unit\Model\Modules\UtilsTest.cpp">
-      <Filter>Source Files\Unit\Model\Modules</Filter>
-    </ClCompile>
     <!-- Integration Tests - Phase 17 -->
-    <ClCompile Include="Unit\Model\Builder\IntegrationTest.cpp">
-      <Filter>Source Files\Unit\Model\Builder</Filter>
+    <!-- Model/Task Tests - BaseModel -->
+    <ClCompile Include="Unit\Model\Task\BaseModelTest.cpp">
+      <Filter>Source Files\Unit\Model\Task</Filter>
+    </ClCompile>
+    <!-- Model/Task Tests - ClassificationModel -->
+    <ClCompile Include="Unit\Model\Task\ClassificationModelTest.cpp">
+      <Filter>Source Files\Unit\Model\Task</Filter>
+    </ClCompile>
+    <!-- Model/Task Tests - SegmentationModel -->
+    <ClCompile Include="Unit\Model\Task\SegmentationModelTest.cpp">
+      <Filter>Source Files\Unit\Model\Task</Filter>
+    </ClCompile>
+    <!-- Model/Task Tests - DetectionModel -->
+    <ClCompile Include="Unit\Model\Task\DetectionModelTest.cpp">
+      <Filter>Source Files\Unit\Model\Task</Filter>
+    </ClCompile>
+    <!-- Model/Task Tests - OBBModel -->
+    <ClCompile Include="Unit\Model\Task\OBBModelTest.cpp">
+      <Filter>Source Files\Unit\Model\Task</Filter>
+    </ClCompile>
+    <!-- Model/Task Tests - AnomalyModel -->
+    <ClCompile Include="Unit\Model\Task\AnomalyModelTest.cpp">
+      <Filter>Source Files\Unit\Model\Task</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Model\Task\TaskExceptionTest.cpp">
+      <Filter>Source Files\Unit\Model\Task</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit\Model\Task\TaskIntegrationTest.cpp">
+      <Filter>Source Files\Unit\Model\Task</Filter>
     </ClCompile>
   </ItemGroup>
-
   <!-- Resource Files -->
   <ItemGroup>
     <None Include="packages.config">

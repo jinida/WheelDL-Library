@@ -23,6 +23,13 @@
 *.ilk
 *.enc
 
+# Build outputs
+x64/
+Debug/
+Release/
+ReleaseLib/
+
+# IDE
 .claude
 .vs
 .vscode
