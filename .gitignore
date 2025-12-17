@@ -28,6 +28,8 @@ x64/
 Debug/
 Release/
 ReleaseLib/
+obj/
+bin/
 
 # IDE
 .claude
@@ -40,4 +42,5 @@ python_src
 3rdparty
 packages
 LibTorch_apitest
+WheelDL.ApiTest
 scripts
