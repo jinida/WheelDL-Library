@@ -6,9 +6,37 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <iostream>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 
 namespace WheelDL {
 	namespace Utils {
+
+		// ========== Helper Functions ==========
+
+		namespace {
+			std::string generateTimestampedLogPath() {
+				auto now = std::chrono::system_clock::now();
+				auto time_t_now = std::chrono::system_clock::to_time_t(now);
+				auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+					now.time_since_epoch()) % 1000;
+
+				std::tm tm_now;
+#ifdef _WIN32
+				localtime_s(&tm_now, &time_t_now);
+#else
+				localtime_r(&time_t_now, &tm_now);
+#endif
+
+				std::ostringstream oss;
+				oss << "runs/app/app_"
+					<< std::put_time(&tm_now, "%y%m%d%H%M%S")
+					<< std::setfill('0') << std::setw(3) << ms.count()
+					<< ".log";
+				return oss.str();
+			}
+		}
 
 		// ========== Factory Methods ==========
 
@@ -20,7 +48,10 @@ namespace WheelDL {
 			static Logger defaultLogger("default");
 			static bool initialized = false;
 			if (!initialized) {
-				defaultLogger.setLogFile("runs/app.log");
+				// Create runs/app directory
+				PathValidator::createDirectoryIfNotExists("runs/app");
+				// Generate timestamped log file path
+				defaultLogger.setLogFile(generateTimestampedLogPath());
 				initialized = true;
 			}
 			return defaultLogger;
@@ -50,17 +81,24 @@ namespace WheelDL {
 
 		void Logger::initializeSpdlog() {
 			try {
+#ifdef WHEELDL_STATIC
+				// Debug/ReleaseLib: Enable console output
 				auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 				console_sink->set_level(spdlog::level::trace);
-
 				_spdlogger = std::make_shared<spdlog::logger>(_name, console_sink);
+#else
+				// Release DLL: No console output
+				_spdlogger = std::make_shared<spdlog::logger>(_name);
+#endif
 				_spdlogger->set_level(spdlog::level::info);
 				_spdlogger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] %v");
 
 				spdlog::register_logger(_spdlogger);
 			}
 			catch (const std::exception& e) {
+#ifdef WHEELDL_STATIC
 				std::cerr << "CRITICAL: Failed to initialize logger '" << _name << "': " << e.what() << std::endl;
+#endif
 				_spdlogger = nullptr;
 			}
 		}
@@ -74,9 +112,12 @@ namespace WheelDL {
 
 				std::vector<spdlog::sink_ptr> sinks;
 
+#ifdef WHEELDL_STATIC
+				// Debug/ReleaseLib: Enable console output
 				auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 				console_sink->set_level(spdlog::level::trace);
 				sinks.push_back(console_sink);
+#endif
 
 				if (!_logFilePath.empty()) {
 					// Extract parent directory from file path and create it
@@ -119,16 +160,26 @@ namespace WheelDL {
 				spdlog::register_logger(_spdlogger);
 			}
 			catch (const std::exception& e) {
+#ifdef WHEELDL_STATIC
 				std::cerr << "ERROR: Failed to recreate logger '" << _name << "': " << e.what() << std::endl;
-				// Fallback to console-only
+#endif
+				// Fallback
 				try {
+#ifdef WHEELDL_STATIC
+					// Debug/ReleaseLib: Fallback to console-only
 					auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 					_spdlogger = std::make_shared<spdlog::logger>(_name, console_sink);
+#else
+					// Release DLL: Fallback to empty logger
+					_spdlogger = std::make_shared<spdlog::logger>(_name);
+#endif
 					_spdlogger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] %v");
 				}
 				catch (...) {
 					_spdlogger = nullptr;
+#ifdef WHEELDL_STATIC
 					std::cerr << "CRITICAL: Unable to create fallback logger. Logging disabled." << std::endl;
+#endif
 				}
 			}
 		}
