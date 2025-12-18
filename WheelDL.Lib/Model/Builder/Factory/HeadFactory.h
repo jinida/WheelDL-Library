@@ -120,7 +120,7 @@ private:
             // args: [modelType, numNeighbors, maxMemoryBankPatches, projectedDim]
             int64_t numNeighbors = YamlArgsParser::getInt(argsNode, 1, 9);
             int64_t maxMemoryBankPatches = YamlArgsParser::getInt(argsNode, 2, 25600);
-            int64_t projectedDim = YamlArgsParser::getInt(argsNode, 3, 128);  // 0 = no projection
+            int64_t projectedDim = YamlArgsParser::getInt(argsNode, 3, 256);  // 0 = no projection
             return std::make_shared<Modules::PatchCoreImpl>(numNeighbors, maxMemoryBankPatches, projectedDim);
         }
         else if (modelType == "SimpleNet") {
