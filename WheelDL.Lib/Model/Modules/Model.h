@@ -224,13 +224,14 @@ namespace WheelDL {
 				/**
 				 * @brief Construct PatchCore model
 				 *
-				 * @param backbonePath Path to pretrained feature extractor (TorchScript)
 				 * @param numNeighbors Number of nearest neighbors for scoring (default: 9)
-				 * @param maxMemoryBankPatches Maximum patches in memory bank for 150MB target (default: 25600)
+				 * @param maxMemoryBankPatches Maximum patches in memory bank (default: 25600)
+				 * @param projectedDim Dimension after random projection (default: 256, 0 = no projection)
 				 */
 				explicit PatchCoreImpl(
 					int64_t numNeighbors = 9,
-					int64_t maxMemoryBankPatches = 25600
+					int64_t maxMemoryBankPatches = 25600,
+					int64_t projectedDim = 256
 				);
 
 				/**
@@ -309,31 +310,27 @@ namespace WheelDL {
 					{
 						auto device = _memoryBank.device();
 						torch::NoGradGuard noGrad;
+
 						for (auto& batch : loader) {
 							batchCount++;
 							auto image = batch.data.data();
 							image = image.to(device);
-							// Extract features
+
 							auto features = extractFeatures(image);
 							auto reshapedEmbedding = reshapeEmbedding(features);
-
+							reshapedEmbedding = applyProjection(reshapedEmbedding);
 							allEmbeddings.push_back(reshapedEmbedding);
-
-							// Calculate memory usage
 							currentMemoryBytes += reshapedEmbedding.numel() * reshapedEmbedding.element_size();
 
 							// Check if we've exceeded memory limit
-							if (currentMemoryBytes > maxMemoryBytes) 
+							if (currentMemoryBytes > maxMemoryBytes)
 							{
-								// Concatenate accumulated embeddings
 								auto tempMemoryBank = torch::cat(allEmbeddings, 0);
 
-								// random sampling half of the data to reduce memory
 								auto numToSelect = tempMemoryBank.size(0) / 2;
 								auto randIndices = torch::randperm(tempMemoryBank.size(0)).slice(0, 0, numToSelect).to(torch::kLong);
 								tempMemoryBank = tempMemoryBank.index_select(0, randIndices);
 
-								// Clear and restart with subsampled data
 								allEmbeddings.clear();
 								allEmbeddings.push_back(tempMemoryBank);
 								currentMemoryBytes = tempMemoryBank.numel() * tempMemoryBank.element_size();
@@ -342,13 +339,12 @@ namespace WheelDL {
 					}
 
 					// Concatenate all embeddings
-					if (allEmbeddings.empty()) {
-						// No embeddings collected - loader was empty or had no data
-						// Keep memory bank as empty [0, _embeddingDim]
-					} else {
+					if (!allEmbeddings.empty())
+					{
+						auto fullEmbeddings = torch::cat(allEmbeddings, 0);
+
 						// IMPORTANT: Use set_() to update the registered buffer in-place
-						// Do NOT reassign with = as it breaks buffer registration
-						_memoryBank.set_(torch::cat(allEmbeddings, 0));
+						_memoryBank.set_(fullEmbeddings);
 
 						// Final subsample if exceeds limit (using k-center greedy)
 						if (_memoryBank.size(0) > _maxMemoryBankPatches)
@@ -368,7 +364,7 @@ namespace WheelDL {
 				 * @brief Initialize Gaussian blur convolution
 				 */
 				void initializeGaussianBlur();
-				
+
 				/**
 				 * @brief Extract features using backbone
 				 *
@@ -432,6 +428,14 @@ namespace WheelDL {
 					const std::vector<int64_t>& imageSize
 				);
 
+				/**
+				 * @brief Apply random projection to embedding
+				 *
+				 * @param embedding Input embedding [N, D]
+				 * @return Projected embedding [N, D'] or original if no projection
+				 */
+				torch::Tensor applyProjection(const torch::Tensor& embedding);
+
 				// Model components
 				torch::jit::script::Module _featureExtractor;  ///< Pretrained backbone (frozen)
 				torch::nn::AvgPool2d _featurePooler = nullptr; ///< Feature pooling layer
@@ -440,10 +444,12 @@ namespace WheelDL {
 				// Configuration
 				int64_t _numNeighbors;                        ///< Number of nearest neighbors
 				int64_t _maxMemoryBankPatches;                ///< Maximum patches in memory bank
-				int64_t _embeddingDim;                        ///< Embedding dimension
+				int64_t _embeddingDim;                        ///< Original embedding dimension (1536)
+				int64_t _projectedDim;                        ///< Projected dimension (0 = no projection)
 
 				// Memory bank (registered as buffer for state_dict)
-				torch::Tensor _memoryBank;                    ///< Memory bank [N, D]
+				torch::Tensor _memoryBank;                    ///< Memory bank [N, D'] (D' = projected dim or original)
+				torch::Tensor _projectionMatrix;              ///< Random projection matrix [D, D'] (buffer)
 			};
 
 			TORCH_MODULE(PatchCore);

@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <torch/script.h>
 #include <iostream>
+#include <ctime>
 
 namespace WheelDL {
 	namespace Model {
@@ -42,11 +43,11 @@ namespace WheelDL {
 					"teacher_medium.pt";
 
 				// Try to load teacher weights, but don't fail if not found
-				try 
+				try
 				{
 					loadTeacherWeights(teacherPath);
 				}
-				catch (const std::exception& e) 
+				catch (const std::exception& e)
 				{
 					freezeTeacher();
 				}
@@ -209,7 +210,7 @@ namespace WheelDL {
 
 					auto anomalyMap = 0.5f * (mapSt + mapAe);
 					return anomalyMap;
-					};
+				};
 
 				// --- 6-channel input (teacher/student split) ---
 				if (inputShape[1] == 6)
@@ -313,7 +314,7 @@ namespace WheelDL {
 					torch::load(_teacher, path);
 					_teacher->to(torch::kFloat32);
 					_teacher->to(torch::kCPU);
-					
+
 					// Freeze teacher immediately after loading
 					freezeTeacher();
 				}
@@ -333,244 +334,268 @@ namespace WheelDL {
 				_teacher->eval();
 			}
 
-		// ============================================================================
-		// PatchCoreImpl Implementation
-		// ============================================================================
+			// ============================================================================
+			// PatchCoreImpl Implementation
+			// ============================================================================
 
-		PatchCoreImpl::PatchCoreImpl(
-			int64_t numNeighbors,
-			int64_t maxMemoryBankPatches
-		)
-			: _numNeighbors(numNeighbors)
-			, _maxMemoryBankPatches(maxMemoryBankPatches)
-			, _embeddingDim(1536)
-		{
-			_featureExtractor = torch::jit::load("wide_resnet50_2.pt");
-
-			_featurePooler = torch::nn::AvgPool2d(torch::nn::AvgPool2dOptions(3).stride(1).padding(1));
-			register_module("feature_pooler", _featurePooler);
-
-			_memoryBank = register_buffer("memory_bank", torch::empty({0, _embeddingDim}));
-			initializeGaussianBlur();
-		}
-
-		void PatchCoreImpl::initializeGaussianBlur() 
-		{
-			const int64_t kernelSize = 33;
-			const double sigma = 4.0;
-			const int64_t padding = (kernelSize - 1) / 2;
-			
-			_gaussianBlur = torch::nn::Conv2d(torch::nn::Conv2dOptions(1, 1, kernelSize)
-				.padding(padding)
-				.bias(false));
-
-			register_module("gaussian_blur", _gaussianBlur);
-			
-			double ksizeHalf = (kernelSize - 1) * 0.5;
-			auto x = torch::linspace(-ksizeHalf, ksizeHalf, kernelSize);
-			auto pdf = torch::exp(-0.5 * (x / sigma).pow(2));
-			auto kernel1d = pdf / pdf.sum();
-			auto kernel2d = torch::mm(kernel1d.unsqueeze(1), kernel1d.unsqueeze(0));
-
-			kernel2d = kernel2d.unsqueeze(0).unsqueeze(0);
-			_gaussianBlur->weight.data().copy_(kernel2d);
-			_gaussianBlur->weight.requires_grad_(false);
-		}
-		
-
-		torch::Tensor PatchCoreImpl::extractFeatures(const torch::Tensor& x)
-		{
-			std::vector<torch::jit::IValue> inputs;
-			inputs.push_back(x);
-
-			torch::Tensor features;
+			PatchCoreImpl::PatchCoreImpl(
+				int64_t numNeighbors,
+				int64_t maxMemoryBankPatches,
+				int64_t projectedDim
+			)
+				: _numNeighbors(numNeighbors)
+				, _maxMemoryBankPatches(maxMemoryBankPatches)
+				, _embeddingDim(1536)
+				, _projectedDim(projectedDim)
 			{
-				torch::NoGradGuard noGrad;
-				auto output = _featureExtractor.forward(inputs);
+				_featureExtractor = torch::jit::load("wide_resnet50_2.pt");
 
-				if (output.isList())
-				{
-					auto featureTuple = output.toTensorList();//.toList();
-					auto layer2 = featureTuple.get(0);
-					auto layer3 = featureTuple.get(1);
+				_featurePooler = torch::nn::AvgPool2d(torch::nn::AvgPool2dOptions(3).stride(1).padding(1));
+				register_module("feature_pooler", _featurePooler);
 
-					layer2 = _featurePooler->forward(layer2);
-					layer3 = _featurePooler->forward(layer3);
+				// Memory bank dimension depends on projection
+				int64_t bankDim = (_projectedDim > 0) ? _projectedDim : _embeddingDim;
+				_memoryBank = register_buffer("memory_bank", torch::empty({ 0, bankDim }));
 
-					layer3 = torch::nn::functional::interpolate(layer3,
-						torch::nn::functional::InterpolateFuncOptions()
-						.size(std::vector<int64_t>{layer2.size(2), layer2.size(3)})
-						.mode(torch::kBilinear).align_corners(false));
-
-					features = torch::cat({ layer2, layer3 }, 1);
+				// Initialize projection matrix at construction time
+				if (_projectedDim > 0) {
+					auto projMatrix = torch::randn({ _embeddingDim, _projectedDim })
+						/ std::sqrt(static_cast<float>(_projectedDim));
+					_projectionMatrix = register_buffer("projection_matrix", projMatrix);
 				}
 				else {
-					throw std::runtime_error("PatchCore backbone must return tuple of features");
+					_projectionMatrix = register_buffer("projection_matrix", torch::empty({ 0, 0 }));
+				}
+
+				initializeGaussianBlur();
+			}
+
+			void PatchCoreImpl::initializeGaussianBlur()
+			{
+				const int64_t kernelSize = 33;
+				const double sigma = 4.0;
+				const int64_t padding = (kernelSize - 1) / 2;
+
+				_gaussianBlur = torch::nn::Conv2d(torch::nn::Conv2dOptions(1, 1, kernelSize)
+					.padding(padding)
+					.bias(false));
+
+				register_module("gaussian_blur", _gaussianBlur);
+
+				double ksizeHalf = (kernelSize - 1) * 0.5;
+				auto x = torch::linspace(-ksizeHalf, ksizeHalf, kernelSize);
+				auto pdf = torch::exp(-0.5 * (x / sigma).pow(2));
+				auto kernel1d = pdf / pdf.sum();
+				auto kernel2d = torch::mm(kernel1d.unsqueeze(1), kernel1d.unsqueeze(0));
+
+				kernel2d = kernel2d.unsqueeze(0).unsqueeze(0);
+				_gaussianBlur->weight.data().copy_(kernel2d);
+				_gaussianBlur->weight.requires_grad_(false);
+			}
+
+
+			torch::Tensor PatchCoreImpl::extractFeatures(const torch::Tensor& x)
+			{
+				std::vector<torch::jit::IValue> inputs;
+				inputs.push_back(x);
+
+				torch::Tensor features;
+				{
+					torch::NoGradGuard noGrad;
+					auto output = _featureExtractor.forward(inputs);
+
+					if (output.isList())
+					{
+						auto featureTuple = output.toTensorList();//.toList();
+						auto layer2 = featureTuple.get(0);
+						auto layer3 = featureTuple.get(1);
+
+						layer2 = _featurePooler->forward(layer2);
+						layer3 = _featurePooler->forward(layer3);
+
+						layer3 = torch::nn::functional::interpolate(layer3,
+							torch::nn::functional::InterpolateFuncOptions()
+							.size(std::vector<int64_t>{layer2.size(2), layer2.size(3)})
+							.mode(torch::kBilinear).align_corners(false));
+
+						features = torch::cat({ layer2, layer3 }, 1);
+					}
+					else {
+						throw std::runtime_error("PatchCore backbone must return tuple of features");
+					}
+				}
+
+				return features;
+			}
+
+			std::vector<torch::Tensor> PatchCoreImpl::forward(std::vector<torch::Tensor>& x)
+			{
+				if (x.empty()) {
+					throw std::invalid_argument("PatchCoreImpl::forward - input vector is empty");
+				}
+
+				if (_memoryBank.size(0) == 0) {
+					throw std::runtime_error("Memory bank is empty");
+				}
+
+				auto input = x[0];
+				auto outputSize = input.sizes().slice(2);
+
+				auto features = extractFeatures(input);
+
+				int64_t batchSize = features.size(0);
+				int64_t height = features.size(2);
+				int64_t width = features.size(3);
+
+				auto embedding = reshapeEmbedding(features);
+
+				// Apply random projection if enabled (must match memory bank projection)
+				embedding = applyProjection(embedding);
+
+				auto [patchScores, locations] = nearestNeighbors(embedding, 1);
+
+				patchScores = patchScores.reshape({ batchSize, -1 });
+				locations = locations.reshape({ batchSize, -1 });
+
+				auto predScore = computeAnomalyScore(patchScores, locations, embedding);
+
+				patchScores = patchScores.reshape({ batchSize, 1, height, width });
+
+				auto anomalyMap = generateAnomalyMap(patchScores,
+					std::vector<int64_t>{outputSize[0], outputSize[1]});
+
+				return { predScore, anomalyMap };
+			}
+
+			torch::Tensor PatchCoreImpl::reshapeEmbedding(const torch::Tensor& embedding)
+			{
+				int64_t embeddingSize = embedding.size(1);
+				return embedding.permute({ 0, 2, 3, 1 }).reshape({ -1, embeddingSize });
+			}
+
+			torch::Tensor PatchCoreImpl::euclideanDist(const torch::Tensor& x, const torch::Tensor& y)
+			{
+				auto xNorm = x.pow(2).sum(-1, true);
+				auto yNorm = y.pow(2).sum(-1, true);
+
+				auto res = xNorm - 2 * torch::mm(x, y.t()) + yNorm.t();
+				return res.clamp_min_(1e-12).sqrt_();
+			}
+
+			std::tuple<torch::Tensor, torch::Tensor> PatchCoreImpl::nearestNeighbors(
+				const torch::Tensor& embedding,
+				int64_t nNeighbors
+			)
+			{
+				auto distances = euclideanDist(embedding, _memoryBank);
+
+				if (nNeighbors == 1) {
+					auto [patchScores, locations] = distances.min(1);
+					return { patchScores, locations };
+				}
+				else {
+					return distances.topk(nNeighbors, 1, false);
 				}
 			}
 
-			return features;
-		}
-
-		std::vector<torch::Tensor> PatchCoreImpl::forward(std::vector<torch::Tensor>& x)
-		{
-			if (x.empty()) {
-				throw std::invalid_argument("PatchCoreImpl::forward - input vector is empty");
+			torch::Tensor PatchCoreImpl::computeAnomalyScore(
+				const torch::Tensor& patchScores,
+				const torch::Tensor& locations,
+				const torch::Tensor& embedding
+			)
+			{
+				return patchScores.amax(1);
 			}
 
-			if (_memoryBank.size(0) == 0) {
-				throw std::runtime_error("Memory bank is empty");
+			torch::Tensor PatchCoreImpl::generateAnomalyMap(
+				const torch::Tensor& patchScores,
+				const std::vector<int64_t>& imageSize
+			)
+			{
+				auto anomalyMap = torch::nn::functional::interpolate(patchScores,
+					torch::nn::functional::InterpolateFuncOptions()
+					.size(imageSize)
+					.mode(torch::kBilinear)
+					.align_corners(false));
+
+				return _gaussianBlur->forward(anomalyMap);
 			}
 
-			auto input = x[0];
-			auto outputSize = input.sizes().slice(2);
+			void PatchCoreImpl::subsampleMemoryBank() {
+				const int64_t n = _memoryBank.size(0);
+				const int64_t k = _maxMemoryBankPatches;
 
-			auto features = extractFeatures(input);
+				if (n == 0)
+					throw std::runtime_error("Memory bank is empty");
 
-			int64_t batchSize = features.size(0);
-			int64_t height = features.size(2);
-			int64_t width = features.size(3);
+				if (n <= k)
+					return;
 
-			auto embedding = reshapeEmbedding(features);
+				if (!_memoryBank.is_contiguous()) {
+					_memoryBank = _memoryBank.contiguous();
+				}
 
-			auto [patchScores, locations] = nearestNeighbors(embedding, 1);
+				const auto device = _memoryBank.device();
 
-			patchScores = patchScores.reshape({ batchSize, -1 });
-			locations = locations.reshape({ batchSize, -1 });
+				auto selfNorms = (_memoryBank * _memoryBank).sum(1);
+				auto selectedIdxs = torch::empty({ k }, torch::dtype(torch::kLong).device(device));
 
-			auto predScore = computeAnomalyScore(patchScores, locations, embedding);
+				int64_t firstIdx = torch::randint(n, { 1 }).item<int64_t>();
+				selectedIdxs[0] = firstIdx;
 
-			patchScores = patchScores.reshape({ batchSize, 1, height, width });
+				auto minDistSq = selfNorms + selfNorms[firstIdx]
+					- 2.0 * torch::matmul(_memoryBank, _memoryBank[firstIdx]);
+				minDistSq.clamp_min_(0.0);
 
-			auto anomalyMap = generateAnomalyMap(patchScores,
-				std::vector<int64_t>{outputSize[0], outputSize[1]});
+				for (int64_t i = 1; i < k; ++i)
+				{
+					auto maxIdxTensor = minDistSq.argmax();
+					selectedIdxs[i] = maxIdxTensor;
 
-			return { predScore, anomalyMap };
-		}
+					auto newSelectedVec = _memoryBank.index_select(0, maxIdxTensor.unsqueeze(0)).squeeze(0);
+					auto newNorm = selfNorms.index_select(0, maxIdxTensor.unsqueeze(0)).squeeze(0);
 
-		torch::Tensor PatchCoreImpl::reshapeEmbedding(const torch::Tensor& embedding)
-		{
-			int64_t embeddingSize = embedding.size(1);
-			return embedding.permute({ 0, 2, 3, 1 }).reshape({ -1, embeddingSize });
-		}
+					auto newDistSq = selfNorms + newNorm - 2.0 * torch::matmul(_memoryBank, newSelectedVec);
+					newDistSq.clamp_min_(0.0);
 
-		torch::Tensor PatchCoreImpl::euclideanDist(const torch::Tensor& x, const torch::Tensor& y)
-		{
-			auto xNorm = x.pow(2).sum(-1, true);
-			auto yNorm = y.pow(2).sum(-1, true);
-			
-			auto res = xNorm - 2 * torch::mm(x, y.t()) + yNorm.t();
-			return res.clamp_min_(1e-12).sqrt_();
-		}
+					minDistSq = torch::minimum(minDistSq, newDistSq);
+				}
 
-		std::tuple<torch::Tensor, torch::Tensor> PatchCoreImpl::nearestNeighbors(
-			const torch::Tensor& embedding,
-			int64_t nNeighbors
-		)
-		{
-			auto distances = euclideanDist(embedding, _memoryBank);
-
-			if (nNeighbors == 1) {
-				auto [patchScores, locations] = distances.min(1);
-				return { patchScores, locations };
-			}
-			else {
-				return distances.topk(nNeighbors, 1, false);
-			}
-		}
-
-		torch::Tensor PatchCoreImpl::computeAnomalyScore(
-			const torch::Tensor& patchScores,
-			const torch::Tensor& locations,
-			const torch::Tensor& embedding
-		)
-		{
-			return patchScores.amax(1);
-		}
-
-		torch::Tensor PatchCoreImpl::generateAnomalyMap(
-			const torch::Tensor& patchScores,
-			const std::vector<int64_t>& imageSize
-		)
-		{
-			auto anomalyMap = torch::nn::functional::interpolate(patchScores,
-				torch::nn::functional::InterpolateFuncOptions()
-				.size(imageSize)
-				.mode(torch::kBilinear)
-				.align_corners(false));
-
-			return _gaussianBlur->forward(anomalyMap);
-		}
-
-		void PatchCoreImpl::subsampleMemoryBank() {
-			const int64_t n = _memoryBank.size(0);
-			const int64_t k = _maxMemoryBankPatches;
-
-			if (n == 0) throw std::runtime_error("Memory bank is empty");
-			if (n <= k) return;
-
-			if (!_memoryBank.is_contiguous()) {
-				_memoryBank = _memoryBank.contiguous();
+				// IMPORTANT: Use set_() to update registered buffer in-place
+				auto subsampled = _memoryBank.index_select(0, selectedIdxs);
+				_memoryBank.set_(subsampled);
 			}
 
-			const auto device = _memoryBank.device();
-			const auto dtype = _memoryBank.dtype();
-
-			auto selfNorms = (_memoryBank * _memoryBank).sum(1);
-
-			auto selectedIdxs = torch::empty({ k }, torch::dtype(torch::kLong).device(device));
-
-			auto firstIdxTensor = torch::randint(n, { 1 }, torch::dtype(torch::kLong).device(device));
-			int64_t firstIdx = firstIdxTensor.item<int64_t>();
-
-			selectedIdxs[0] = firstIdx;
-
-			auto selectedVec = _memoryBank.index({ firstIdx });
-			auto dotProduct = torch::matmul(_memoryBank, selectedVec);
-
-			auto minDistSq = selfNorms + selfNorms[firstIdx] - 2.0 * dotProduct;
-			minDistSq.clamp_min_(0.0);
-
-			for (int64_t i = 1; i < k; ++i) {
-				int64_t maxIdx = minDistSq.argmax().item<int64_t>();
-				selectedIdxs[i] = maxIdx;
-
-				auto newSelectedVec = _memoryBank.index({ maxIdx });
-				auto newDot = torch::matmul(_memoryBank, newSelectedVec);
-
-				auto newDist = selfNorms + selfNorms[maxIdx] - 2.0 * newDot;
-				newDist.clamp_min_(0.0);
-
-				minDistSq = torch::minimum(minDistSq, newDist);
+			void PatchCoreImpl::to(torch::Device device, torch::Dtype dtype, bool non_blocking)
+			{
+				torch::nn::Module::to(device, dtype, non_blocking);
+				_featureExtractor.to(device, dtype, non_blocking);
 			}
 
-			// IMPORTANT: Use set_() to update the registered buffer in-place
-			// Do NOT reassign with = as it breaks buffer registration
-			_memoryBank.set_(_memoryBank.index_select(0, selectedIdxs));
-		}
+			void PatchCoreImpl::to(torch::Device device, bool non_blocking)
+			{
+				// Move registered modules and buffers
+				torch::nn::Module::to(device, non_blocking);
+				// Manually move JIT module (not registered with register_module)
+				_featureExtractor.to(device, non_blocking);
+			}
 
-		void PatchCoreImpl::to(torch::Device device, torch::Dtype dtype, bool non_blocking)
-		{
-			// Move registered modules and buffers
-			torch::nn::Module::to(device, dtype, non_blocking);
-			// Manually move JIT module (not registered with register_module)
-			_featureExtractor.to(device, dtype, non_blocking);
-		}
+			void PatchCoreImpl::to(torch::Dtype dtype, bool non_blocking)
+			{
+				// Move registered modules and buffers
+				torch::nn::Module::to(dtype, non_blocking);
+				_featureExtractor.to(dtype, non_blocking);
+			}
 
-		void PatchCoreImpl::to(torch::Device device, bool non_blocking)
-		{
-			// Move registered modules and buffers
-			torch::nn::Module::to(device, non_blocking);
-			// Manually move JIT module (not registered with register_module)
-			_featureExtractor.to(device, non_blocking);
-		}
-
-		void PatchCoreImpl::to(torch::Dtype dtype, bool non_blocking)
-		{
-			// Move registered modules and buffers
-			torch::nn::Module::to(dtype, non_blocking);
-			_featureExtractor.to(dtype, non_blocking);
-		}
-	} // namespace Modules
-} // namespace Model
+			torch::Tensor PatchCoreImpl::applyProjection(const torch::Tensor& embedding)
+			{
+				// If projection is disabled or matrix not initialized, return original
+				if (_projectedDim <= 0 || _projectionMatrix.size(0) == 0) {
+					return embedding;
+				}
+				// Project: [N, D] x [D, D'] -> [N, D']
+				return torch::mm(embedding, _projectionMatrix);
+			}
+		} // namespace Modules
+	} // namespace Model
 } // namespace WheelDL
