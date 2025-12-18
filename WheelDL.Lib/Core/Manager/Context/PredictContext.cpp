@@ -39,6 +39,7 @@ TaskResult PredictContext::run() {
             result.endTime = std::chrono::system_clock::now();
             result.totalTimeMs = std::chrono::duration<double, std::milli>(
                 result.endTime - result.startTime).count();
+            result.profiling.totalTimeMs = result.totalTimeMs;
             return result;
         }
 
@@ -51,6 +52,7 @@ TaskResult PredictContext::run() {
             _logger->info("PredictContext", "Prediction stopped by user request");
         } else {
             _profiler->exportReport(_workspace->getProfilerDir());
+            _config->exportToYAML(_workspace->getResultDir() + "/config.yaml");
 
             _state = TrainingState::COMPLETED;
             result.finalState = TrainingState::COMPLETED;
@@ -71,6 +73,9 @@ TaskResult PredictContext::run() {
     result.endTime = std::chrono::system_clock::now();
     result.totalTimeMs = std::chrono::duration<double, std::milli>(
         result.endTime - result.startTime).count();
+
+    // Populate profiling data
+    result.profiling.totalTimeMs = result.totalTimeMs;
 
     return result;
 }

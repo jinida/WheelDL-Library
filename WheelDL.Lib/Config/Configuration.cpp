@@ -26,7 +26,7 @@ Configuration::Configuration()
 	, _linearLR(false)
 	, _closeMosaic(0)
 	, _freezeLayers(0)
-	, _amp(true)
+	, _amp(false)
 	, _bfloat16(false)
 	, _cache("")
 	, _lr0(0.01f)
@@ -44,7 +44,7 @@ Configuration::Configuration()
 	, _hsvS(0.7f)
 	, _hsvV(0.4f)
 	, _degrees(0.0f)
-	, _translate(0.1f)
+	, _translate(0.0f)
 	, _scale(0.5f)
 	, _shear(0.0f)
 	, _perspective(0.0f)
@@ -441,6 +441,116 @@ void Configuration::setNumClasses(int numClasses) {
 		throw ConfigurationException(ErrorCode::INVALID_CONFIG_VALUE, "numClasses must be non-negative, got: " + std::to_string(numClasses));
 	}
 	_numClasses = numClasses;
+}
+
+void Configuration::exportToYAML(const std::string& filePath) const {
+	using namespace Utils;
+
+	try {
+		YAML::Emitter out;
+		out << YAML::BeginMap;
+
+		// ========== Task Info ==========
+		out << YAML::Key << "task_type";
+		switch (_taskType) {
+			case TaskType::CLASSIFICATION: out << YAML::Value << "classification"; break;
+			case TaskType::DETECTION: out << YAML::Value << "object_detection"; break;
+			case TaskType::SEGMENTATION: out << YAML::Value << "segmentation"; break;
+			case TaskType::ANOMALY: out << YAML::Value << "anomaly_detection"; break;
+			case TaskType::OBB: out << YAML::Value << "obb"; break;
+			default: out << YAML::Value << "unknown"; break;
+		}
+
+		// ========== Paths ==========
+		out << YAML::Key << "model_path" << YAML::Value << _modelPath;
+		out << YAML::Key << "dataset_path" << YAML::Value << _datasetPath;
+
+		// ========== Training Settings ==========
+		out << YAML::Key << "epochs" << YAML::Value << _epochs;
+		out << YAML::Key << "patience" << YAML::Value << _patience;
+		out << YAML::Key << "batch_size" << YAML::Value << _batchSize;
+		out << YAML::Key << "image_size" << YAML::Value << _imageSize;
+		out << YAML::Key << "device" << YAML::Value << _device;
+		out << YAML::Key << "workers" << YAML::Value << _workers;
+		out << YAML::Key << "optimizer" << YAML::Value << _optimizer;
+		out << YAML::Key << "seed" << YAML::Value << _seed;
+		out << YAML::Key << "deterministic" << YAML::Value << _deterministic;
+		out << YAML::Key << "cos_lr" << YAML::Value << _cosLR;
+		out << YAML::Key << "linear_lr" << YAML::Value << _linearLR;
+		out << YAML::Key << "close_mosaic" << YAML::Value << _closeMosaic;
+		out << YAML::Key << "freeze" << YAML::Value << _freezeLayers;
+		out << YAML::Key << "amp" << YAML::Value << _amp;
+		out << YAML::Key << "bfloat16" << YAML::Value << _bfloat16;
+		out << YAML::Key << "ema" << YAML::Value << _emaEnabled;
+		out << YAML::Key << "cache" << YAML::Value << _cache;
+		out << YAML::Key << "cache_size" << YAML::Value << static_cast<int>(_cacheSize);
+
+		// ========== Optimizer Settings ==========
+		out << YAML::Key << "lr0" << YAML::Value << _lr0;
+		out << YAML::Key << "lrf" << YAML::Value << _lrf;
+		out << YAML::Key << "momentum" << YAML::Value << _momentum;
+		out << YAML::Key << "weight_decay" << YAML::Value << _weightDecay;
+		out << YAML::Key << "warmup_epochs" << YAML::Value << _warmupEpochs;
+		out << YAML::Key << "warmup_momentum" << YAML::Value << _warmupMomentum;
+		out << YAML::Key << "warmup_bias_lr" << YAML::Value << _warmupBiasLR;
+		out << YAML::Key << "amsgrad" << YAML::Value << _amsgrad;
+
+		// ========== Loss Gains ==========
+		out << YAML::Key << "top_k" << YAML::Value << _topK;
+		out << YAML::Key << "box" << YAML::Value << _boxGain;
+		out << YAML::Key << "cls" << YAML::Value << _clsGain;
+		out << YAML::Key << "dfl" << YAML::Value << _dflGain;
+
+		// ========== Augmentation Settings ==========
+		out << YAML::Key << "hsv_h" << YAML::Value << _hsvH;
+		out << YAML::Key << "hsv_s" << YAML::Value << _hsvS;
+		out << YAML::Key << "hsv_v" << YAML::Value << _hsvV;
+		out << YAML::Key << "degrees" << YAML::Value << _degrees;
+		out << YAML::Key << "translate" << YAML::Value << _translate;
+		out << YAML::Key << "scale" << YAML::Value << _scale;
+		out << YAML::Key << "shear" << YAML::Value << _shear;
+		out << YAML::Key << "perspective" << YAML::Value << _perspective;
+		out << YAML::Key << "flipud" << YAML::Value << _flipud;
+		out << YAML::Key << "fliplr" << YAML::Value << _fliplr;
+		out << YAML::Key << "mosaic" << YAML::Value << _mosaic;
+		out << YAML::Key << "blur_kernel_size" << YAML::Value << _blurKernelSize;
+		out << YAML::Key << "blur_probability" << YAML::Value << _blurProbability;
+		out << YAML::Key << "fill_border" << YAML::Value << _fillBorder;
+		out << YAML::Key << "imagenet_norm" << YAML::Value << _isImageNetNormalized;
+
+		// ========== Validation Settings ==========
+		out << YAML::Key << "iou" << YAML::Value << _iou;
+		out << YAML::Key << "max_det" << YAML::Value << _maxDet;
+
+		// ========== Classification Specific ==========
+		out << YAML::Key << "dropout" << YAML::Value << _dropout;
+
+		// ========== Dataset Info ==========
+		out << YAML::Key << "num_classes" << YAML::Value << _numClasses;
+		out << YAML::Key << "num_samples" << YAML::Value << static_cast<int>(_numDataSamples);
+
+		// Class names
+		out << YAML::Key << "class_names" << YAML::Value << YAML::BeginMap;
+		for (const auto& [id, name] : _classNames) {
+			out << YAML::Key << std::to_string(id) << YAML::Value << name;
+		}
+		out << YAML::EndMap;
+
+		out << YAML::EndMap;
+
+		// Write to file
+		std::ofstream fout(filePath);
+		if (!fout.is_open()) {
+			throw ConfigurationException(ErrorCode::FILE_IO_ERROR,
+				"Failed to open file for writing: " + filePath);
+		}
+		fout << out.c_str();
+		fout.close();
+
+	} catch (const YAML::Exception& e) {
+		throw ConfigurationException(ErrorCode::CONFIG_PARSE_FAILED,
+			"YAML export failed: " + std::string(e.what()));
+	}
 }
 
 } // namespace Config

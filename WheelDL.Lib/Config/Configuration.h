@@ -432,6 +432,13 @@ namespace WheelDL {
 			 */
 			void validateConfiguration();
 
+			/**
+			 * @brief Export configuration to YAML file
+			 * @param filePath Output file path
+			 * @throws ConfigurationException if export fails
+			 */
+			void exportToYAML(const std::string& filePath) const;
+
 		private:
 			// Task type (inferred from model)
 			TaskType _taskType;
