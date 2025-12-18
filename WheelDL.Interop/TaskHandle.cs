@@ -16,7 +16,7 @@ public sealed class TaskHandle : IDisposable
     /// <summary>
     /// Task ID
     /// </summary>
-    public string TaskId { get; }
+    public string TaskId { get; private set; }
 
     /// <summary>
     /// Operation type of this task
@@ -36,6 +36,14 @@ public sealed class TaskHandle : IDisposable
             _nativeCallback = OnNativeProgress;
             _callbackHandle = GCHandle.Alloc(_nativeCallback);
         }
+    }
+
+    /// <summary>
+    /// Update task ID (used internally after task submission)
+    /// </summary>
+    internal void SetTaskId(string taskId)
+    {
+        TaskId = taskId;
     }
 
     private void OnNativeProgress(ref WheelProgressData progress, IntPtr userData)

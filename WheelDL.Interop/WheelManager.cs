@@ -96,23 +96,33 @@ public sealed class WheelManager : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         EnsureInitialized();
 
+        // Create TaskHandle first - this pins the callback delegate
         var taskHandle = new TaskHandle(string.Empty, OperationType.Train, progressCallback);
         var taskIdBuffer = new StringBuilder(64);
         var err = new WheelError();
 
-        var result = NativeMethods.Wheel_Task_SubmitTraining(
-            config.Handle,
-            taskHandle.NativeCallback,
-            IntPtr.Zero,
-            taskIdBuffer,
-            taskIdBuffer.Capacity,
-            ref err);
+        try
+        {
+            var result = NativeMethods.Wheel_Task_SubmitTraining(
+                config.Handle,
+                taskHandle.NativeCallback,
+                IntPtr.Zero,
+                taskIdBuffer,
+                taskIdBuffer.Capacity,
+                ref err);
 
-        WheelException.ThrowIfError(result, ref err);
+            WheelException.ThrowIfError(result, ref err);
 
-        // Create a new TaskHandle with the actual task ID
-        taskHandle.Dispose();
-        return new TaskHandle(taskIdBuffer.ToString(), OperationType.Train, progressCallback);
+            // Update task ID on the same TaskHandle (keeps callback pinned)
+            taskHandle.SetTaskId(taskIdBuffer.ToString());
+            return taskHandle;
+        }
+        catch
+        {
+            // Only dispose on failure - callback won't be called
+            taskHandle.Dispose();
+            throw;
+        }
     }
 
     /// <summary>
